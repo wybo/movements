@@ -327,6 +327,11 @@ window.reInitialize = (options) ->
     context.canvas.width = context.canvas.width
   window.initialize(options)
 
+if !window.initializedDivs
+  $("#model_container").append(
+    '<div id="graph" style="width: 800px; height: 500px;"></div>')
+  window.initializedDivs = true
+
 config = new Config
 
 window.initialize(config)
