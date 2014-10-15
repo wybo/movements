@@ -15,7 +15,13 @@ class Config
 
 class Model extends ABM.Model
   startup: ->
-    @ui = new UI(this, plotDiv: "#graph")
+    if window.ui
+      $("#graph").remove()
+      window.ui.gui.domElement.remove()
+    
+    $("#model_container").append(
+      '<div id="graph" style="width: 800px; height: 500px;"></div>')
+    window.ui = new UI(this, plotDiv: "#graph")
 
   setup: ->
     @agentBreeds ["citizens", "cops"]
@@ -246,19 +252,18 @@ class UI
       restart: ->
         window.model.restart()
 
-    gui = new dat.GUI()
+    @gui = new dat.GUI()
 
     for key, value of settings
       if u.isArray(value)
-        gui.add(@model.config, key, value...)
+        @gui.add(@model.config, key, value...)
       else
-        adder = gui.add(@model.config, key)
+        adder = @gui.add(@model.config, key)
         for setting, argument of value
           adder[setting](argument)
 
-
     for key, bull of buttons
-      gui.add(buttons, key)
+      @gui.add(buttons, key)
 
   setupPlot: () ->
     @plotOptions = {
@@ -326,11 +331,6 @@ window.reInitialize = (options) ->
   for bull, context of contexts
     context.canvas.width = context.canvas.width
   window.initialize(options)
-
-if !window.initializedDivs
-  $("#model_container").append(
-    '<div id="graph" style="width: 800px; height: 500px;"></div>')
-  window.initializedDivs = true
 
 config = new Config
 
