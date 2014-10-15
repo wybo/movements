@@ -164,7 +164,7 @@ class Model extends ABM.Model
         @moveTo(empty.position) if empty
         @makeArrest()
 
-    @ui.resetPlot()
+    window.modelUI.resetPlot()
 
   prisoners: ->
     prisoners = []
