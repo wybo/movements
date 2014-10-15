@@ -303,7 +303,7 @@ class UI
 window.initialize = (options) ->
   window.model = new Model({
     Agent: Agent,
-    div: "model",
+    div: "world",
     patchSize: 20,
     mapSize: 40
     isTorus: true,
@@ -311,15 +311,15 @@ window.initialize = (options) ->
     config: config,
   })
   window.model.start() # Debug: Put Model vars in global name space
-  window.forum = new Forum({
-    Agent: Agent,
-    div: "media",
-    patchSize: 10,
-    mapSize: 80
-    isTorus: true,
-    hasNeighbors: true
-  })
-  window.forum.start() # Debug: Put Model vars in global name space
+#  window.forum = new Forum({
+#    Agent: Agent,
+#    div: "media",
+#    patchSize: 10,
+#    mapSize: 80
+#    isTorus: true,
+#    hasNeighbors: true
+#  })
+#  window.forum.start() # Debug: Put Model vars in global name space
 
 window.reInitialize = (options) ->
   contexts = window.model.contexts
