@@ -193,7 +193,7 @@ class Model extends ABM.Model
     for agent in @agents
       agent.act()
 
-    @ui.drawPlot(@animator.ticks)
+    window.modelUI.drawPlot(@animator.ticks)
 
     #@spriteSheet()
 
