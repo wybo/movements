@@ -15,13 +15,7 @@ class Config
 
 class Model extends ABM.Model
   startup: ->
-    if window.modelUI
-      $("#graph").remove()
-      window.modelUI.gui.domElement.remove()
-    
-    $("#model_container").append(
-      '<div id="graph" style="width: 800px; height: 500px;"></div>')
-    window.modelUI = new UI(this, plotDiv: "#graph")
+    window.modelUI = new UI(this)
 
   setup: ->
     @agentBreeds ["citizens", "cops"]
@@ -38,11 +32,11 @@ class Model extends ABM.Model
     for patch in @patches.create()
       if @config.type is ABM.TYPES.enclave
         if patch.position.y > 0
-          patch.color = u.randomGray(180, 204)
+          patch.color = u.color.random type: "gray", min: 180, max: 204
         else
-          patch.color = u.randomGray(234, 255)
+          patch.color = u.color.random type: "gray", min: 234, max: 255
       else
-        patch.color = u.randomGray(224, 255)
+        patch.color = u.color.random type: "gray", min: 224, max: 255
 
     space = @patches.length
 
@@ -50,7 +44,7 @@ class Model extends ABM.Model
       citizen.vision = @vision
       citizen.size = @size
       citizen.shape = "person"
-      citizen.setColor("green")
+      citizen.setColor "green"
       citizen.moveToRandomEmptyLocation()
 
       citizen.regimeLegitimacy = 0.32
@@ -98,24 +92,24 @@ class Model extends ABM.Model
 
           if activation > @threshold
             @active = true
-            @setColor("red")
+            @setColor "red"
             @activeMicro = 1.0
           else if activation > @thresholdMicro
             @active = false
-            @setColor([255, 164, 0])
+            @setColor "orange"
             @activeMicro = 0.4
           else
             @active = false
-            @setColor("green")
+            @setColor "green"
             @activeMicro = 0.0
 
         else
           if @grievance() - @netRisk() > @threshold
             @active = true
-            @setColor("red")
+            @setColor "red"
           else
             @active = false
-            @setColor("green")
+            @setColor "green"
 
       citizen.act = ->
         if @imprisoned()
@@ -140,7 +134,7 @@ class Model extends ABM.Model
       cop.vision = @vision
       cop.size = @size
       cop.shape = "person"
-      cop.setColor("blue")
+      cop.setColor "blue"
       cop.moveToRandomEmptyLocation()
 
       cop.maxPrisonSentence = 30
@@ -166,6 +160,15 @@ class Model extends ABM.Model
 
     window.modelUI.resetPlot()
 
+  step: -> # called by Model.animate
+    @agents.shuffle()
+    for agent in @agents
+      agent.act()
+
+    window.modelUI.drawPlot(@animator.ticks)
+
+    config.forum.once()
+
   prisoners: ->
     prisoners = []
     for citizen in @citizens
@@ -188,28 +191,9 @@ class Model extends ABM.Model
         micros.push citizen
     micros
 
-  step: ->  # called by Model.animate
-    @agents.shuffle()
-    for agent in @agents
-      agent.act()
-
-    window.modelUI.drawPlot(@animator.ticks)
-
-    #@spriteSheet()
-
-  spriteSheet: ->
-    if @animator.draws is 2 # Show the sprite sheet if there is one after first draw
-      sheet = u.last(u.s.spriteSheets) if u.s.spriteSheets.length isnt 0
-      if sheet?
-        log sheet
-        document.getElementById("play").appendChild(sheet.canvas)
-
 class Agent extends ABM.Agent
   setColor: (color) ->
-    if u.isString color
-      @color = u.colorFromString(color)
-    else
-      @color = color
+    @color = new u.color color
     @sprite = null
 
   moveToRandomEmptyLocation: ->
@@ -228,13 +212,68 @@ class Forum extends ABM.Model
 
     @animator.setRate 20, false
 
-    for patch in @patches.create()
-      patch.color = u.randomGray(224, 255)
+    @messages = new ABM.Array
+    @threads = new ABM.Array
+
+    @newThread()
+
+    while @messages.length < 20
+      @newPost()
+
+  step: ->
+    if u.randomInt(20) == 1
+      @agents.create 1
+      last = @agents.last()
+      last.heading = u.degreesToRadians(270)
+      last.moveTo(@messages[0][0].position)
+
+    for agent in @agents
+      agent.forward 1
+      if !agent.patch?
+        agent.moveTo(x: agent.position.x + 1, y: 20)
+
+  newPost: ->
+    if u.randomInt(7) == 1
+      @newThread()
+    else
+      # rare
+      if @messages[0].length == 20
+        @newThread()
+      else
+        @newComment()
+
+  newThread: ->
+    for patch in @patches
+      patch.position.x += 1
+
+    @patches.create x: 0, y: 20
+    last = @patches.last()
+    last.color = u.color.lightgray
+    @messages.unshift new ABM.Array
+    @messages[0].push last
+
+  newComment: ->
+    @patches.create x: 0, y: @messages[0].last().position.y - 1
+    last = @patches.last()
+    last.color = u.color.lightgray
+    @messages[0].push last
 
 class UI
   constructor: (model, options = {}) ->
+    if window.modelUI
+      window.modelUI.gui.domElement.remove()
+
+    element = $("#graph")
+
+    if element.lenght > 0
+      element.remove()
+    
+    $("#model_container").append(
+      '<div id="graph" style="width: 400px; height: 250px;"></div>')
+    #  '<div id="graph" style="width: 800px; height: 500px;"></div>')
+
     @model = model
-    @plotDiv = $(options.plotDiv)
+    @plotDiv = $("#graph")
     @gui = new dat.GUI()
     @setupControls()
     @setupPlot()
@@ -305,31 +344,30 @@ class UI
     @plotter.draw()
 
 window.initialize = (options) ->
+  config.forum = new Forum({
+    div: "media"
+    patchSize: 20
+    min: {x: 0, y: 0}
+    max: {x: 20, y: 20}
+    isTorus: true
+  })
   window.model = new Model({
-    Agent: Agent,
-    div: "world",
-    patchSize: 20,
-    mapSize: 40
-    isTorus: true,
-    hasNeighbors: true,
-    config: config,
+    Agent: Agent
+    div: "world"
+    patchSize: 20
+    mapSize: 20
+    isTorus: true
+    config: config
   })
   window.model.start() # Debug: Put Model vars in global name space
-#  window.forum = new Forum({
-#    Agent: Agent,
-#    div: "media",
-#    patchSize: 10,
-#    mapSize: 80
-#    isTorus: true,
-#    hasNeighbors: true
-#  })
-#  window.forum.start() # Debug: Put Model vars in global name space
 
 window.reInitialize = (options) ->
   contexts = window.model.contexts
   for bull, context of contexts
     context.canvas.width = context.canvas.width
   window.initialize(options)
+
+$("#model_container").append('<div id="media"></div>')
 
 config = new Config
 
