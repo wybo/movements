@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script src="javascripts/jquery.min.js"></script>
+    <script src="javascripts/agentbase.js"></script>
+    <script src="javascripts/application.js"></script>
+    <script src="model.coffee" type="text/coffeescript"></script>
+    <title>AgentBase - Agent Based Model</title>
+    <style>
+      #model_container div {
+        float: left;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="model_container">
+      <div id="world"></div>
+    </div>
+    <div id="buttons">
+      <a class="button" href="#" onclick="window.model.once()">Step</a>
+      <a class="button" href="#" onclick="window.model.toggle()">Pause/Resume</a>
+      <a class="button" href="#" onclick="window.model.restart()">Restart</a>
+      <a href="http://agentbase.org">Visit AgentBase to edit</a>
+    </div>
+  </body>
+</html>

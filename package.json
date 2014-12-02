@@ -1,0 +1,54 @@
+{
+  "name": "Movements",
+  "version": "0.1.0",
+  "description": "Social Movements ABM",
+  "main": "model.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/wybow/agentbase.git"
+  },
+  "keywords": [
+    "social movements",
+    "arab spring",
+    "occupy",
+    "abm",
+    "agent based model",
+    "coffeescript"
+  ],
+  "author": "Wybo Wiersma",
+  "license": "GPLv3",
+  "bugs": {
+    "url": "https://github.com/wybow/agentbase/issues"
+  },
+  "scripts": {
+    "all": "gulp all",
+    "build": "gulp build",
+    "doc": "codo src",
+    "watch": "gulp watch",
+    "git-pull": "git checkout master && git pull",
+    "git-diff": "git diff Gulpfile.js LICENSE README.md package.json src models",
+    "git-prep": "git checkout master && gulp all && git add . && git status",
+    "git-commit": "git checkout master && git commit -v && git push origin master"
+  },
+  "devDependencies": {
+    "codo": "^2.0.9",
+    "gulp": "^3.8.5",
+    "gulp-coffee": "^2.0.1",
+    "gulp-docco": "^0.0.4",
+    "gulp-sourcemaps": "^1.1.3",
+    "gulp-concat": "^2.3.0",
+    "gulp-rename": "^1.2.0",
+    "gulp-shell": "^0.2.10",
+    "gulp-task-listing": "^0.3.0",
+    "gulp-uglify": "^0.3.1",
+    "lazypipe": "^0.2.1",
+    "shelljs": "^0.2.6",
+    "jasmine-core": "^2.0.4",
+    "jasmine-node": "^1.14.5",
+    "http-server": "~0.6.1",
+    "coffee-script": "~1.7.1"
+  }
+}
