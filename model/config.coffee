@@ -9,6 +9,8 @@ class Config
 #  medium: ABM.MEDIA.email
   medium: ABM.MEDIA.forum
 #  medium: ABM.MEDIA.website
+#
   type: ABM.TYPES.normal
+
   citizenDensity: 0.7
   copDensity: 0.02

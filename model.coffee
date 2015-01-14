@@ -9,7 +9,9 @@ class Config
 #  medium: ABM.MEDIA.email
   medium: ABM.MEDIA.forum
 #  medium: ABM.MEDIA.website
+#
   type: ABM.TYPES.normal
+
   citizenDensity: 0.7
   copDensity: 0.02
 
@@ -25,8 +27,6 @@ class Medium extends ABM.Model
     @agents.setUseSprites()
 
     @animator.setRate 20, false
-
-    @messages = new ABM.Array
 
     @dummyAgent = {position: {x: 0, y: @world.max.y}, color: u.color.lightgray, twin: {active: false}, dummy: true}
 
@@ -76,7 +76,7 @@ class Communication
     @media[ABM.MEDIA.website] = new Website(medium_hash)
     @media[ABM.MEDIA.email] = new EMail(medium_hash)
 
-    @model.config.oldMedium = @model.config.medium
+    @updateOldMedium()
 
   medium: ->
     @media[@model.config.medium]
@@ -185,23 +185,9 @@ class Forum extends Medium
     @messages[agent.position.x].push patch
 
 class Message
-  @inboxes = new ABM.Array
-
-  @read: (agent) ->
-    @inboxes[agent.twin.id].pop()
-
-  @inbox: (agent) ->
-    @inboxes[agent.twin.id] ||= new ABM.Array
-    @inboxes[agent.twin.id]
-
   constructor: (options) ->
     @from = options.from
-    @to = options.to
     @active = options.active
-    @route()
-
-  route: ->
-    @constructor.inboxes[@to.twin.id].push @
 
 class UI
   constructor: (model, options = {}) ->
@@ -326,21 +312,10 @@ class Website extends Medium
       oldPage.color = u.color.white
 
 class Model extends ABM.Model
-  startup: ->
-    @communication = new Communication(this)
-    window.modelUI = new UI(this)
-
   setup: ->
     @agentBreeds ["citizens", "cops"]
     @size = 0.9
     @vision = {diamond: 7} # Neumann 7
-
-    console.log @config
-    
-    # Shape to bitmap for better performance.
-    @agents.setUseSprites()
-
-    @animator.setRate 20, false
 
     for patch in @patches.create()
       if @config.type is ABM.TYPES.enclave
@@ -400,9 +375,9 @@ class Model extends ABM.Model
         @prisonSentence > 0
 
       citizen.activate = ->
-        if @model.config.type is ABM.TYPES.micro
-          activation = @grievance() - @netRisk()
+        activation = @grievance() - @netRisk()
 
+        if @model.config.type is ABM.TYPES.micro
           if activation > @threshold
             @active = true
             @setColor "red"
@@ -417,7 +392,7 @@ class Model extends ABM.Model
             @activeMicro = 0.0
 
         else
-          if @grievance() - @netRisk() > @threshold
+          if activation > @threshold
             @active = true
             @setColor "red"
           else
@@ -507,10 +482,20 @@ class Model extends ABM.Model
         micros.push citizen
     micros
 
+class Initializer extends Model
+  startup: ->
+    @communication = new Communication(this)
+    window.modelUI = new UI(this)
+
+  setup: ->
+    @agents.setUseSprites() # Bitmap for better performance.
+    @animator.setRate 20, false
+    super()
+
 # Initialization
 
 window.initialize = (options) ->
-  window.model = new Model({
+  window.model = new Initializer({
     Agent: Agent
     div: "world"
     patchSize: 20

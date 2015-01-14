@@ -8,7 +8,7 @@ function copyAll {
 
 copyAll
 
-while sleep_until_modified.py /home/wybo/projects/agentbase/agentbase/lib/agentbase.js
+while ./tools/sleep_until_modified.py /home/wybo/projects/agentbase/agentbase/lib/agentbase.js
 do 
   copyAll
 done

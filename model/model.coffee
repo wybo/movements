@@ -1,19 +1,8 @@
 class Model extends ABM.Model
-  startup: ->
-    @communication = new Communication(this)
-    window.modelUI = new UI(this)
-
   setup: ->
     @agentBreeds ["citizens", "cops"]
     @size = 0.9
     @vision = {diamond: 7} # Neumann 7
-
-    console.log @config
-    
-    # Shape to bitmap for better performance.
-    @agents.setUseSprites()
-
-    @animator.setRate 20, false
 
     for patch in @patches.create()
       if @config.type is ABM.TYPES.enclave
@@ -73,9 +62,9 @@ class Model extends ABM.Model
         @prisonSentence > 0
 
       citizen.activate = ->
-        if @model.config.type is ABM.TYPES.micro
-          activation = @grievance() - @netRisk()
+        activation = @grievance() - @netRisk()
 
+        if @model.config.type is ABM.TYPES.micro
           if activation > @threshold
             @active = true
             @setColor "red"
@@ -90,7 +79,7 @@ class Model extends ABM.Model
             @activeMicro = 0.0
 
         else
-          if @grievance() - @netRisk() > @threshold
+          if activation > @threshold
             @active = true
             @setColor "red"
           else
@@ -179,28 +168,3 @@ class Model extends ABM.Model
           not citizen.imprisoned()
         micros.push citizen
     micros
-
-# Initialization
-
-window.initialize = (options) ->
-  window.model = new Model({
-    Agent: Agent
-    div: "world"
-    patchSize: 20
-    mapSize: 20
-    isTorus: true
-    config: config
-  })
-  window.model.start() # Debug: Put Model vars in global name space
-
-window.reInitialize = (options) ->
-  contexts = window.model.contexts
-  for bull, context of contexts
-    context.canvas.width = context.canvas.width
-  window.initialize(options)
-
-$("#model_container").append('<div id="media"></div>')
-
-config = new Config
-
-window.initialize(config)

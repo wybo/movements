@@ -14,7 +14,7 @@ class Communication
     @media[ABM.MEDIA.website] = new Website(medium_hash)
     @media[ABM.MEDIA.email] = new EMail(medium_hash)
 
-    @model.config.oldMedium = @model.config.medium
+    @updateOldMedium()
 
   medium: ->
     @media[@model.config.medium]

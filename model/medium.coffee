@@ -11,8 +11,6 @@ class Medium extends ABM.Model
 
     @animator.setRate 20, false
 
-    @messages = new ABM.Array
-
     @dummyAgent = {position: {x: 0, y: @world.max.y}, color: u.color.lightgray, twin: {active: false}, dummy: true}
 
     for patch in @patches.create()
