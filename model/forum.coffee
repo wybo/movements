@@ -2,9 +2,11 @@ class Forum extends Medium
   setup: ->
     super
 
+    @threads = new ABM.Array
+
     @newThread(@dummyAgent)
 
-    while @messages.length < @world.max.x
+    while @threads.length < @world.max.x
       @newPost(@dummyAgent)
 
   step: ->
@@ -45,11 +47,11 @@ class Forum extends Medium
 
     @colorPost(opener, agent)
 
-    @messages.unshift new ABM.Array opener
-    if @messages.length > @world.max.x
-      @messages.pop
+    @threads.unshift new ABM.Array opener
+    if @threads.length > @world.max.x
+      @threads.pop
 
   newComment: (agent) ->
-    patch = @patches.patch(x: agent.position.x, y: @messages[agent.position.x].last().position.y - 1)
+    patch = @patches.patch(x: agent.position.x, y: @threads[agent.position.x].last().position.y - 1)
     @colorPost(patch, agent)
-    @messages[agent.position.x].push patch
+    @threads[agent.position.x].push patch

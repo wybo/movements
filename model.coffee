@@ -49,6 +49,11 @@ class Medium extends ABM.Model
     else
       patch.color = u.color.lightgray
 
+class Message
+  constructor: (options) ->
+    @from = options.from
+    @active = options.active
+
 class Agent extends ABM.Agent
   setColor: (color) ->
     @color = new u.color color
@@ -91,16 +96,18 @@ class EMail extends Medium
   setup: ->
     super
 
+    @inboxes = new ABM.Array
+
   step: ->
     for agent in @agents
       if u.randomInt(20) == 1
         @newMail(agent)
       else
-        @readMessage(agent)
+        agent.read()
 
-    @setPatches()
+    @drawAll()
 
-  setPatches: ->
+  drawAll: ->
     x_offset = y_offset = 0
     for agent, i in @agents
       x = i %% (@world.max.x + 1)
@@ -120,21 +127,34 @@ class EMail extends Medium
 
   use: (twin) ->
     agent = @createAgent(twin)
-    agent.inbox = Message.inbox(agent)
+    agent.inbox = @newInbox(agent)
+    agent.read = ->
+      @inbox.pop()
+
+  newInbox: (agent) ->
+    @inboxes[agent.twin.id] = new ABM.Array
+    @inboxes[agent.twin.id]
 
   newMail: (agent) ->
-    new Message from: agent, to: @agents.sample(), active: agent.twin.active
+    @route new EmailMessage from: agent, to: @agents.sample(), active: agent.twin.active
 
-  readMessage: (agent) ->
-    message = Message.read(agent)
+  route: (message) ->
+    @inboxes[message.to.twin.id].push message
+
+class EmailMessage extends Message
+  constructor: (options) ->
+    super(options)
+    @to = options.to
 
 class Forum extends Medium
   setup: ->
     super
 
+    @threads = new ABM.Array
+
     @newThread(@dummyAgent)
 
-    while @messages.length < @world.max.x
+    while @threads.length < @world.max.x
       @newPost(@dummyAgent)
 
   step: ->
@@ -175,19 +195,14 @@ class Forum extends Medium
 
     @colorPost(opener, agent)
 
-    @messages.unshift new ABM.Array opener
-    if @messages.length > @world.max.x
-      @messages.pop
+    @threads.unshift new ABM.Array opener
+    if @threads.length > @world.max.x
+      @threads.pop
 
   newComment: (agent) ->
-    patch = @patches.patch(x: agent.position.x, y: @messages[agent.position.x].last().position.y - 1)
+    patch = @patches.patch(x: agent.position.x, y: @threads[agent.position.x].last().position.y - 1)
     @colorPost(patch, agent)
-    @messages[agent.position.x].push patch
-
-class Message
-  constructor: (options) ->
-    @from = options.from
-    @active = options.active
+    @threads[agent.position.x].push patch
 
 class UI
   constructor: (model, options = {}) ->
@@ -287,6 +302,8 @@ class UI
 class Website extends Medium
   setup: ->
     super
+
+    @messages = new ABM.Array
 
     while @messages.length < 100
       @newPage(@dummyAgent)

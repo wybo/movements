@@ -25,7 +25,7 @@ readFilePaths = (sourceDir, firstFiles, lastFiles) ->
   fileNames.map (name) ->
     sourceDir + name
 
-FilePaths = readFilePaths 'model/', ['config', 'medium'], ['model', 'initializer']
+FilePaths = readFilePaths 'model/', ['config', 'medium', 'message'], ['model', 'initializer']
 
 console.log FilePaths
 

@@ -2,6 +2,8 @@ class Website extends Medium
   setup: ->
     super
 
+    @messages = new ABM.Array
+
     while @messages.length < 100
       @newPage(@dummyAgent)
 
