@@ -13,24 +13,6 @@ class EMail extends Medium
 
     @drawAll()
 
-  drawAll: ->
-    x_offset = y_offset = 0
-    for agent, i in @agents
-      x = i %% (@world.max.x + 1)
-      y_offset = Math.floor(i / (@world.max.x + 1)) * 5
-
-      for message, j in agent.inbox
-        patch = @patches.patch(x: x, y: y_offset + j)
-
-        @colorPost(patch, twin: message)
-        lastPatch = patch
-
-      if lastPatch?
-        white = @patches.patch x: lastPatch.position.x, y: lastPatch.position.y + 1
-        white.color = u.color.white
-
-      agent.moveTo x: x, y: y_offset
-
   use: (twin) ->
     agent = @createAgent(twin)
     agent.inbox = @newInbox(agent)
@@ -46,3 +28,21 @@ class EMail extends Medium
 
   route: (message) ->
     @inboxes[message.to.twin.id].push message
+
+  drawAll: ->
+    x_offset = y_offset = 0
+    for agent, i in @agents
+      x = i %% (@world.max.x + 1)
+      y_offset = Math.floor(i / (@world.max.x + 1)) * 5
+
+      for message, j in agent.inbox
+        patch = @patches.patch(x: x, y: y_offset + j)
+
+        @colorPatch(patch, message)
+        lastPatch = patch
+
+      if lastPatch?
+        white = @patches.patch x: lastPatch.position.x, y: lastPatch.position.y + 1
+        white.color = u.color.white
+
+      agent.moveTo x: x, y: y_offset

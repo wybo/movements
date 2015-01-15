@@ -11,7 +11,7 @@ class Medium extends ABM.Model
 
     @animator.setRate 20, false
 
-    @dummyAgent = {position: {x: 0, y: @world.max.y}, color: u.color.lightgray, twin: {active: false}, dummy: true}
+    @dummyAgent = {twin: {active: false}, dummy: true}
 
     for patch in @patches.create()
       patch.color = u.color.white
@@ -26,8 +26,8 @@ class Medium extends ABM.Model
 
     return agent
 
-  colorPost: (patch, agent) ->
-    if agent.twin.active
+  colorPatch: (patch, message) ->
+    if message.active
       patch.color = u.color.orange
     else
       patch.color = u.color.lightgray

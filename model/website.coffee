@@ -20,7 +20,7 @@ class Website extends Medium
 
   newPage: (agent) ->
     patch = @patches.sample()
-    @colorPost(patch, agent)
+# TODO    @colorPatch(patch, agent.twin)
 
     @messages.unshift patch
     if @messages.length > 100

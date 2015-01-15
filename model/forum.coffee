@@ -4,25 +4,26 @@ class Forum extends Medium
 
     @threads = new ABM.Array
 
+    @dummyAgent.reading = {threadNr: 0, postNr: 0}
+
     @newThread(@dummyAgent)
 
     while @threads.length < @world.max.x
       @newPost(@dummyAgent)
 
   step: ->
-    for agent in @agents by -1
-      if u.randomInt(20) == 1
-        @newPost(agent)
-      else
-        agent.forward 1, snap: true
-        if agent.patch.color == u.color.white or agent.position.y == 0
-          agent.moveTo(x: agent.position.x + 1, y: @world.max.y)
-      if agent.position.x > @world.max.x
-        agent.die()
+    for agent in @agents
+      if agent # might have died already
+        if u.randomInt(20) == 1
+          @newPost(agent)
+        else
+          @moveForward(agent)
+
+    @drawAll()
 
   use: (twin) ->
     agent = @createAgent(twin)
-    agent.moveTo(x: 0, y: @world.max.y)
+    agent.reading = {threadNr: 0, postNr: 0}
 
   newPost: (agent) ->
     if u.randomInt(7) == 1
@@ -31,27 +32,40 @@ class Forum extends Medium
       @newComment(agent)
 
   newThread: (agent) ->
-    opener = null
+    @threads.unshift new ABM.Array new Message from: agent, active: agent.active
 
-    for patch in @patches by -1
-      if patch.position.x > 0
-        previous = @patches.patch x: patch.position.x - 1, y: patch.position.y
-        patch.color = previous.color
-        for agent in previous.agents by -1
-          agent.moveTo patch.position
-      else
-        if patch.position.y == @world.max.y
-          opener = patch
-        else
-          patch.color = u.color.white
+    for agent in @agents
+      if agent # might have died already
+        agent.reading.threadNr += 1
+        @fallOffWorld(agent)
 
-    @colorPost(opener, agent)
-
-    @threads.unshift new ABM.Array opener
     if @threads.length > @world.max.x
       @threads.pop
 
   newComment: (agent) ->
-    patch = @patches.patch(x: agent.position.x, y: @threads[agent.position.x].last().position.y - 1)
-    @colorPost(patch, agent)
-    @threads[agent.position.x].push patch
+    if @threads[agent.reading.threadNr].length <= @world.max.y
+      @threads[agent.reading.threadNr].push new Message from: agent, active: agent.twin.active
+
+  moveForward: (agent) ->
+    console.log agent
+    agent.reading.postNr += 1
+    if agent.reading.postNr >= @threads[agent.reading.threadNr].length
+      agent.reading.threadNr += 1
+      agent.reading.postNr = 0
+      @fallOffWorld(agent)
+
+  fallOffWorld: (agent) ->
+    if agent.reading.threadNr > @world.max.x
+      agent.die()
+
+  drawAll: ->
+    for patch in @patches
+      patch.color = u.color.white
+
+    for thread, i in @threads
+      for post, j in thread
+        patch = @patches.patch x: i, y: @world.max.y - j
+        @colorPatch(patch, post)
+
+    for agent in @agents
+      agent.moveTo(x: agent.reading.threadNr, y: @world.max.y - agent.reading.postNr)
