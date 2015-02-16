@@ -42,6 +42,7 @@ class UI
             @model.communication.oldMedium().reset()
             @model.communication.medium().restart()
             @model.communication.updateOldMedium()
+            @addMediaMarker()
           )
         else
           @gui.add(@model.config, key, value...)
@@ -64,15 +65,19 @@ class UI
       yaxis: {
         min: 0
       }
+      grid: {
+        markings: []
+      }
     }
 
   resetPlot: ->
     @plotRioters = []
-    @plotRioters.push({color: "green", data: []})
-    @plotRioters.push({color: "red", data: []})
+    @plotRioters.push({label: "Passives", color: "green", data: []})
+    @plotRioters.push({label: "Actives", color: "red", data: []})
+    @plotRioters.push({label: "Prisoners", color: "black", data: []})
+    @plotRioters.push({label: "Cops", color: "blue", data: []})
+    @plotRioters.push({label: "Micros", color: "orange", data: []})
     @plotRioters.push({color: "black", data: []})
-    @plotRioters.push({color: "blue", data: []})
-    @plotRioters.push({color: "orange", data: []})
     @plotter = $.plot(@plotDiv, @plotRioters, @plotOptions)
     @drawPlot(0)
 
@@ -89,6 +94,14 @@ class UI
     @plotRioters[2].data.push [ticks, prisoners]
     @plotRioters[3].data.push [ticks, cops]
     @plotRioters[4].data.push [ticks, micros]
+    if @mediaMarker
+      @plotRioters[5].data.push [ticks, 0], [ticks, citizens], null
+      @mediaMarker = false
     @plotter.setData(@plotRioters)
     @plotter.setupGrid()
     @plotter.draw()
+
+  addMediaMarker: ->
+    @mediaMarker = true
+    console.log "Adding MEDIA MARKER"
+

@@ -48,7 +48,7 @@ class Medium extends ABM.Model
 
   colorPatch: (patch, message) ->
     if message.active
-      patch.color = u.color.orange
+      patch.color = u.color.pink
     else
       patch.color = u.color.lightgray
 
