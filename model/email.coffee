@@ -6,30 +6,28 @@ class EMail extends Medium
 
   step: ->
     for agent in @agents
-      if u.randomInt(20) == 1
+      if u.randomInt(3) == 1
         @newMail(agent)
       else
-        agent.read()
+        agent.readMail()
 
     @drawAll()
 
   use: (twin) ->
     agent = @createAgent(twin)
-    agent.inbox = @newInbox(agent)
-    agent.read = ->
-      @inbox.pop()
-
-  newInbox: (agent) ->
-    @inboxes[agent.twin.id] = new ABM.Array
-    @inboxes[agent.twin.id]
+    agent.inbox = @inboxes[agent.twin.id] = new ABM.Array
+    agent.readMail = ->
+      agent.read(@inbox.pop())
 
   newMail: (agent) ->
-    @route new EmailMessage from: agent, to: @agents.sample(), active: agent.twin.active
+    @route new Message from: agent, to: @agents.sample(), active: agent.twin.active
 
   route: (message) ->
     @inboxes[message.to.twin.id].push message
 
   drawAll: ->
+    @resetPatches()
+
     x_offset = y_offset = 0
     for agent, i in @agents
       x = i %% (@world.max.x + 1)
@@ -37,12 +35,6 @@ class EMail extends Medium
 
       for message, j in agent.inbox
         patch = @patches.patch(x: x, y: y_offset + j)
-
         @colorPatch(patch, message)
-        lastPatch = patch
-
-      if lastPatch?
-        white = @patches.patch x: lastPatch.position.x, y: lastPatch.position.y + 1
-        white.color = u.color.white
 
       agent.moveTo x: x, y: y_offset

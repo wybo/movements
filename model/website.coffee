@@ -2,27 +2,44 @@ class Website extends Medium
   setup: ->
     super
 
-    @messages = new ABM.Array
+    @sites = new ABM.Array
 
-    while @messages.length < 100
+    while @sites.length < 100
       @newPage(@dummyAgent)
+
+  use: (twin) ->
+    @createAgent(twin)
 
   step: ->
     for agent in @agents
       if u.randomInt(20) == 1
         @newPage(agent)
-      else
-        agent.moveTo(@messages.sample().position)
 
-  use: (twin) ->
-    agent = @createAgent(twin)
-    agent.moveTo(@messages.sample().position)
+      @moveToRandomPage(agent)
+
+    @drawAll()
 
   newPage: (agent) ->
-    patch = @patches.sample()
-# TODO    @colorPatch(patch, agent.twin)
+    @sites.unshift new Message from: agent, active: agent.twin.active
+    @dropSite()
 
-    @messages.unshift patch
-    if @messages.length > 100
-      oldPage = @messages.pop()
-      oldPage.color = u.color.white
+  dropSite: ->
+    if @sites.length > 100
+      site = @sites.pop()
+      for reader in site.readers by -1
+        @moveToRandomPage(reader)
+
+  moveToRandomPage: (agent) ->
+    agent.read(@sites.sample())
+
+  drawAll: ->
+    @resetPatches()
+
+    for site in @sites
+      if !site.patch?
+        site.patch = @patches.sample()
+
+      @colorPatch(site.patch, site) # TODO reduce
+
+    for agent in @agents
+      agent.moveTo(agent.reading.patch.position)

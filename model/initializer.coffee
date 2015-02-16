@@ -10,25 +10,19 @@ class Initializer extends Model
 
 # Initialization
 
-window.initialize = (options) ->
-  window.model = new Initializer({
-    Agent: Agent
-    div: "world"
-    patchSize: 20
-    mapSize: 20
-    isTorus: true
-    config: config
-  })
-  window.model.start() # Debug: Put Model vars in global name space
+config = new Config
 
-window.reInitialize = (options) ->
+window.initialize = (config) ->
+  window.model = new Initializer(
+    u.merge(config.modelOptions, {config: config}))
+  window.model.start()
+
+window.reInitialize = ->
   contexts = window.model.contexts
   for bull, context of contexts
     context.canvas.width = context.canvas.width
-  window.initialize(options)
+  window.initialize(window.model.config)
 
 $("#model_container").append('<div id="media"></div>')
-
-config = new Config
 
 window.initialize(config)

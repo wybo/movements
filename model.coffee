@@ -2,22 +2,49 @@ u = ABM.util # ABM.util alias
 log = (object) -> console.log object
 
 ABM.TYPES = {normal: "0", enclave: "1", micro: "2"}
-ABM.MEDIA = {email: "0", website: "1", forum: "2"}
+ABM.MEDIA = {none: 0, email: "1", website: "2", forum: "3"}
 # turn back to numbers once dat.gui fixed
 
 class Config
+#  medium: ABM.MEDIA.none
 #  medium: ABM.MEDIA.email
   medium: ABM.MEDIA.forum
 #  medium: ABM.MEDIA.website
-#
+
   type: ABM.TYPES.normal
 
   citizenDensity: 0.7
   copDensity: 0.02
 
+  # ### Do not modify below unless you know what you're doing.
+
+  constructor: ->
+    sharedModelOptions = {
+      Agent: Agent
+    }
+
+    @modelOptions = u.merge(sharedModelOptions, {
+      div: "world"
+      patchSize: 20
+      mapSize: 20
+      isTorus: true
+      # config is added
+    })
+
+    @mediaModelOptions = u.merge(sharedModelOptions, {
+      div: "media"
+      patchSize: 20
+      min: {x: 0, y: 0}
+      max: {x: 19, y: 19}
+    })
+
 # Copyright 2014, Wybo Wiersma, available under the GPL v3
 # This model builds upon Epsteins model of protest, and illustrates
 # the possible impact of social media on protest formation.
+
+Function::property = (property) ->
+  for key, value of property
+    Object.defineProperty @prototype, key, value
 
 class Medium extends ABM.Model
   setup: ->
@@ -28,7 +55,7 @@ class Medium extends ABM.Model
 
     @animator.setRate 20, false
 
-    @dummyAgent = {twin: {active: false}, dummy: true}
+    @dummyAgent = {twin: {active: false}, read: (->), dummy: true}
 
     for patch in @patches.create()
       patch.color = u.color.white
@@ -36,10 +63,26 @@ class Medium extends ABM.Model
   createAgent: (twin) ->
     @agents.create 1
     agent = @agents.last()
+    agent.twin = twin
+    twin.twins[twin.model.config.medium] = agent
+
     agent.size = @size
     agent.heading = u.degreesToRadians(270)
-    agent.twin = twin
     agent.color = twin.color
+
+    agent.read = (message) ->
+      @closeMessage()
+
+      if message
+        message.readers.push(@)
+
+      @reading = message
+
+    agent.closeMessage = ->
+      if @reading?
+        @reading.readers.remove(@)
+
+      @reading = null
 
     return agent
 
@@ -49,12 +92,30 @@ class Medium extends ABM.Model
     else
       patch.color = u.color.lightgray
 
+  resetPatches: ->
+    for patch in @patches
+      patch.color = u.color.white
+
 class Message
   constructor: (options) ->
     @from = options.from
+    @to = options.to
     @active = options.active
+    @readers = new ABM.Array
+  
+  destroy: ->
+    for reader in @readers
+      reader.die()
 
 class Agent extends ABM.Agent
+  constructor: ->
+    super
+
+    @twins = new ABM.Array
+
+  twin: ->
+    @twins[@model.config.medium]
+
   setColor: (color) ->
     @color = new u.color color
     @sprite = null
@@ -69,17 +130,12 @@ class Communication
   constructor: (model, options = {}) ->
     @model = model
 
-    medium_hash = {
-      div: "media"
-      patchSize: 20
-      min: {x: 0, y: 0}
-      max: {x: 19, y: 19}
-    }
-
     @media = new ABM.Array
-    @media[ABM.MEDIA.forum] = new Forum(medium_hash)
-    @media[ABM.MEDIA.website] = new Website(medium_hash)
-    @media[ABM.MEDIA.email] = new EMail(medium_hash)
+
+    @media[ABM.MEDIA.none] = new None(@model.config.mediaModelOptions)
+    @media[ABM.MEDIA.forum] = new Forum(@model.config.mediaModelOptions)
+    @media[ABM.MEDIA.website] = new Website(@model.config.mediaModelOptions)
+    @media[ABM.MEDIA.email] = new EMail(@model.config.mediaModelOptions)
 
     @updateOldMedium()
 
@@ -100,30 +156,28 @@ class EMail extends Medium
 
   step: ->
     for agent in @agents
-      if u.randomInt(20) == 1
+      if u.randomInt(3) == 1
         @newMail(agent)
       else
-        agent.read()
+        agent.readMail()
 
     @drawAll()
 
   use: (twin) ->
     agent = @createAgent(twin)
-    agent.inbox = @newInbox(agent)
-    agent.read = ->
-      @inbox.pop()
-
-  newInbox: (agent) ->
-    @inboxes[agent.twin.id] = new ABM.Array
-    @inboxes[agent.twin.id]
+    agent.inbox = @inboxes[agent.twin.id] = new ABM.Array
+    agent.readMail = ->
+      agent.read(@inbox.pop())
 
   newMail: (agent) ->
-    @route new EmailMessage from: agent, to: @agents.sample(), active: agent.twin.active
+    @route new Message from: agent, to: @agents.sample(), active: agent.twin.active
 
   route: (message) ->
     @inboxes[message.to.twin.id].push message
 
   drawAll: ->
+    @resetPatches()
+
     x_offset = y_offset = 0
     for agent, i in @agents
       x = i %% (@world.max.x + 1)
@@ -131,20 +185,9 @@ class EMail extends Medium
 
       for message, j in agent.inbox
         patch = @patches.patch(x: x, y: y_offset + j)
-
         @colorPatch(patch, message)
-        lastPatch = patch
-
-      if lastPatch?
-        white = @patches.patch x: lastPatch.position.x, y: lastPatch.position.y + 1
-        white.color = u.color.white
 
       agent.moveTo x: x, y: y_offset
-
-class EmailMessage extends Message
-  constructor: (options) ->
-    super(options)
-    @to = options.to
 
 class Forum extends Medium
   setup: ->
@@ -152,26 +195,25 @@ class Forum extends Medium
 
     @threads = new ABM.Array
 
-    @dummyAgent.reading = {threadNr: 0, postNr: 0}
-
     @newThread(@dummyAgent)
+    @dummyAgent.reading = @threads[0][0]
 
-    while @threads.length < @world.max.x
+    while @threads.length <= @world.max.x
       @newPost(@dummyAgent)
+
+  use: (twin) -> # TODO make super
+    agent = @createAgent(twin)
+    agent.read(@threads[0][0])
 
   step: ->
     for agent in @agents
       if agent # might have died already
         if u.randomInt(20) == 1
           @newPost(agent)
-        else
-          @moveForward(agent)
+
+        @moveForward(agent)
 
     @drawAll()
-
-  use: (twin) ->
-    agent = @createAgent(twin)
-    agent.reading = {threadNr: 0, postNr: 0}
 
   newPost: (agent) ->
     if u.randomInt(7) == 1
@@ -180,43 +222,70 @@ class Forum extends Medium
       @newComment(agent)
 
   newThread: (agent) ->
-    @threads.unshift new ABM.Array new Message from: agent, active: agent.active
+    newThread = new ABM.Array
+    
+    newThread.next = @threads.first()
+    if newThread.next?
+      newThread.next.previous = newThread
 
-    for agent in @agents
-      if agent # might have died already
-        agent.reading.threadNr += 1
-        @fallOffWorld(agent)
+    newThread.post = (post) ->
+      post.previous = @last()
+      if post.previous?
+        post.previous.next = post
 
-    if @threads.length > @world.max.x
-      @threads.pop
+      post.thread = @
+
+      @push(post)
+
+    newThread.destroy = ->
+      @previous.next = null
+
+      for message in @
+        message.destroy() # takes readers as well
+
+    newThread.post new Message from: agent, active: agent.twin.active
+
+    @threads.unshift newThread
+    
+    if @threads.length > @world.max.x + 1
+      thread = @threads.pop()
+      thread.destroy()
 
   newComment: (agent) ->
-    if @threads[agent.reading.threadNr].length <= @world.max.y
-      @threads[agent.reading.threadNr].push new Message from: agent, active: agent.twin.active
+    agent.reading.thread.post new Message from: agent, active: agent.twin.active
 
   moveForward: (agent) ->
-    console.log agent
-    agent.reading.postNr += 1
-    if agent.reading.postNr >= @threads[agent.reading.threadNr].length
-      agent.reading.threadNr += 1
-      agent.reading.postNr = 0
-      @fallOffWorld(agent)
+    reading = agent.reading
 
-  fallOffWorld: (agent) ->
-    if agent.reading.threadNr > @world.max.x
+    if reading.next?
+      agent.read(reading.next)
+    else if reading.thread.next?
+      agent.read(reading.thread.next.first())
+    else
       agent.die()
-
+    
   drawAll: ->
-    for patch in @patches
-      patch.color = u.color.white
+    @resetPatches()
 
     for thread, i in @threads
       for post, j in thread
-        patch = @patches.patch x: i, y: @world.max.y - j
-        @colorPatch(patch, post)
+        if i <= @world.max.x and j <= @world.max.y
+          post.patch = @patches.patch x: i, y: @world.max.y - j
+          @colorPatch(post.patch, post)
+        else
+          post.patch = null
 
     for agent in @agents
-      agent.moveTo(x: agent.reading.threadNr, y: @world.max.y - agent.reading.postNr)
+      if agent.reading.patch?
+        agent.moveTo(agent.reading.patch.position)
+
+class None extends Medium
+  setup: ->
+    super
+
+  use: (twin) ->
+
+  step: ->
 
 class UI
   constructor: (model, options = {}) ->
@@ -317,30 +386,47 @@ class Website extends Medium
   setup: ->
     super
 
-    @messages = new ABM.Array
+    @sites = new ABM.Array
 
-    while @messages.length < 100
+    while @sites.length < 100
       @newPage(@dummyAgent)
+
+  use: (twin) ->
+    @createAgent(twin)
 
   step: ->
     for agent in @agents
       if u.randomInt(20) == 1
         @newPage(agent)
-      else
-        agent.moveTo(@messages.sample().position)
 
-  use: (twin) ->
-    agent = @createAgent(twin)
-    agent.moveTo(@messages.sample().position)
+      @moveToRandomPage(agent)
+
+    @drawAll()
 
   newPage: (agent) ->
-    patch = @patches.sample()
-# TODO    @colorPatch(patch, agent.twin)
+    @sites.unshift new Message from: agent, active: agent.twin.active
+    @dropSite()
 
-    @messages.unshift patch
-    if @messages.length > 100
-      oldPage = @messages.pop()
-      oldPage.color = u.color.white
+  dropSite: ->
+    if @sites.length > 100
+      site = @sites.pop()
+      for reader in site.readers by -1
+        @moveToRandomPage(reader)
+
+  moveToRandomPage: (agent) ->
+    agent.read(@sites.sample())
+
+  drawAll: ->
+    @resetPatches()
+
+    for site in @sites
+      if !site.patch?
+        site.patch = @patches.sample()
+
+      @colorPatch(site.patch, site) # TODO reduce
+
+    for agent in @agents
+      agent.moveTo(agent.reading.patch.position)
 
 class Model extends ABM.Model
   setup: ->
@@ -381,6 +467,9 @@ class Model extends ABM.Model
       citizen.arrestProbability = ->
         cops = 0
         actives = 1
+        # Switch on effect test
+        #if @twin()? and @twin().reading? and @twin().reading.active
+        #  actives += 10
   
         for agent in @neighbors(@vision)
           if agent.breed.name is "cops"
@@ -421,7 +510,6 @@ class Model extends ABM.Model
             @active = false
             @setColor "green"
             @activeMicro = 0.0
-
         else
           if activation > @threshold
             @active = true
@@ -433,10 +521,13 @@ class Model extends ABM.Model
       citizen.act = ->
         if @imprisoned()
           @prisonSentence -= 1
+
           if !@imprisoned() # just released
             @moveToRandomEmptyLocation()
+
         if !@imprisoned() # just released included
           empty = @randomEmptyNeighbor()
+
           if @model.config.type is ABM.TYPES.enclave
             if empty and (@riskAversion > 0.5 and
                 (empty.position.y > 0 or empty.position.y < 0 and
@@ -444,9 +535,11 @@ class Model extends ABM.Model
                 (@riskAversion < 0.5 and
                 (empty.position.y < 0 or empty.position.y > 0 and
                   empty.position.y < @patch.position.y))
+
               empty = @randomEmptyNeighbor()
 
           @moveTo(empty.position) if empty
+
           @activate()
 
     for cop in @cops.create @config.copDensity * space
@@ -483,7 +576,7 @@ class Model extends ABM.Model
     @agents.shuffle()
     for agent in @agents
       agent.act()
-      if u.randomInt(500) == 1
+      if u.randomInt(100) == 1
         if agent.breed.name is "citizens"
           @communication.medium().use(agent)
 
@@ -525,25 +618,19 @@ class Initializer extends Model
 
 # Initialization
 
-window.initialize = (options) ->
-  window.model = new Initializer({
-    Agent: Agent
-    div: "world"
-    patchSize: 20
-    mapSize: 20
-    isTorus: true
-    config: config
-  })
-  window.model.start() # Debug: Put Model vars in global name space
+config = new Config
 
-window.reInitialize = (options) ->
+window.initialize = (config) ->
+  window.model = new Initializer(
+    u.merge(config.modelOptions, {config: config}))
+  window.model.start()
+
+window.reInitialize = ->
   contexts = window.model.contexts
   for bull, context of contexts
     context.canvas.width = context.canvas.width
-  window.initialize(options)
+  window.initialize(window.model.config)
 
 $("#model_container").append('<div id="media"></div>')
-
-config = new Config
 
 window.initialize(config)

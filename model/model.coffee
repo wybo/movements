@@ -37,6 +37,9 @@ class Model extends ABM.Model
       citizen.arrestProbability = ->
         cops = 0
         actives = 1
+        # Switch on effect test
+        #if @twin()? and @twin().reading? and @twin().reading.active
+        #  actives += 10
   
         for agent in @neighbors(@vision)
           if agent.breed.name is "cops"
@@ -77,7 +80,6 @@ class Model extends ABM.Model
             @active = false
             @setColor "green"
             @activeMicro = 0.0
-
         else
           if activation > @threshold
             @active = true
@@ -89,10 +91,13 @@ class Model extends ABM.Model
       citizen.act = ->
         if @imprisoned()
           @prisonSentence -= 1
+
           if !@imprisoned() # just released
             @moveToRandomEmptyLocation()
+
         if !@imprisoned() # just released included
           empty = @randomEmptyNeighbor()
+
           if @model.config.type is ABM.TYPES.enclave
             if empty and (@riskAversion > 0.5 and
                 (empty.position.y > 0 or empty.position.y < 0 and
@@ -100,9 +105,11 @@ class Model extends ABM.Model
                 (@riskAversion < 0.5 and
                 (empty.position.y < 0 or empty.position.y > 0 and
                   empty.position.y < @patch.position.y))
+
               empty = @randomEmptyNeighbor()
 
           @moveTo(empty.position) if empty
+
           @activate()
 
     for cop in @cops.create @config.copDensity * space
@@ -139,7 +146,7 @@ class Model extends ABM.Model
     @agents.shuffle()
     for agent in @agents
       agent.act()
-      if u.randomInt(500) == 1
+      if u.randomInt(100) == 1
         if agent.breed.name is "citizens"
           @communication.medium().use(agent)
 

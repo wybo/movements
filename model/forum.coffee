@@ -4,26 +4,25 @@ class Forum extends Medium
 
     @threads = new ABM.Array
 
-    @dummyAgent.reading = {threadNr: 0, postNr: 0}
-
     @newThread(@dummyAgent)
+    @dummyAgent.reading = @threads[0][0]
 
-    while @threads.length < @world.max.x
+    while @threads.length <= @world.max.x
       @newPost(@dummyAgent)
+
+  use: (twin) -> # TODO make super
+    agent = @createAgent(twin)
+    agent.read(@threads[0][0])
 
   step: ->
     for agent in @agents
       if agent # might have died already
         if u.randomInt(20) == 1
           @newPost(agent)
-        else
-          @moveForward(agent)
+
+        @moveForward(agent)
 
     @drawAll()
-
-  use: (twin) ->
-    agent = @createAgent(twin)
-    agent.reading = {threadNr: 0, postNr: 0}
 
   newPost: (agent) ->
     if u.randomInt(7) == 1
@@ -32,40 +31,59 @@ class Forum extends Medium
       @newComment(agent)
 
   newThread: (agent) ->
-    @threads.unshift new ABM.Array new Message from: agent, active: agent.active
+    newThread = new ABM.Array
+    
+    newThread.next = @threads.first()
+    if newThread.next?
+      newThread.next.previous = newThread
 
-    for agent in @agents
-      if agent # might have died already
-        agent.reading.threadNr += 1
-        @fallOffWorld(agent)
+    newThread.post = (post) ->
+      post.previous = @last()
+      if post.previous?
+        post.previous.next = post
 
-    if @threads.length > @world.max.x
-      @threads.pop
+      post.thread = @
+
+      @push(post)
+
+    newThread.destroy = ->
+      @previous.next = null
+
+      for message in @
+        message.destroy() # takes readers as well
+
+    newThread.post new Message from: agent, active: agent.twin.active
+
+    @threads.unshift newThread
+    
+    if @threads.length > @world.max.x + 1
+      thread = @threads.pop()
+      thread.destroy()
 
   newComment: (agent) ->
-    if @threads[agent.reading.threadNr].length <= @world.max.y
-      @threads[agent.reading.threadNr].push new Message from: agent, active: agent.twin.active
+    agent.reading.thread.post new Message from: agent, active: agent.twin.active
 
   moveForward: (agent) ->
-    console.log agent
-    agent.reading.postNr += 1
-    if agent.reading.postNr >= @threads[agent.reading.threadNr].length
-      agent.reading.threadNr += 1
-      agent.reading.postNr = 0
-      @fallOffWorld(agent)
+    reading = agent.reading
 
-  fallOffWorld: (agent) ->
-    if agent.reading.threadNr > @world.max.x
+    if reading.next?
+      agent.read(reading.next)
+    else if reading.thread.next?
+      agent.read(reading.thread.next.first())
+    else
       agent.die()
-
+    
   drawAll: ->
-    for patch in @patches
-      patch.color = u.color.white
+    @resetPatches()
 
     for thread, i in @threads
       for post, j in thread
-        patch = @patches.patch x: i, y: @world.max.y - j
-        @colorPatch(patch, post)
+        if i <= @world.max.x and j <= @world.max.y
+          post.patch = @patches.patch x: i, y: @world.max.y - j
+          @colorPatch(post.patch, post)
+        else
+          post.patch = null
 
     for agent in @agents
-      agent.moveTo(x: agent.reading.threadNr, y: @world.max.y - agent.reading.postNr)
+      if agent.reading.patch?
+        agent.moveTo(agent.reading.patch.position)
