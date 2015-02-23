@@ -1,4 +1,4 @@
-class Agent extends ABM.Agent
+class MM.Agent extends ABM.Agent
   constructor: ->
     super
 

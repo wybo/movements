@@ -6,7 +6,7 @@ Function::property = (property) ->
   for key, value of property
     Object.defineProperty @prototype, key, value
 
-class Medium extends ABM.Model
+class MM.Medium extends ABM.Model
   setup: ->
     @size = 0.6
 

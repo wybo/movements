@@ -1,11 +1,11 @@
-class Model extends ABM.Model
+class MM.Model extends ABM.Model
   setup: ->
     @agentBreeds ["citizens", "cops"]
     @size = 0.9
     @vision = {diamond: 7} # Neumann 7
 
     for patch in @patches.create()
-      if @config.type is ABM.TYPES.enclave
+      if @config.type is MM.TYPES.enclave
         if patch.position.y > 0
           patch.color = u.color.random type: "gray", min: 180, max: 204
         else
@@ -45,7 +45,7 @@ class Model extends ABM.Model
           if agent.breed.name is "cops"
             cops += 1
           else
-            if @model.config.type is ABM.TYPES.micro
+            if @model.config.type is MM.TYPES.micro
               if agent.breed.name is "citizen"
                 actives += agent.activeMicro
             else
@@ -67,7 +67,7 @@ class Model extends ABM.Model
       citizen.activate = ->
         activation = @grievance() - @netRisk()
 
-        if @model.config.type is ABM.TYPES.micro
+        if @model.config.type is MM.TYPES.micro
           if activation > @threshold
             @active = true
             @setColor "red"
@@ -98,7 +98,7 @@ class Model extends ABM.Model
         if !@imprisoned() # just released included
           empty = @randomEmptyNeighbor()
 
-          if @model.config.type is ABM.TYPES.enclave
+          if @model.config.type is MM.TYPES.enclave
             if empty and (@riskAversion > 0.5 and
                 (empty.position.y > 0 or empty.position.y < 0 and
                   empty.position.y > @patch.position.y)) or
@@ -140,9 +140,10 @@ class Model extends ABM.Model
         @moveTo(empty.position) if empty
         @makeArrest()
 
-    window.modelUI.resetPlot()
+    unless @isHeadless
+      window.modelUI.resetPlot()
 
-  step: -> # called by Model.animate
+  step: -> # called by MM.Model.animate
     @agents.shuffle()
     for agent in @agents
       agent.act()
@@ -150,7 +151,8 @@ class Model extends ABM.Model
         if agent.breed.name is "citizens"
           @communication.medium().use(agent)
 
-    window.modelUI.drawPlot(@animator.ticks)
+    unless @isHeadless
+      window.modelUI.drawPlot(@animator.ticks)
 
     @communication.medium().once()
 

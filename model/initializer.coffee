@@ -1,28 +1,15 @@
-class Initializer extends Model
+class MM.Initializer extends MM.Model
+  @initialize: (@config) ->
+    @config ?= new MM.Config
+    return new MM.Initializer(u.merge(@config.modelOptions, {config: @config}))
+    #return new MM.Initializer(@config) TODO
+  
   startup: ->
-    @communication = new Communication(this)
-    window.modelUI = new UI(this)
+    @communication = new MM.Communication(this)
+    unless @isHeadless
+      window.modelUI = new MM.UI(this)
 
   setup: ->
     @agents.setUseSprites() # Bitmap for better performance.
     @animator.setRate 20, false
     super()
-
-# Initialization
-
-config = new Config
-
-window.initialize = (config) ->
-  window.model = new Initializer(
-    u.merge(config.modelOptions, {config: config}))
-  window.model.start()
-
-window.reInitialize = ->
-  contexts = window.model.contexts
-  for bull, context of contexts
-    context.canvas.width = context.canvas.width
-  window.initialize(window.model.config)
-
-$("#model_container").append('<div id="media"></div>')
-
-window.initialize(config)

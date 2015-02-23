@@ -1,4 +1,4 @@
-class Forum extends Medium
+class MM.Forum extends MM.Medium
   setup: ->
     super
 
@@ -52,7 +52,7 @@ class Forum extends Medium
       for message in @
         message.destroy() # takes readers as well
 
-    newThread.post new Message from: agent, active: agent.twin.active
+    newThread.post new MM.Message from: agent, active: agent.twin.active
 
     @threads.unshift newThread
     
@@ -61,7 +61,7 @@ class Forum extends Medium
       thread.destroy()
 
   newComment: (agent) ->
-    agent.reading.thread.post new Message from: agent, active: agent.twin.active
+    agent.reading.thread.post new MM.Message from: agent, active: agent.twin.active
 
   moveForward: (agent) ->
     reading = agent.reading

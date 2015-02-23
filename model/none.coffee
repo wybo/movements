@@ -1,4 +1,4 @@
-class None extends Medium
+class MM.None extends MM.Medium
   setup: ->
     super
 

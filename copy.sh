@@ -1,9 +1,9 @@
 #/usr/bin/bash
 
 function copyAll {
-  cp /home/wybo/projects/agentbase/agentbase/lib/agentbase.coffee javascripts/agentbase.coffee
-  cp /home/wybo/projects/agentbase/agentbase/lib/agentbase.js javascripts/agentbase.js
-  cp /home/wybo/projects/agentbase/agentbase/lib/agentbase.map javascripts/agentbase.map
+  cp /home/wybo/projects/agentbase/agentbase/lib/agentbase.coffee lib/agentbase.coffee
+  cp /home/wybo/projects/agentbase/agentbase/lib/agentbase.js lib/agentbase.js
+  cp /home/wybo/projects/agentbase/agentbase/lib/agentbase.map lib/agentbase.map
 }
 
 copyAll

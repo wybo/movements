@@ -1,4 +1,4 @@
-class Website extends Medium
+class MM.Website extends MM.Medium
   setup: ->
     super
 
@@ -20,7 +20,7 @@ class Website extends Medium
     @drawAll()
 
   newPage: (agent) ->
-    @sites.unshift new Message from: agent, active: agent.twin.active
+    @sites.unshift new MM.Message from: agent, active: agent.twin.active
     @dropSite()
 
   dropSite: ->

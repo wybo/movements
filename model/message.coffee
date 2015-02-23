@@ -1,4 +1,4 @@
-class Message
+class MM.Message
   constructor: (options) ->
     @from = options.from
     @to = options.to

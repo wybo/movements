@@ -1,17 +1,23 @@
+@MM = MM = {}
+
+if typeof ABM == 'undefined'
+  code = require "./lib/agentbase.coffee"
+  eval 'var ABM = this.ABM = code.ABM'
+
 u = ABM.util # ABM.util alias
 log = (object) -> console.log object
 
-ABM.TYPES = {normal: "0", enclave: "1", micro: "2"}
-ABM.MEDIA = {none: 0, email: "1", website: "2", forum: "3"}
+MM.TYPES = {normal: "0", enclave: "1", micro: "2"}
+MM.MEDIA = {none: 0, email: "1", website: "2", forum: "3"}
 # turn back to numbers once dat.gui fixed
 
-class Config
-#  medium: ABM.MEDIA.none
-#  medium: ABM.MEDIA.email
-  medium: ABM.MEDIA.forum
-#  medium: ABM.MEDIA.website
+class MM.Config
+#  medium: MEDIA.none
+#  medium: MEDIA.email
+  medium: MM.MEDIA.forum
+#  medium: MEDIA.website
 
-  type: ABM.TYPES.normal
+  type: MM.TYPES.normal
 
   citizenDensity: 0.7
   copDensity: 0.02
@@ -20,7 +26,7 @@ class Config
 
   constructor: ->
     sharedModelOptions = {
-      Agent: Agent
+      Agent: MM.Agent
     }
 
     @modelOptions = u.merge(sharedModelOptions, {
@@ -37,3 +43,8 @@ class Config
       min: {x: 0, y: 0}
       max: {x: 19, y: 19}
     })
+
+    @config = @
+
+  makeHeadless: ->
+    @modelOptions.isHeadless = @mediaModelOptions.isHeadless = true

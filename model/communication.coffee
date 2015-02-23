@@ -1,13 +1,13 @@
-class Communication
+class MM.Communication
   constructor: (model, options = {}) ->
     @model = model
 
     @media = new ABM.Array
 
-    @media[ABM.MEDIA.none] = new None(@model.config.mediaModelOptions)
-    @media[ABM.MEDIA.forum] = new Forum(@model.config.mediaModelOptions)
-    @media[ABM.MEDIA.website] = new Website(@model.config.mediaModelOptions)
-    @media[ABM.MEDIA.email] = new EMail(@model.config.mediaModelOptions)
+    @media[MM.MEDIA.none] = new MM.None(@model.config.mediaModelOptions)
+    @media[MM.MEDIA.forum] = new MM.Forum(@model.config.mediaModelOptions)
+    @media[MM.MEDIA.website] = new MM.Website(@model.config.mediaModelOptions)
+    @media[MM.MEDIA.email] = new MM.EMail(@model.config.mediaModelOptions)
 
     @updateOldMedium()
 

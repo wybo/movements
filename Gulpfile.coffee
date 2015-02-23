@@ -15,19 +15,26 @@ taskList = require 'gulp-task-listing'
 fs = require 'fs'
 path = require 'path'
 
-readFilePaths = (sourceDir, firstFiles, lastFiles) ->
-  firstFiles = firstFiles.map (n) -> n + '.coffee'
-  lastFiles = lastFiles.map (n) -> n + '.coffee'
-  notFiles = firstFiles.concat(lastFiles)
+completeFilePaths = (files) ->
+  files.map (n) -> 'model/' + n + '.coffee'
+  
+readFilePaths = (sourceDir, firstFiles, lastFiles, excludeFiles) ->
+  firstFiles = completeFilePaths(firstFiles)
+  lastFiles = completeFilePaths(lastFiles)
+  excludeFiles = completeFilePaths(excludeFiles)
+
+  notNowFiles = firstFiles.concat(lastFiles).concat(excludeFiles)
   fileNames = fs.readdirSync(sourceDir)
-    .filter (file) -> file not in notFiles
-  fileNames = firstFiles.concat(fileNames).concat(lastFiles)
-  fileNames.map (name) ->
-    sourceDir + name
+    .map (n) -> 'model/' + n
+    .filter (file) -> file not in notNowFiles
+  firstFiles.concat(fileNames).concat(lastFiles)
 
-FilePaths = readFilePaths 'model/', ['config', 'medium', 'message'], ['model', 'initializer']
+uiFiles = ['initializer_head']
 
-console.log FilePaths
+FilePaths = readFilePaths 'model/', ['config', 'medium', 'message'],
+    ['model', 'initializer'], uiFiles
+
+UIFilePaths = completeFilePaths(uiFiles)
 
 # SpecFilePaths = readFilePaths 'spec/', ['shared.coffee']
  
@@ -36,9 +43,19 @@ coffeeTasks = lazypipe()
 
 gulp.task 'all', ['build', 'docs']
 
+gulp.task 'build', ['build-model']
+
+#gulp.task 'build-model', ['build-model-headless', 'build-model-with']
+gulp.task 'build-model', ['build-model-headless', 'build-model-with']
+
 # Build tasks:
-gulp.task 'build-model', ->
+gulp.task 'build-model-headless', ->
   return gulp.src(FilePaths)
+  .pipe concat('model_headless.coffee')
+  .pipe coffeeTasks()
+
+gulp.task 'build-model-with', ["build-model-headless"], ->
+  return gulp.src(["model_headless.coffee"].concat(UIFilePaths))
   .pipe concat('model.coffee')
   .pipe coffeeTasks()
 
@@ -47,9 +64,7 @@ gulp.task 'build-model', ->
 #  .pipe concat('spec.coffee')
 #  .pipe coffeeTasks()
 
-#gulp.task 'build', ['build-model', 'build-specs']
-
-gulp.task 'build', ['build-model']
+# gulp.task 'build', ['build-model', 'build-specs']
 
 # Watch tasks
 # TODO make build as well

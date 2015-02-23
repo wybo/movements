@@ -1,4 +1,4 @@
-class EMail extends Medium
+class MM.EMail extends MM.Medium
   setup: ->
     super
 
@@ -20,7 +20,8 @@ class EMail extends Medium
       agent.read(@inbox.pop())
 
   newMail: (agent) ->
-    @route new Message from: agent, to: @agents.sample(), active: agent.twin.active
+    @route new MM.Message from: agent, to: @agents.sample(),
+      active: agent.twin.active
 
   route: (message) ->
     @inboxes[message.to.twin.id].push message
@@ -30,7 +31,7 @@ class EMail extends Medium
 
     x_offset = y_offset = 0
     for agent, i in @agents
-      x = i %% (@world.max.x + 1)
+      x = i % (@world.max.x + 1)
       y_offset = Math.floor(i / (@world.max.x + 1)) * 5
 
       for message, j in agent.inbox

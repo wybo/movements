@@ -1,4 +1,4 @@
-class UI
+class MM.UI
   constructor: (model, options = {}) ->
     if window.modelUI
       window.modelUI.gui.domElement.remove()
@@ -9,8 +9,8 @@ class UI
       element.remove()
     
     $("#model_container").append(
-      '<div id="graph" style="width: 400px; height: 250px;"></div>')
-    #  '<div id="graph" style="width: 800px; height: 500px;"></div>')
+      #  '<div id="graph" style="width: 400px; height: 250px;"></div>')
+      '<div id="graph" style="width: 800px; height: 500px;"></div>')
 
     @model = model
     @plotDiv = $("#graph")
@@ -20,9 +20,9 @@ class UI
 
   setupControls: () ->
     settings =
-      type: [ABM.TYPES]
-      #medium: [ABM.MEDIA], {onChange: 55}
-      medium: [ABM.MEDIA]
+      type: [MM.TYPES]
+      #medium: [MM.MEDIA], {onChange: 55}
+      medium: [MM.MEDIA]
       citizenDensity: {min: 0, max: 1}
       copDensity: {min: 0, max: 0.10}
 
