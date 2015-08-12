@@ -26,13 +26,14 @@ class MM.Website extends MM.Medium
   dropSite: ->
     if @sites.length > 100
       site = @sites.pop()
-      for reader in site.readers by -1
+      for reader, index in site.readers by -1
         @moveToRandomPage(reader)
 
   moveToRandomPage: (agent) ->
     agent.read(@sites.sample())
 
   drawAll: ->
+    @copyTwinColors()
     @resetPatches()
 
     for site in @sites

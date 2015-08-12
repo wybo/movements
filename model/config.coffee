@@ -20,7 +20,17 @@ class MM.Config
   type: MM.TYPES.normal
 
   citizenDensity: 0.7
-  copDensity: 0.02
+  #copDensity: 0.02
+  copDensity: 0.012
+
+  ui: {
+    passives: {label: "Passives", color: "green"},
+    actives: {label: "Actives", color: "red"},
+    prisoners: {label: "Prisoners", color: "black"},
+    cops: {label: "Cops", color: "blue"},
+    media: {label: "Media", color: "black"}
+    micros: {label: "Micros", color: "orange"},
+  }
 
   # ### Do not modify below unless you know what you're doing.
 
@@ -39,9 +49,9 @@ class MM.Config
 
     @mediaModelOptions = u.merge(sharedModelOptions, {
       div: "media"
-      patchSize: 20
+      patchSize: 10
       min: {x: 0, y: 0}
-      max: {x: 19, y: 19}
+      max: {x: 109, y: 39}
     })
 
     @config = @

@@ -3,6 +3,7 @@ class MM.Model extends ABM.Model
     @agentBreeds ["citizens", "cops"]
     @size = 0.9
     @vision = {diamond: 7} # Neumann 7
+    @resetData()
 
     for patch in @patches.create()
       if @config.type is MM.TYPES.enclave
@@ -152,9 +153,11 @@ class MM.Model extends ABM.Model
           @communication.medium().use(agent)
 
     unless @isHeadless
-      window.modelUI.drawPlot(@animator.ticks)
+      window.modelUI.drawPlot()
 
     @communication.medium().once()
+
+    @recordData()
 
   prisoners: ->
     prisoners = []
@@ -177,3 +180,37 @@ class MM.Model extends ABM.Model
           not citizen.imprisoned()
         micros.push citizen
     micros
+
+  tickData: ->
+    citizens = @citizens.length
+    actives = @actives().length
+    micros = @micros().length
+    prisoners = @prisoners().length
+
+    return {
+      citizens: citizens
+      actives: actives
+      micros: micros
+      prisoners: prisoners
+      passives: citizens - actives - micros - prisoners
+      cops: @cops.length
+    }
+
+  resetData: ->
+    @data = {
+      passives: [], actives: [], prisoners: [], cops: [], micros: [],
+      media: []
+    }
+    
+  recordData: ->
+    ticks = @animator.ticks
+    tickData = @tickData()
+
+    @data.passives.push [ticks, tickData.passives]
+    @data.actives.push [ticks, tickData.actives]
+    @data.prisoners.push [ticks, tickData.prisoners]
+    @data.cops.push [ticks, tickData.cops]
+    @data.micros.push [ticks, tickData.micros]
+
+  recordMediaChange: ->
+    @data.media.push [ticks, 0], [ticks, @citizens.length], null

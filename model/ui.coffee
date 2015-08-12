@@ -71,32 +71,15 @@ class MM.UI
     }
 
   resetPlot: ->
+    @model.resetData()
     @plotRioters = []
-    @plotRioters.push({label: "Passives", color: "green", data: []})
-    @plotRioters.push({label: "Actives", color: "red", data: []})
-    @plotRioters.push({label: "Prisoners", color: "black", data: []})
-    @plotRioters.push({label: "Cops", color: "blue", data: []})
-    @plotRioters.push({label: "Micros", color: "orange", data: []})
-    @plotRioters.push({color: "black", data: []})
-    @plotter = $.plot(@plotDiv, @plotRioters, @plotOptions)
-    @drawPlot(0)
+    for key, variable of @model.config.ui
+      @plotRioters.push({label: variable.label, color: variable.color, data: @model.data[key]})
 
-  drawPlot: (ticks) ->
-    @plotRioters.data = []
-    citizens = @model.citizens.length
-    actives = @model.actives().length
-    micros = @model.micros().length
-    prisoners = @model.prisoners().length
-    passives = citizens - actives - micros - prisoners
-    cops = @model.cops.length
-    @plotRioters[0].data.push [ticks, passives]
-    @plotRioters[1].data.push [ticks, actives]
-    @plotRioters[2].data.push [ticks, prisoners]
-    @plotRioters[3].data.push [ticks, cops]
-    @plotRioters[4].data.push [ticks, micros]
-    if @mediaMarker
-      @plotRioters[5].data.push [ticks, 0], [ticks, citizens], null
-      @mediaMarker = false
+    @plotter = $.plot(@plotDiv, @plotRioters, @plotOptions)
+    @drawPlot()
+
+  drawPlot: ->
     @plotter.setData(@plotRioters)
     @plotter.setupGrid()
     @plotter.draw()
@@ -104,4 +87,3 @@ class MM.UI
   addMediaMarker: ->
     @mediaMarker = true
     console.log "Adding MEDIA MARKER"
-

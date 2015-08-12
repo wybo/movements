@@ -20,13 +20,15 @@ class MM.EMail extends MM.Medium
       agent.read(@inbox.pop())
 
   newMail: (agent) ->
-    @route new MM.Message from: agent, to: @agents.sample(),
-      active: agent.twin.active
+    @route new MM.Message {
+      from: agent, to: @agents.sample(), active: agent.twin.active
+    }
 
   route: (message) ->
     @inboxes[message.to.twin.id].push message
 
   drawAll: ->
+    @copyTwinColors()
     @resetPatches()
 
     x_offset = y_offset = 0

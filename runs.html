@@ -1,0 +1,25 @@
+<html>
+  <head>
+    <title>Social Media Movements - Runs</title>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8"></meta>
+    <script src="lib/jquery.min.js"></script>
+    <script src="lib/agentbase.js"></script>
+    <script src="lib/application.js"></script>
+    <script src="lib/experimenter.coffee" type="text/coffeescript"></script>
+    <script src="runs/experiments.js"></script> 
+    <script src="model_headless.coffee" type="text/coffeescript"></script>
+    <script type="text/coffeescript">
+      window.setupDropdown('#experiment_select', experiments, experiments.length - 1)
+      window.fetchAndPlotExperiment(experiments.length - 1)
+    </script>
+  </head>
+  <body>
+    <h1>Social Media Mechanisms - Runs</h1>
+    <p style="font-size: 0.8em;">
+      <a href="index.html">Back to model</a>
+    </p>
+    <select id="experiment_select" onchange="setExperiment(this)" style="margin-bottom: 0.5em;"></select>
+    <div id="content" style="width: 100%">
+    </div>
+  </body>
+</html>

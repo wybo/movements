@@ -1,12 +1,11 @@
 #!/usr/bin/ruby
 
-experiment = `coffee experimenter.coffee`
+experiment = `./coffee experimenter.coffee` # TODO fix coffeescript ABM
 
-experiment = experiment.gsub("\n","")
+experiment = experiment.gsub("\n",",")
+experiment = experiment.gsub(/],$/,"]")
 
 list = Dir.glob("runs/*")
-
-puts list.inspect
 
 list.reject! {|f| f =~ /experiments/}
 list.each {|f| f.gsub!(/runs\//, "")}

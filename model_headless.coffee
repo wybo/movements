@@ -20,7 +20,17 @@ class MM.Config
   type: MM.TYPES.normal
 
   citizenDensity: 0.7
-  copDensity: 0.02
+  #copDensity: 0.02
+  copDensity: 0.012
+
+  ui: {
+    passives: {label: "Passives", color: "green"},
+    actives: {label: "Actives", color: "red"},
+    prisoners: {label: "Prisoners", color: "black"},
+    cops: {label: "Cops", color: "blue"},
+    media: {label: "Media", color: "black"}
+    micros: {label: "Micros", color: "orange"},
+  }
 
   # ### Do not modify below unless you know what you're doing.
 
@@ -39,9 +49,9 @@ class MM.Config
 
     @mediaModelOptions = u.merge(sharedModelOptions, {
       div: "media"
-      patchSize: 20
+      patchSize: 10
       min: {x: 0, y: 0}
-      max: {x: 19, y: 19}
+      max: {x: 109, y: 39}
     })
 
     @config = @
@@ -61,17 +71,18 @@ class MM.Medium extends ABM.Model
   setup: ->
     @size = 0.6
 
-    # Shape to bitmap for better performance.
-    @agents.setUseSprites()
-
-    @animator.setRate 20, false
-
     @dummyAgent = {twin: {active: false}, read: (->), dummy: true}
 
     for patch in @patches.create()
       patch.color = u.color.white
 
   createAgent: (twin) ->
+    if !twin.twin()
+      @createAgentInner(twin)
+
+    return twin.twin()
+
+  createAgentInner: (twin) ->
     @agents.create 1
     agent = @agents.last()
     agent.twin = twin
@@ -106,6 +117,10 @@ class MM.Medium extends ABM.Model
   resetPatches: ->
     for patch in @patches
       patch.color = u.color.white
+
+  copyTwinColors: ->
+    for agent in @agents
+      agent.color = agent.twin.color
 
 class MM.Message
   constructor: (options) ->
@@ -181,13 +196,15 @@ class MM.EMail extends MM.Medium
       agent.read(@inbox.pop())
 
   newMail: (agent) ->
-    @route new MM.Message from: agent, to: @agents.sample(),
-      active: agent.twin.active
+    @route new MM.Message {
+      from: agent, to: @agents.sample(), active: agent.twin.active
+    }
 
   route: (message) ->
     @inboxes[message.to.twin.id].push message
 
   drawAll: ->
+    @copyTwinColors()
     @resetPatches()
 
     x_offset = y_offset = 0
@@ -277,6 +294,7 @@ class MM.Forum extends MM.Medium
       agent.die()
     
   drawAll: ->
+    @copyTwinColors()
     @resetPatches()
 
     for thread, i in @threads
@@ -372,32 +390,15 @@ class MM.UI
     }
 
   resetPlot: ->
+    @model.resetData()
     @plotRioters = []
-    @plotRioters.push({label: "Passives", color: "green", data: []})
-    @plotRioters.push({label: "Actives", color: "red", data: []})
-    @plotRioters.push({label: "Prisoners", color: "black", data: []})
-    @plotRioters.push({label: "Cops", color: "blue", data: []})
-    @plotRioters.push({label: "Micros", color: "orange", data: []})
-    @plotRioters.push({color: "black", data: []})
-    @plotter = $.plot(@plotDiv, @plotRioters, @plotOptions)
-    @drawPlot(0)
+    for key, variable of @model.config.ui
+      @plotRioters.push({label: variable.label, color: variable.color, data: @model.data[key]})
 
-  drawPlot: (ticks) ->
-    @plotRioters.data = []
-    citizens = @model.citizens.length
-    actives = @model.actives().length
-    micros = @model.micros().length
-    prisoners = @model.prisoners().length
-    passives = citizens - actives - micros - prisoners
-    cops = @model.cops.length
-    @plotRioters[0].data.push [ticks, passives]
-    @plotRioters[1].data.push [ticks, actives]
-    @plotRioters[2].data.push [ticks, prisoners]
-    @plotRioters[3].data.push [ticks, cops]
-    @plotRioters[4].data.push [ticks, micros]
-    if @mediaMarker
-      @plotRioters[5].data.push [ticks, 0], [ticks, citizens], null
-      @mediaMarker = false
+    @plotter = $.plot(@plotDiv, @plotRioters, @plotOptions)
+    @drawPlot()
+
+  drawPlot: ->
     @plotter.setData(@plotRioters)
     @plotter.setupGrid()
     @plotter.draw()
@@ -405,7 +406,6 @@ class MM.UI
   addMediaMarker: ->
     @mediaMarker = true
     console.log "Adding MEDIA MARKER"
-
 
 class MM.Website extends MM.Medium
   setup: ->
@@ -435,13 +435,14 @@ class MM.Website extends MM.Medium
   dropSite: ->
     if @sites.length > 100
       site = @sites.pop()
-      for reader in site.readers by -1
+      for reader, index in site.readers by -1
         @moveToRandomPage(reader)
 
   moveToRandomPage: (agent) ->
     agent.read(@sites.sample())
 
   drawAll: ->
+    @copyTwinColors()
     @resetPatches()
 
     for site in @sites
@@ -458,6 +459,7 @@ class MM.Model extends ABM.Model
     @agentBreeds ["citizens", "cops"]
     @size = 0.9
     @vision = {diamond: 7} # Neumann 7
+    @resetData()
 
     for patch in @patches.create()
       if @config.type is MM.TYPES.enclave
@@ -607,9 +609,11 @@ class MM.Model extends ABM.Model
           @communication.medium().use(agent)
 
     unless @isHeadless
-      window.modelUI.drawPlot(@animator.ticks)
+      window.modelUI.drawPlot()
 
     @communication.medium().once()
+
+    @recordData()
 
   prisoners: ->
     prisoners = []
@@ -632,6 +636,40 @@ class MM.Model extends ABM.Model
           not citizen.imprisoned()
         micros.push citizen
     micros
+
+  tickData: ->
+    citizens = @citizens.length
+    actives = @actives().length
+    micros = @micros().length
+    prisoners = @prisoners().length
+
+    return {
+      citizens: citizens
+      actives: actives
+      micros: micros
+      prisoners: prisoners
+      passives: citizens - actives - micros - prisoners
+      cops: @cops.length
+    }
+
+  resetData: ->
+    @data = {
+      passives: [], actives: [], prisoners: [], cops: [], micros: [],
+      media: []
+    }
+    
+  recordData: ->
+    ticks = @animator.ticks
+    tickData = @tickData()
+
+    @data.passives.push [ticks, tickData.passives]
+    @data.actives.push [ticks, tickData.actives]
+    @data.prisoners.push [ticks, tickData.prisoners]
+    @data.cops.push [ticks, tickData.cops]
+    @data.micros.push [ticks, tickData.micros]
+
+  recordMediaChange: ->
+    @data.media.push [ticks, 0], [ticks, @citizens.length], null
 
 class MM.Initializer extends MM.Model
   @initialize: (@config) ->

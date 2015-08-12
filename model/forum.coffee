@@ -74,6 +74,7 @@ class MM.Forum extends MM.Medium
       agent.die()
     
   drawAll: ->
+    @copyTwinColors()
     @resetPatches()
 
     for thread, i in @threads

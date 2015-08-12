@@ -10,17 +10,18 @@ class MM.Medium extends ABM.Model
   setup: ->
     @size = 0.6
 
-    # Shape to bitmap for better performance.
-    @agents.setUseSprites()
-
-    @animator.setRate 20, false
-
     @dummyAgent = {twin: {active: false}, read: (->), dummy: true}
 
     for patch in @patches.create()
       patch.color = u.color.white
 
   createAgent: (twin) ->
+    if !twin.twin()
+      @createAgentInner(twin)
+
+    return twin.twin()
+
+  createAgentInner: (twin) ->
     @agents.create 1
     agent = @agents.last()
     agent.twin = twin
@@ -55,3 +56,7 @@ class MM.Medium extends ABM.Model
   resetPatches: ->
     for patch in @patches
       patch.color = u.color.white
+
+  copyTwinColors: ->
+    for agent in @agents
+      agent.color = agent.twin.color
