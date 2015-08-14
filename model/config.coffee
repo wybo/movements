@@ -22,6 +22,12 @@ class MM.Config
   citizenDensity: 0.7
   #copDensity: 0.02
   copDensity: 0.012
+  maxPrisonSentence: 30
+  regimeLegitimacy: 0.32
+  threshold: 0.1
+  thresholdMicro: 0.0
+  vision: {diamond: 7} # Neumann 7
+  kConstant: -2.3
 
   ui: {
     passives: {label: "Passives", color: "green"},
@@ -51,7 +57,7 @@ class MM.Config
       div: "media"
       patchSize: 10
       min: {x: 0, y: 0}
-      max: {x: 109, y: 39}
+      max: {x: 39, y: 39}
     })
 
     @config = @

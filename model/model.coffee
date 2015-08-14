@@ -2,7 +2,6 @@ class MM.Model extends ABM.Model
   setup: ->
     @agentBreeds ["citizens", "cops"]
     @size = 0.9
-    @vision = {diamond: 7} # Neumann 7
     @resetData()
 
     for patch in @patches.create()
@@ -17,15 +16,12 @@ class MM.Model extends ABM.Model
     space = @patches.length
 
     for citizen in @citizens.create @config.citizenDensity * space
-      citizen.vision = @vision
+      citizen.config = @config
       citizen.size = @size
       citizen.shape = "person"
       citizen.setColor "green"
       citizen.moveToRandomEmptyLocation()
 
-      citizen.regimeLegitimacy = 0.32
-      citizen.threshold = 0.1
-      citizen.thresholdMicro = 0.0
       citizen.hardship = u.randomFloat()
       citizen.riskAversion = u.randomFloat()
       citizen.active = false
@@ -33,7 +29,7 @@ class MM.Model extends ABM.Model
       citizen.prisonSentence = 0
 
       citizen.grievance = ->
-        @hardship * (1 - @regimeLegitimacy)
+        @hardship * (1 - @config.regimeLegitimacy)
 
       citizen.arrestProbability = ->
         cops = 0
@@ -42,7 +38,7 @@ class MM.Model extends ABM.Model
         #if @twin()? and @twin().reading? and @twin().reading.active
         #  actives += 10
   
-        for agent in @neighbors(@vision)
+        for agent in @neighbors(@config.vision)
           if agent.breed.name is "cops"
             cops += 1
           else
@@ -53,7 +49,10 @@ class MM.Model extends ABM.Model
               if agent.breed.name is "citizen" and agent.active
                 actives += 1
 
-        1 - Math.exp(-2.3 * cops / actives)
+        @calculateArrestProbability(cops, actives)
+
+      citizen.calculateArrestProbability = (cops, actives) ->
+        1 - Math.exp(@config.kConstant * cops / actives)
 
       citizen.netRisk = ->
         @arrestProbability() * @riskAversion
@@ -69,11 +68,11 @@ class MM.Model extends ABM.Model
         activation = @grievance() - @netRisk()
 
         if @model.config.type is MM.TYPES.micro
-          if activation > @threshold
+          if activation > @config.threshold
             @active = true
             @setColor "red"
             @activeMicro = 1.0
-          else if activation > @thresholdMicro
+          else if activation > @config.thresholdMicro
             @active = false
             @setColor "orange"
             @activeMicro = 0.4
@@ -82,7 +81,7 @@ class MM.Model extends ABM.Model
             @setColor "green"
             @activeMicro = 0.0
         else
-          if activation > @threshold
+          if activation > @config.threshold
             @active = true
             @setColor "red"
           else
@@ -114,27 +113,25 @@ class MM.Model extends ABM.Model
           @activate()
 
     for cop in @cops.create @config.copDensity * space
-      cop.vision = @vision
+      cop.config = @config
       cop.size = @size
       cop.shape = "person"
       cop.setColor "blue"
       cop.moveToRandomEmptyLocation()
 
-      cop.maxPrisonSentence = 30
-
       cop.makeArrest = ->
         protesters = 0
         passives = 0
-        for agent in @neighbors(@vision)
+        for agent in @neighbors(@config.vision)
           if agent.breed.name is "citizens" and agent.active
             protesters += 1
           else
             passives += 1
 
-        protester = @neighbors(@vision).sample((agent) ->
+        protester = @neighbors(@config.vision).sample((agent) ->
           agent.breed.name is "citizens" and agent.active)
         if protester
-          protester.imprison(1 + u.randomInt(@maxPrisonSentence))
+          protester.imprison(1 + u.randomInt(@config.maxPrisonSentence))
 
       cop.act = ->
         empty = @randomEmptyNeighbor()
@@ -143,6 +140,9 @@ class MM.Model extends ABM.Model
 
     unless @isHeadless
       window.modelUI.resetPlot()
+
+    unless @isHeadless
+      @consoleLog()
 
   step: -> # called by MM.Model.animate
     @agents.shuffle()
@@ -214,3 +214,19 @@ class MM.Model extends ABM.Model
 
   recordMediaChange: ->
     @data.media.push [ticks, 0], [ticks, @citizens.length], null
+
+  consoleLog: ->
+    console.log 'Config:'
+    console.log @config
+    console.log 'Calibration:'
+    console.log '  Arrest Probability:'
+    for pair in [
+        [0, 1],
+        [1, 1], [2, 1], [3, 1], [4, 1]
+        [1, 4], [2, 4], [3, 4], [4, 4]
+      ]
+      console.log @citizens[0].calculateArrestProbability(pair[0], pair[1])
+    console.log 'Citizens:'
+    console.log @citizens
+    console.log 'Cops:'
+    console.log @cops

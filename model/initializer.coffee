@@ -1,6 +1,7 @@
 class MM.Initializer extends MM.Model
   @initialize: (@config) ->
     @config ?= new MM.Config
+    console.log @config
     return new MM.Initializer(u.merge(@config.modelOptions, {config: @config}))
     #return new MM.Initializer(@config) TODO
   
