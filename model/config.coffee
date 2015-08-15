@@ -9,6 +9,7 @@ log = (object) -> console.log object
 
 MM.TYPES = {normal: "0", enclave: "1", micro: "2"}
 MM.MEDIA = {none: 0, email: "1", website: "2", forum: "3"}
+MM.STATES = {none: 0, grievances: "1"}
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -18,6 +19,8 @@ class MM.Config
 #  medium: MEDIA.website
 
   type: MM.TYPES.normal
+
+  state: MM.STATES.grievances
 
   citizenDensity: 0.7
   #copDensity: 0.02
@@ -43,22 +46,27 @@ class MM.Config
   constructor: ->
     sharedModelOptions = {
       Agent: MM.Agent
+      patchSize: 20
+      mapSize: 20
+      isTorus: true
     }
 
     @modelOptions = u.merge(sharedModelOptions, {
       div: "world"
-      patchSize: 20
-      mapSize: 20
-      isTorus: true
       # config is added
     })
 
-    @mediaModelOptions = u.merge(sharedModelOptions, {
+    @stateModelOptions = u.merge(sharedModelOptions, {
+      div: "state"
+    })
+
+    @mediaModelOptions = {
+      Agent: MM.Agent
       div: "media"
       patchSize: 10
       min: {x: 0, y: 0}
       max: {x: 39, y: 39}
-    })
+    }
 
     @config = @
 

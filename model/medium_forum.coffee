@@ -1,4 +1,4 @@
-class MM.Forum extends MM.Medium
+class MM.MediumForum extends MM.Medium
   setup: ->
     super
 
@@ -10,8 +10,8 @@ class MM.Forum extends MM.Medium
     while @threads.length <= @world.max.x
       @newPost(@dummyAgent)
 
-  use: (twin) -> # TODO make super
-    agent = @createAgent(twin)
+  use: (original) -> # TODO make super
+    agent = @createAgent(original)
     agent.read(@threads[0][0])
 
   step: ->
@@ -52,7 +52,7 @@ class MM.Forum extends MM.Medium
       for message in @
         message.destroy() # takes readers as well
 
-    newThread.post new MM.Message from: agent, active: agent.twin.active
+    newThread.post new MM.Message from: agent, active: agent.original.active
 
     @threads.unshift newThread
     
@@ -61,7 +61,7 @@ class MM.Forum extends MM.Medium
       thread.destroy()
 
   newComment: (agent) ->
-    agent.reading.thread.post new MM.Message from: agent, active: agent.twin.active
+    agent.reading.thread.post new MM.Message from: agent, active: agent.original.active
 
   moveForward: (agent) ->
     reading = agent.reading
@@ -74,7 +74,7 @@ class MM.Forum extends MM.Medium
       agent.die()
     
   drawAll: ->
-    @copyTwinColors()
+    @copyOriginalColors()
     @resetPatches()
 
     for thread, i in @threads

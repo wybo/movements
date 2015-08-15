@@ -6,7 +6,8 @@ class MM.Initializer extends MM.Model
     #return new MM.Initializer(@config) TODO
   
   startup: ->
-    @communication = new MM.Communication(this)
+    #@state = new MM.States(this)
+    @media = new MM.Media(this)
     unless @isHeadless
       window.modelUI = new MM.UI(this)
 

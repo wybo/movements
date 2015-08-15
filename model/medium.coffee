@@ -10,42 +10,37 @@ class MM.Medium extends ABM.Model
   setup: ->
     @size = 0.6
 
-    @dummyAgent = {twin: {active: false}, read: (->), dummy: true}
+    @dummyAgent = {original: {active: false}, read: (->), dummy: true}
 
     for patch in @patches.create()
       patch.color = u.color.white
 
-  createAgent: (twin) ->
-    if !twin.twin()
-      @createAgentInner(twin)
+  createAgent: (original) ->
+    if !original.mediaMirror()
+      @agents.create 1
+      agent = @agents.last()
+      agent.original = original
+      original.mediaMirrors[original.model.config.medium] = agent
 
-    return twin.twin()
+      agent.size = @size
+      agent.heading = u.degreesToRadians(270)
+      agent.color = original.color
 
-  createAgentInner: (twin) ->
-    @agents.create 1
-    agent = @agents.last()
-    agent.twin = twin
-    twin.twins[twin.model.config.medium] = agent
+      agent.read = (message) ->
+        @closeMessage()
 
-    agent.size = @size
-    agent.heading = u.degreesToRadians(270)
-    agent.color = twin.color
+        if message
+          message.readers.push(@)
 
-    agent.read = (message) ->
-      @closeMessage()
+        @reading = message
 
-      if message
-        message.readers.push(@)
+      agent.closeMessage = ->
+        if @reading?
+          @reading.readers.remove(@)
 
-      @reading = message
+        @reading = null
 
-    agent.closeMessage = ->
-      if @reading?
-        @reading.readers.remove(@)
-
-      @reading = null
-
-    return agent
+    return original.mediaMirror()
 
   colorPatch: (patch, message) ->
     if message.active
@@ -57,6 +52,6 @@ class MM.Medium extends ABM.Model
     for patch in @patches
       patch.color = u.color.white
 
-  copyTwinColors: ->
+  copyOriginalColors: ->
     for agent in @agents
-      agent.color = agent.twin.color
+      agent.color = agent.original.color

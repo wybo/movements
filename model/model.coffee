@@ -6,6 +6,7 @@ class MM.Model extends ABM.Model
 
     for patch in @patches.create()
       if @config.type is MM.TYPES.enclave
+
         if patch.position.y > 0
           patch.color = u.color.random type: "gray", min: 180, max: 204
         else
@@ -35,7 +36,7 @@ class MM.Model extends ABM.Model
         cops = 0
         actives = 1
         # Switch on effect test
-        #if @twin()? and @twin().reading? and @twin().reading.active
+        #if @mediaMirror()? and @mediaMirror().reading? and @mediaMirror().reading.active
         #  actives += 10
   
         for agent in @neighbors(@config.vision)
@@ -150,12 +151,12 @@ class MM.Model extends ABM.Model
       agent.act()
       if u.randomInt(100) == 1
         if agent.breed.name is "citizens"
-          @communication.medium().use(agent)
+          @media.current().use(agent)
 
     unless @isHeadless
       window.modelUI.drawPlot()
 
-    @communication.medium().once()
+    @media.current().once()
 
     @recordData()
 

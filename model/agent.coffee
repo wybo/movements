@@ -2,10 +2,10 @@ class MM.Agent extends ABM.Agent
   constructor: ->
     super
 
-    @twins = new ABM.Array
+    @mediaMirrors = new ABM.Array # TODO move to model
 
-  twin: ->
-    @twins[@model.config.medium]
+  mediaMirror: ->
+    @mediaMirrors[@model.config.medium]
 
   setColor: (color) ->
     @color = new u.color color

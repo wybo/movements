@@ -9,6 +9,7 @@ log = (object) -> console.log object
 
 MM.TYPES = {normal: "0", enclave: "1", micro: "2"}
 MM.MEDIA = {none: 0, email: "1", website: "2", forum: "3"}
+MM.STATES = {none: 0, grievances: "1"}
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -18,6 +19,8 @@ class MM.Config
 #  medium: MEDIA.website
 
   type: MM.TYPES.normal
+
+  state: MM.STATES.grievances
 
   citizenDensity: 0.7
   #copDensity: 0.02
@@ -43,90 +46,32 @@ class MM.Config
   constructor: ->
     sharedModelOptions = {
       Agent: MM.Agent
+      patchSize: 20
+      mapSize: 20
+      isTorus: true
     }
 
     @modelOptions = u.merge(sharedModelOptions, {
       div: "world"
-      patchSize: 20
-      mapSize: 20
-      isTorus: true
       # config is added
     })
 
-    @mediaModelOptions = u.merge(sharedModelOptions, {
+    @stateModelOptions = u.merge(sharedModelOptions, {
+      div: "state"
+    })
+
+    @mediaModelOptions = {
+      Agent: MM.Agent
       div: "media"
       patchSize: 10
       min: {x: 0, y: 0}
       max: {x: 39, y: 39}
-    })
+    }
 
     @config = @
 
   makeHeadless: ->
     @modelOptions.isHeadless = @mediaModelOptions.isHeadless = true
-
-# Copyright 2014, Wybo Wiersma, available under the GPL v3
-# This model builds upon Epsteins model of protest, and illustrates
-# the possible impact of social media on protest formation.
-
-Function::property = (property) ->
-  for key, value of property
-    Object.defineProperty @prototype, key, value
-
-class MM.Medium extends ABM.Model
-  setup: ->
-    @size = 0.6
-
-    @dummyAgent = {twin: {active: false}, read: (->), dummy: true}
-
-    for patch in @patches.create()
-      patch.color = u.color.white
-
-  createAgent: (twin) ->
-    if !twin.twin()
-      @createAgentInner(twin)
-
-    return twin.twin()
-
-  createAgentInner: (twin) ->
-    @agents.create 1
-    agent = @agents.last()
-    agent.twin = twin
-    twin.twins[twin.model.config.medium] = agent
-
-    agent.size = @size
-    agent.heading = u.degreesToRadians(270)
-    agent.color = twin.color
-
-    agent.read = (message) ->
-      @closeMessage()
-
-      if message
-        message.readers.push(@)
-
-      @reading = message
-
-    agent.closeMessage = ->
-      if @reading?
-        @reading.readers.remove(@)
-
-      @reading = null
-
-    return agent
-
-  colorPatch: (patch, message) ->
-    if message.active
-      patch.color = u.color.pink
-    else
-      patch.color = u.color.lightgray
-
-  resetPatches: ->
-    for patch in @patches
-      patch.color = u.color.white
-
-  copyTwinColors: ->
-    for agent in @agents
-      agent.color = agent.twin.color
 
 class MM.Message
   constructor: (options) ->
@@ -143,10 +88,10 @@ class MM.Agent extends ABM.Agent
   constructor: ->
     super
 
-    @twins = new ABM.Array
+    @mediaMirrors = new ABM.Array # TODO move to model
 
-  twin: ->
-    @twins[@model.config.medium]
+  mediaMirror: ->
+    @mediaMirrors[@model.config.medium]
 
   setColor: (color) ->
     @color = new u.color color
@@ -158,29 +103,87 @@ class MM.Agent extends ABM.Agent
   randomEmptyNeighbor: ->
     @patch.neighbors(@vision).sample((patch) -> patch.empty())
 
-class MM.Communication
+class MM.Media
   constructor: (model, options = {}) ->
     @model = model
 
     @media = new ABM.Array
 
-    @media[MM.MEDIA.none] = new MM.None(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.forum] = new MM.Forum(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.website] = new MM.Website(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.email] = new MM.EMail(@model.config.mediaModelOptions)
+    @media[MM.MEDIA.none] = new MM.MediumNone(@model.config.mediaModelOptions)
+    @media[MM.MEDIA.forum] = new MM.MediumForum(@model.config.mediaModelOptions)
+    @media[MM.MEDIA.website] = new MM.MediumWebsite(@model.config.mediaModelOptions)
+    @media[MM.MEDIA.email] = new MM.MediumEMail(@model.config.mediaModelOptions)
 
-    @updateOldMedium()
+    @updateOld()
 
-  medium: ->
+  current: ->
     @media[@model.config.medium]
 
-  oldMedium: ->
+  old: ->
     @media[@model.config.oldMedium]
 
-  updateOldMedium: ->
+  updateOld: ->
     @model.config.oldMedium = @model.config.medium
 
-class MM.EMail extends MM.Medium
+# Copyright 2014, Wybo Wiersma, available under the GPL v3
+# This model builds upon Epsteins model of protest, and illustrates
+# the possible impact of social media on protest formation.
+
+Function::property = (property) ->
+  for key, value of property
+    Object.defineProperty @prototype, key, value
+
+class MM.Medium extends ABM.Model
+  setup: ->
+    @size = 0.6
+
+    @dummyAgent = {original: {active: false}, read: (->), dummy: true}
+
+    for patch in @patches.create()
+      patch.color = u.color.white
+
+  createAgent: (original) ->
+    if !original.mediaMirror()
+      @agents.create 1
+      agent = @agents.last()
+      agent.original = original
+      original.mediaMirrors[original.model.config.medium] = agent
+
+      agent.size = @size
+      agent.heading = u.degreesToRadians(270)
+      agent.color = original.color
+
+      agent.read = (message) ->
+        @closeMessage()
+
+        if message
+          message.readers.push(@)
+
+        @reading = message
+
+      agent.closeMessage = ->
+        if @reading?
+          @reading.readers.remove(@)
+
+        @reading = null
+
+    return original.mediaMirror()
+
+  colorPatch: (patch, message) ->
+    if message.active
+      patch.color = u.color.pink
+    else
+      patch.color = u.color.lightgray
+
+  resetPatches: ->
+    for patch in @patches
+      patch.color = u.color.white
+
+  copyOriginalColors: ->
+    for agent in @agents
+      agent.color = agent.original.color
+
+class MM.MediumEMail extends MM.Medium
   setup: ->
     super
 
@@ -195,22 +198,22 @@ class MM.EMail extends MM.Medium
 
     @drawAll()
 
-  use: (twin) ->
-    agent = @createAgent(twin)
-    agent.inbox = @inboxes[agent.twin.id] = new ABM.Array
+  use: (original) ->
+    agent = @createAgent(original)
+    agent.inbox = @inboxes[agent.original.id] = new ABM.Array
     agent.readMail = ->
       agent.read(@inbox.pop())
 
   newMail: (agent) ->
     @route new MM.Message {
-      from: agent, to: @agents.sample(), active: agent.twin.active
+      from: agent, to: @agents.sample(), active: agent.original.active
     }
 
   route: (message) ->
-    @inboxes[message.to.twin.id].push message
+    @inboxes[message.to.original.id].push message
 
   drawAll: ->
-    @copyTwinColors()
+    @copyOriginalColors()
     @resetPatches()
 
     x_offset = y_offset = 0
@@ -224,7 +227,7 @@ class MM.EMail extends MM.Medium
 
       agent.moveTo x: x, y: y_offset
 
-class MM.Forum extends MM.Medium
+class MM.MediumForum extends MM.Medium
   setup: ->
     super
 
@@ -236,8 +239,8 @@ class MM.Forum extends MM.Medium
     while @threads.length <= @world.max.x
       @newPost(@dummyAgent)
 
-  use: (twin) -> # TODO make super
-    agent = @createAgent(twin)
+  use: (original) -> # TODO make super
+    agent = @createAgent(original)
     agent.read(@threads[0][0])
 
   step: ->
@@ -278,7 +281,7 @@ class MM.Forum extends MM.Medium
       for message in @
         message.destroy() # takes readers as well
 
-    newThread.post new MM.Message from: agent, active: agent.twin.active
+    newThread.post new MM.Message from: agent, active: agent.original.active
 
     @threads.unshift newThread
     
@@ -287,7 +290,7 @@ class MM.Forum extends MM.Medium
       thread.destroy()
 
   newComment: (agent) ->
-    agent.reading.thread.post new MM.Message from: agent, active: agent.twin.active
+    agent.reading.thread.post new MM.Message from: agent, active: agent.original.active
 
   moveForward: (agent) ->
     reading = agent.reading
@@ -300,7 +303,7 @@ class MM.Forum extends MM.Medium
       agent.die()
     
   drawAll: ->
-    @copyTwinColors()
+    @copyOriginalColors()
     @resetPatches()
 
     for thread, i in @threads
@@ -315,13 +318,60 @@ class MM.Forum extends MM.Medium
       if agent.reading.patch?
         agent.moveTo(agent.reading.patch.position)
 
-class MM.None extends MM.Medium
+class MM.MediumNone extends MM.Medium
   setup: ->
     super
 
-  use: (twin) ->
+  use: (original) ->
 
   step: ->
+
+class MM.MediumWebsite extends MM.Medium
+  setup: ->
+    super
+
+    @sites = new ABM.Array
+
+    while @sites.length < 100
+      @newPage(@dummyAgent)
+
+  use: (original) ->
+    @createAgent(original)
+
+  step: ->
+    for agent in @agents
+      if u.randomInt(20) == 1
+        @newPage(agent)
+
+      @moveToRandomPage(agent)
+
+    @drawAll()
+
+  newPage: (agent) ->
+    @sites.unshift new MM.Message from: agent, active: agent.original.active
+    @dropSite()
+
+  dropSite: ->
+    if @sites.length > 100
+      site = @sites.pop()
+      for reader, index in site.readers by -1
+        @moveToRandomPage(reader)
+
+  moveToRandomPage: (agent) ->
+    agent.read(@sites.sample())
+
+  drawAll: ->
+    @copyOriginalColors()
+    @resetPatches()
+
+    for site in @sites
+      if !site.patch?
+        site.patch = @patches.sample()
+
+      @colorPatch(site.patch, site) # TODO reduce
+
+    for agent in @agents
+      agent.moveTo(agent.reading.patch.position)
 
 class MM.UI
   constructor: (model, options = {}) ->
@@ -364,9 +414,9 @@ class MM.UI
         if key == "medium"
           adder = @gui.add(@model.config, key, value...)
           adder.onChange((newMedium) =>
-            @model.communication.oldMedium().reset()
-            @model.communication.medium().restart()
-            @model.communication.updateOldMedium()
+            @model.media.old().reset()
+            @model.media.current().restart()
+            @model.media.updateOld()
             @addMediaMarker()
           )
         else
@@ -413,53 +463,6 @@ class MM.UI
     @mediaMarker = true
     console.log "Adding MEDIA MARKER"
 
-class MM.Website extends MM.Medium
-  setup: ->
-    super
-
-    @sites = new ABM.Array
-
-    while @sites.length < 100
-      @newPage(@dummyAgent)
-
-  use: (twin) ->
-    @createAgent(twin)
-
-  step: ->
-    for agent in @agents
-      if u.randomInt(20) == 1
-        @newPage(agent)
-
-      @moveToRandomPage(agent)
-
-    @drawAll()
-
-  newPage: (agent) ->
-    @sites.unshift new MM.Message from: agent, active: agent.twin.active
-    @dropSite()
-
-  dropSite: ->
-    if @sites.length > 100
-      site = @sites.pop()
-      for reader, index in site.readers by -1
-        @moveToRandomPage(reader)
-
-  moveToRandomPage: (agent) ->
-    agent.read(@sites.sample())
-
-  drawAll: ->
-    @copyTwinColors()
-    @resetPatches()
-
-    for site in @sites
-      if !site.patch?
-        site.patch = @patches.sample()
-
-      @colorPatch(site.patch, site) # TODO reduce
-
-    for agent in @agents
-      agent.moveTo(agent.reading.patch.position)
-
 class MM.Model extends ABM.Model
   setup: ->
     @agentBreeds ["citizens", "cops"]
@@ -468,6 +471,7 @@ class MM.Model extends ABM.Model
 
     for patch in @patches.create()
       if @config.type is MM.TYPES.enclave
+
         if patch.position.y > 0
           patch.color = u.color.random type: "gray", min: 180, max: 204
         else
@@ -497,7 +501,7 @@ class MM.Model extends ABM.Model
         cops = 0
         actives = 1
         # Switch on effect test
-        #if @twin()? and @twin().reading? and @twin().reading.active
+        #if @mediaMirror()? and @mediaMirror().reading? and @mediaMirror().reading.active
         #  actives += 10
   
         for agent in @neighbors(@config.vision)
@@ -612,12 +616,12 @@ class MM.Model extends ABM.Model
       agent.act()
       if u.randomInt(100) == 1
         if agent.breed.name is "citizens"
-          @communication.medium().use(agent)
+          @media.current().use(agent)
 
     unless @isHeadless
       window.modelUI.drawPlot()
 
-    @communication.medium().once()
+    @media.current().once()
 
     @recordData()
 
@@ -701,7 +705,8 @@ class MM.Initializer extends MM.Model
     #return new MM.Initializer(@config) TODO
   
   startup: ->
-    @communication = new MM.Communication(this)
+    #@state = new MM.States(this)
+    @media = new MM.Media(this)
     unless @isHeadless
       window.modelUI = new MM.UI(this)
 

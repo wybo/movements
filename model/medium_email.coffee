@@ -1,4 +1,4 @@
-class MM.EMail extends MM.Medium
+class MM.MediumEMail extends MM.Medium
   setup: ->
     super
 
@@ -13,22 +13,22 @@ class MM.EMail extends MM.Medium
 
     @drawAll()
 
-  use: (twin) ->
-    agent = @createAgent(twin)
-    agent.inbox = @inboxes[agent.twin.id] = new ABM.Array
+  use: (original) ->
+    agent = @createAgent(original)
+    agent.inbox = @inboxes[agent.original.id] = new ABM.Array
     agent.readMail = ->
       agent.read(@inbox.pop())
 
   newMail: (agent) ->
     @route new MM.Message {
-      from: agent, to: @agents.sample(), active: agent.twin.active
+      from: agent, to: @agents.sample(), active: agent.original.active
     }
 
   route: (message) ->
-    @inboxes[message.to.twin.id].push message
+    @inboxes[message.to.original.id].push message
 
   drawAll: ->
-    @copyTwinColors()
+    @copyOriginalColors()
     @resetPatches()
 
     x_offset = y_offset = 0

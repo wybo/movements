@@ -1,4 +1,4 @@
-class MM.Website extends MM.Medium
+class MM.MediumWebsite extends MM.Medium
   setup: ->
     super
 
@@ -7,8 +7,8 @@ class MM.Website extends MM.Medium
     while @sites.length < 100
       @newPage(@dummyAgent)
 
-  use: (twin) ->
-    @createAgent(twin)
+  use: (original) ->
+    @createAgent(original)
 
   step: ->
     for agent in @agents
@@ -20,7 +20,7 @@ class MM.Website extends MM.Medium
     @drawAll()
 
   newPage: (agent) ->
-    @sites.unshift new MM.Message from: agent, active: agent.twin.active
+    @sites.unshift new MM.Message from: agent, active: agent.original.active
     @dropSite()
 
   dropSite: ->
@@ -33,7 +33,7 @@ class MM.Website extends MM.Medium
     agent.read(@sites.sample())
 
   drawAll: ->
-    @copyTwinColors()
+    @copyOriginalColors()
     @resetPatches()
 
     for site in @sites

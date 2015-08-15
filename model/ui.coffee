@@ -39,9 +39,9 @@ class MM.UI
         if key == "medium"
           adder = @gui.add(@model.config, key, value...)
           adder.onChange((newMedium) =>
-            @model.communication.oldMedium().reset()
-            @model.communication.medium().restart()
-            @model.communication.updateOldMedium()
+            @model.media.old().reset()
+            @model.media.current().restart()
+            @model.media.updateOld()
             @addMediaMarker()
           )
         else
