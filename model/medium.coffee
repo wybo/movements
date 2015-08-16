@@ -16,11 +16,11 @@ class MM.Medium extends ABM.Model
       patch.color = u.color.white
 
   createAgent: (original) ->
-    if !original.mediaMirror()
+    if !original.mediumMirror()
       @agents.create 1
       agent = @agents.last()
       agent.original = original
-      original.mediaMirrors[original.model.config.medium] = agent
+      original.mediumMirrors[original.model.config.medium] = agent
 
       agent.size = @size
       agent.heading = u.degreesToRadians(270)
@@ -40,7 +40,7 @@ class MM.Medium extends ABM.Model
 
         @reading = null
 
-    return original.mediaMirror()
+    return original.mediumMirror()
 
   colorPatch: (patch, message) ->
     if message.active

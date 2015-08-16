@@ -21,6 +21,7 @@ class MM.UI
   setupControls: () ->
     settings =
       type: [MM.TYPES]
+      view: [MM.VIEWS]
       #medium: [MM.MEDIA], {onChange: 55}
       medium: [MM.MEDIA]
       citizenDensity: {min: 0, max: 1}
@@ -36,7 +37,15 @@ class MM.UI
 
     for key, value of settings
       if u.isArray(value)
-        if key == "medium"
+        if key == "view"
+          adder = @gui.add(@model.config, key, value...)
+          adder.onChange((newView) =>
+            @model.views.old().reset()
+            @model.views.current().restart()
+            @model.views.current().populate(@model)
+            @model.views.updateOld()
+          )
+        else if key == "medium"
           adder = @gui.add(@model.config, key, value...)
           adder.onChange((newMedium) =>
             @model.media.old().reset()
@@ -74,7 +83,9 @@ class MM.UI
     @model.resetData()
     @plotRioters = []
     for key, variable of @model.config.ui
-      @plotRioters.push({label: variable.label, color: variable.color, data: @model.data[key]})
+      @plotRioters.push({
+        label: variable.label, color: variable.color, data: @model.data[key]
+      })
 
     @plotter = $.plot(@plotDiv, @plotRioters, @plotOptions)
     @drawPlot()

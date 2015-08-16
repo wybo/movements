@@ -9,7 +9,7 @@ log = (object) -> console.log object
 
 MM.TYPES = {normal: "0", enclave: "1", micro: "2"}
 MM.MEDIA = {none: 0, email: "1", website: "2", forum: "3"}
-MM.STATES = {none: 0, grievances: "1"}
+MM.VIEWS = {none: 0, grievances: "1", arrest_probability: "2", net_risk: "3"}
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -20,7 +20,7 @@ class MM.Config
 
   type: MM.TYPES.normal
 
-  state: MM.STATES.grievances
+  view: MM.VIEWS.net_risk
 
   citizenDensity: 0.7
   #copDensity: 0.02
@@ -56,13 +56,13 @@ class MM.Config
       # config is added
     })
 
-    @stateModelOptions = u.merge(sharedModelOptions, {
-      div: "state"
+    @viewModelOptions = u.merge(sharedModelOptions, {
+      div: "view"
     })
 
     @mediaModelOptions = {
       Agent: MM.Agent
-      div: "media"
+      div: "medium"
       patchSize: 10
       min: {x: 0, y: 0}
       max: {x: 39, y: 39}

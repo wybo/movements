@@ -10,7 +10,7 @@ window.reInitialize = ->
     context.canvas.width = context.canvas.width
   window.initialize(window.model.config)
 
-$("#model_container").append('<div id="state"></div>')
-$("#model_container").append('<div id="media"></div>')
+$("#model_container").append('<div id="view"></div>')
+$("#model_container").append('<div id="medium"></div>')
 
 window.initialize(config)

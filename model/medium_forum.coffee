@@ -16,7 +16,7 @@ class MM.MediumForum extends MM.Medium
 
   step: ->
     for agent in @agents
-      if agent # might have died already
+      if agent # might have died already TODO check this, should not!
         if u.randomInt(20) == 1
           @newPost(agent)
 

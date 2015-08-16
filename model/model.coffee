@@ -36,7 +36,7 @@ class MM.Model extends ABM.Model
         cops = 0
         actives = 1
         # Switch on effect test
-        #if @mediaMirror()? and @mediaMirror().reading? and @mediaMirror().reading.active
+        #if @mediumMirror()? and @mediumMirror().reading? and @mediumMirror().reading.active
         #  actives += 10
   
         for agent in @neighbors(@config.vision)
@@ -143,6 +143,7 @@ class MM.Model extends ABM.Model
       window.modelUI.resetPlot()
 
     unless @isHeadless
+      @views.current().populate(@)
       @consoleLog()
 
   step: -> # called by MM.Model.animate
@@ -157,6 +158,7 @@ class MM.Model extends ABM.Model
       window.modelUI.drawPlot()
 
     @media.current().once()
+    @views.current().once()
 
     @recordData()
 

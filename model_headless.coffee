@@ -9,7 +9,7 @@ log = (object) -> console.log object
 
 MM.TYPES = {normal: "0", enclave: "1", micro: "2"}
 MM.MEDIA = {none: 0, email: "1", website: "2", forum: "3"}
-MM.STATES = {none: 0, grievances: "1"}
+MM.VIEWS = {none: 0, grievances: "1", arrest_probability: "2", net_risk: "3"}
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -20,7 +20,7 @@ class MM.Config
 
   type: MM.TYPES.normal
 
-  state: MM.STATES.grievances
+  view: MM.VIEWS.net_risk
 
   citizenDensity: 0.7
   #copDensity: 0.02
@@ -56,13 +56,13 @@ class MM.Config
       # config is added
     })
 
-    @stateModelOptions = u.merge(sharedModelOptions, {
-      div: "state"
+    @viewModelOptions = u.merge(sharedModelOptions, {
+      div: "view"
     })
 
     @mediaModelOptions = {
       Agent: MM.Agent
-      div: "media"
+      div: "medium"
       patchSize: 10
       min: {x: 0, y: 0}
       max: {x: 39, y: 39}
@@ -88,10 +88,11 @@ class MM.Agent extends ABM.Agent
   constructor: ->
     super
 
-    @mediaMirrors = new ABM.Array # TODO move to model
+    @mediumMirrors = new ABM.Array # TODO move to model
+    @viewMirrors = new ABM.Array # TODO move to model
 
-  mediaMirror: ->
-    @mediaMirrors[@model.config.medium]
+  mediumMirror: ->
+    @mediumMirrors[@model.config.medium]
 
   setColor: (color) ->
     @color = new u.color color
@@ -143,11 +144,11 @@ class MM.Medium extends ABM.Model
       patch.color = u.color.white
 
   createAgent: (original) ->
-    if !original.mediaMirror()
+    if !original.mediumMirror()
       @agents.create 1
       agent = @agents.last()
       agent.original = original
-      original.mediaMirrors[original.model.config.medium] = agent
+      original.mediumMirrors[original.model.config.medium] = agent
 
       agent.size = @size
       agent.heading = u.degreesToRadians(270)
@@ -167,7 +168,7 @@ class MM.Medium extends ABM.Model
 
         @reading = null
 
-    return original.mediaMirror()
+    return original.mediumMirror()
 
   colorPatch: (patch, message) ->
     if message.active
@@ -245,7 +246,7 @@ class MM.MediumForum extends MM.Medium
 
   step: ->
     for agent in @agents
-      if agent # might have died already
+      if agent # might have died already TODO check this, should not!
         if u.randomInt(20) == 1
           @newPost(agent)
 
@@ -396,6 +397,7 @@ class MM.UI
   setupControls: () ->
     settings =
       type: [MM.TYPES]
+      view: [MM.VIEWS]
       #medium: [MM.MEDIA], {onChange: 55}
       medium: [MM.MEDIA]
       citizenDensity: {min: 0, max: 1}
@@ -411,7 +413,15 @@ class MM.UI
 
     for key, value of settings
       if u.isArray(value)
-        if key == "medium"
+        if key == "view"
+          adder = @gui.add(@model.config, key, value...)
+          adder.onChange((newView) =>
+            @model.views.old().reset()
+            @model.views.current().restart()
+            @model.views.current().populate(@model)
+            @model.views.updateOld()
+          )
+        else if key == "medium"
           adder = @gui.add(@model.config, key, value...)
           adder.onChange((newMedium) =>
             @model.media.old().reset()
@@ -449,7 +459,9 @@ class MM.UI
     @model.resetData()
     @plotRioters = []
     for key, variable of @model.config.ui
-      @plotRioters.push({label: variable.label, color: variable.color, data: @model.data[key]})
+      @plotRioters.push({
+        label: variable.label, color: variable.color, data: @model.data[key]
+      })
 
     @plotter = $.plot(@plotDiv, @plotRioters, @plotOptions)
     @drawPlot()
@@ -462,6 +474,111 @@ class MM.UI
   addMediaMarker: ->
     @mediaMarker = true
     console.log "Adding MEDIA MARKER"
+
+# Copyright 2014, Wybo Wiersma, available under the GPL v3
+# This model builds upon Epsteins model of protest, and illustrates
+# the possible impact of social media on protest formation.
+
+class MM.View extends ABM.Model
+  setup: ->
+    for patch in @patches.create()
+      patch.color = u.color.white
+
+  populate: (model) ->
+    for original in model.agents
+      @createAgent(original)
+
+  step: ->
+    for agent in @agents
+      if agent.original.position
+        agent.moveTo agent.original.position
+      else
+        agent.moveOff()
+
+  createAgent: (original) ->
+    @agents.create 1
+    agent = @agents.last()
+    agent.original = original
+    original.viewMirrors[original.model.config.view] = agent
+
+    agent.size = @size
+    agent.shape = "square"
+
+class MM.ViewArrestProbability extends MM.View
+  setup: ->
+    @size = 1.0
+    super
+
+  populate: (options) ->
+    super(options)
+
+    for agent in @agents
+      if agent.original.breed.name is "cops"
+        agent.color = agent.original.color
+
+  step: ->
+    super
+
+    for agent in @agents
+      if agent.original.breed.name is "citizens"
+        agent.color = u.color.red.fraction(agent.original.arrestProbability())
+
+class MM.ViewGrievance extends MM.View
+  setup: ->
+    @size = 1.0
+    super
+
+  populate: (options) ->
+    super(options)
+
+    for agent in @agents
+      if agent.original.breed.name is "citizens"
+        agent.color = u.color.red.fraction(agent.original.grievance())
+      else
+        agent.color = agent.original.color
+
+  step: ->
+    super
+
+class MM.ViewNetRisk extends MM.View
+  setup: ->
+    @size = 1.0
+    super
+
+  populate: (options) ->
+    super(options)
+
+    for agent in @agents
+      if agent.original.breed.name is "cops"
+        agent.color = agent.original.color
+
+  step: ->
+    super
+
+    for agent in @agents
+      if agent.original.breed.name is "citizens"
+        agent.color = u.color.red.fraction(agent.original.netRisk())
+
+class MM.Views
+  constructor: (model, options = {}) ->
+    @model = model
+
+    @views = new ABM.Array
+
+    @views[MM.VIEWS.grievances] = new MM.ViewGrievance(@model.config.viewModelOptions)
+    @views[MM.VIEWS.arrest_probability] = new MM.ViewArrestProbability(@model.config.viewModelOptions)
+    @views[MM.VIEWS.net_risk] = new MM.ViewNetRisk(@model.config.viewModelOptions)
+
+    @updateOld()
+
+  current: ->
+    @views[@model.config.view]
+
+  old: ->
+    @views[@model.config.oldView]
+
+  updateOld: ->
+    @model.config.oldView = @model.config.view
 
 class MM.Model extends ABM.Model
   setup: ->
@@ -501,7 +618,7 @@ class MM.Model extends ABM.Model
         cops = 0
         actives = 1
         # Switch on effect test
-        #if @mediaMirror()? and @mediaMirror().reading? and @mediaMirror().reading.active
+        #if @mediumMirror()? and @mediumMirror().reading? and @mediumMirror().reading.active
         #  actives += 10
   
         for agent in @neighbors(@config.vision)
@@ -608,6 +725,7 @@ class MM.Model extends ABM.Model
       window.modelUI.resetPlot()
 
     unless @isHeadless
+      @views.current().populate(@)
       @consoleLog()
 
   step: -> # called by MM.Model.animate
@@ -622,6 +740,7 @@ class MM.Model extends ABM.Model
       window.modelUI.drawPlot()
 
     @media.current().once()
+    @views.current().once()
 
     @recordData()
 
@@ -705,9 +824,9 @@ class MM.Initializer extends MM.Model
     #return new MM.Initializer(@config) TODO
   
   startup: ->
-    #@state = new MM.States(this)
     @media = new MM.Media(this)
     unless @isHeadless
+      @views = new MM.Views(this)
       window.modelUI = new MM.UI(this)
 
   setup: ->

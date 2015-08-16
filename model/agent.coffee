@@ -2,10 +2,11 @@ class MM.Agent extends ABM.Agent
   constructor: ->
     super
 
-    @mediaMirrors = new ABM.Array # TODO move to model
+    @mediumMirrors = new ABM.Array # TODO move to model
+    @viewMirrors = new ABM.Array # TODO move to model
 
-  mediaMirror: ->
-    @mediaMirrors[@model.config.medium]
+  mediumMirror: ->
+    @mediumMirrors[@model.config.medium]
 
   setColor: (color) ->
     @color = new u.color color
