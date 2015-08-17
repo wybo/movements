@@ -8,6 +8,9 @@ class MM.Agent extends ABM.Agent
   mediumMirror: ->
     @mediumMirrors[@model.config.medium]
 
+  viewMirror: ->
+    @viewMirrors[@model.config.view]
+
   setColor: (color) ->
     @color = new u.color color
     @sprite = null

@@ -68,9 +68,6 @@ class MM.UI
       series: {
         shadowSize: 0
       } # faster without shadows
-      xaxis: {
-        show: false
-      }
       yaxis: {
         min: 0
       }

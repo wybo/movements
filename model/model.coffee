@@ -23,11 +23,35 @@ class MM.Model extends ABM.Model
       citizen.setColor "green"
       citizen.moveToRandomEmptyLocation()
 
-      citizen.hardship = u.randomFloat()
-      citizen.riskAversion = u.randomFloat()
+      citizen.hardship = u.randomFloat() # H
+      citizen.riskAversion = u.randomFloat() # R
       citizen.active = false
       citizen.activeMicro = 0.0
       citizen.prisonSentence = 0
+
+      citizen.act = ->
+        if @imprisoned()
+          @prisonSentence -= 1
+
+          if !@imprisoned() # just released
+            @moveToRandomEmptyLocation()
+
+        if !@imprisoned() # just released included
+          empty = @randomEmptyNeighbor()
+
+          if @model.config.type is MM.TYPES.enclave
+            if empty and (@riskAversion > 0.5 and
+                (empty.position.y > 0 or empty.position.y < 0 and
+                  empty.position.y > @patch.position.y)) or
+                (@riskAversion < 0.5 and
+                (empty.position.y < 0 or empty.position.y > 0 and
+                  empty.position.y < @patch.position.y))
+
+              empty = @randomEmptyNeighbor()
+
+          @moveTo(empty.position) if empty
+
+          @activate()
 
       citizen.grievance = ->
         @hardship * (1 - @config.regimeLegitimacy)
@@ -53,7 +77,8 @@ class MM.Model extends ABM.Model
         @calculateArrestProbability(cops, actives)
 
       citizen.calculateArrestProbability = (cops, actives) ->
-        1 - Math.exp(@config.kConstant * cops / actives)
+        1 - Math.exp(-1 * @config.kConstant * Math.floor(cops / actives))
+#        1 - Math.exp(-1 * @config.kConstant * cops / actives)
 
       citizen.netRisk = ->
         @arrestProbability() * @riskAversion
@@ -89,36 +114,17 @@ class MM.Model extends ABM.Model
             @active = false
             @setColor "green"
 
-      citizen.act = ->
-        if @imprisoned()
-          @prisonSentence -= 1
-
-          if !@imprisoned() # just released
-            @moveToRandomEmptyLocation()
-
-        if !@imprisoned() # just released included
-          empty = @randomEmptyNeighbor()
-
-          if @model.config.type is MM.TYPES.enclave
-            if empty and (@riskAversion > 0.5 and
-                (empty.position.y > 0 or empty.position.y < 0 and
-                  empty.position.y > @patch.position.y)) or
-                (@riskAversion < 0.5 and
-                (empty.position.y < 0 or empty.position.y > 0 and
-                  empty.position.y < @patch.position.y))
-
-              empty = @randomEmptyNeighbor()
-
-          @moveTo(empty.position) if empty
-
-          @activate()
-
     for cop in @cops.create @config.copDensity * space
       cop.config = @config
       cop.size = @size
       cop.shape = "person"
       cop.setColor "blue"
       cop.moveToRandomEmptyLocation()
+
+      cop.act = ->
+        empty = @randomEmptyNeighbor()
+        @moveTo(empty.position) if empty
+        @makeArrest()
 
       cop.makeArrest = ->
         protesters = 0
@@ -133,11 +139,6 @@ class MM.Model extends ABM.Model
           agent.breed.name is "citizens" and agent.active)
         if protester
           protester.imprison(1 + u.randomInt(@config.maxPrisonSentence))
-
-      cop.act = ->
-        empty = @randomEmptyNeighbor()
-        @moveTo(empty.position) if empty
-        @makeArrest()
 
     unless @isHeadless
       window.modelUI.resetPlot()
@@ -209,7 +210,7 @@ class MM.Model extends ABM.Model
     ticks = @animator.ticks
     tickData = @tickData()
 
-    @data.passives.push [ticks, tickData.passives]
+    #@data.passives.push [ticks, tickData.passives]
     @data.actives.push [ticks, tickData.actives]
     @data.prisoners.push [ticks, tickData.prisoners]
     @data.cops.push [ticks, tickData.cops]
@@ -223,12 +224,14 @@ class MM.Model extends ABM.Model
     console.log @config
     console.log 'Calibration:'
     console.log '  Arrest Probability:'
+
     for pair in [
         [0, 1],
         [1, 1], [2, 1], [3, 1], [4, 1]
         [1, 4], [2, 4], [3, 4], [4, 4]
       ]
       console.log @citizens[0].calculateArrestProbability(pair[0], pair[1])
+
     console.log 'Citizens:'
     console.log @citizens
     console.log 'Cops:'
