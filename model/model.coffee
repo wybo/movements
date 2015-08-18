@@ -1,4 +1,12 @@
 class MM.Model extends ABM.Model
+  restart: ->
+    @media.current().restart()
+
+    unless @isHeadless
+      @views.current().restart()
+
+    super
+
   setup: ->
     @agentBreeds ["citizens", "cops"]
     @size = 0.9
@@ -37,7 +45,7 @@ class MM.Model extends ABM.Model
             @moveToRandomEmptyLocation()
 
         if !@imprisoned() # just released included
-          empty = @randomEmptyNeighbor()
+          empty = @randomEmptyNeighbor(@config.vision)
 
           if @model.config.type is MM.TYPES.enclave
             if empty and (@riskAversion > 0.5 and
@@ -47,7 +55,7 @@ class MM.Model extends ABM.Model
                 (empty.position.y < 0 or empty.position.y > 0 and
                   empty.position.y < @patch.position.y))
 
-              empty = @randomEmptyNeighbor()
+              empty = @randomEmptyNeighbor(@config.vision)
 
           @moveTo(empty.position) if empty
 
@@ -122,7 +130,7 @@ class MM.Model extends ABM.Model
       cop.moveToRandomEmptyLocation()
 
       cop.act = ->
-        empty = @randomEmptyNeighbor()
+        empty = @randomEmptyNeighbor(@config.vision)
         @moveTo(empty.position) if empty
         @makeArrest()
 
@@ -142,8 +150,6 @@ class MM.Model extends ABM.Model
 
     unless @isHeadless
       window.modelUI.resetPlot()
-
-    unless @isHeadless
       @views.current().populate(@)
       @consoleLog()
 
@@ -159,7 +165,9 @@ class MM.Model extends ABM.Model
       window.modelUI.drawPlot()
 
     @media.current().once()
-    @views.current().once()
+
+    unless @isHeadless
+      @views.current().once()
 
     @recordData()
 

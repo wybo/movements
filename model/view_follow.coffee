@@ -17,4 +17,4 @@ class MM.ViewFollow extends MM.View
     for agent in @agent.neighbors(@agent.original.config.vision)
       agent.color = agent.original.color
 
-    @agent.color = u.color.black
+    @agent.original.color = @agent.color = u.color.black

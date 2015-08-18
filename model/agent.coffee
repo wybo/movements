@@ -18,5 +18,5 @@ class MM.Agent extends ABM.Agent
   moveToRandomEmptyLocation: ->
     @moveTo(@model.patches.sample((patch) -> patch.empty()).position)
 
-  randomEmptyNeighbor: ->
-    @patch.neighbors(@vision).sample((patch) -> patch.empty())
+  randomEmptyNeighbor: (vision) ->
+    @patch.neighbors(vision).sample((patch) -> patch.empty())

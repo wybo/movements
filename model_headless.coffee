@@ -21,8 +21,9 @@ class MM.Config
   type: MM.TYPES.normal
 
 #  view: MM.VIEWS.none
+  view: MM.VIEWS.arrest_probability
 #  view: MM.VIEWS.net_risk
-  view: MM.VIEWS.follow
+#  view: MM.VIEWS.follow
 
   citizenDensity: 0.7
   #copDensity: 0.02
@@ -52,7 +53,7 @@ class MM.Config
       Agent: MM.Agent
       patchSize: 20
       #mapSize: 20
-      mapSize: 40
+      mapSize: 5
       isTorus: true
     }
 
@@ -109,8 +110,8 @@ class MM.Agent extends ABM.Agent
   moveToRandomEmptyLocation: ->
     @moveTo(@model.patches.sample((patch) -> patch.empty()).position)
 
-  randomEmptyNeighbor: ->
-    @patch.neighbors(@vision).sample((patch) -> patch.empty())
+  randomEmptyNeighbor: (vision) ->
+    @patch.neighbors(vision).sample((patch) -> patch.empty())
 
 class MM.Media
   constructor: (model, options = {}) ->
@@ -547,7 +548,7 @@ class MM.ViewFollow extends MM.View
     for agent in @agent.neighbors(@agent.original.config.vision)
       agent.color = agent.original.color
 
-    @agent.color = u.color.black
+    @agent.original.color = @agent.color = u.color.black
 
 class MM.ViewGrievance extends MM.View
   setup: ->
@@ -617,6 +618,14 @@ class MM.Views
     @model.config.oldView = @model.config.view
 
 class MM.Model extends ABM.Model
+  restart: ->
+    @media.current().restart()
+
+    unless @isHeadless
+      @views.current().restart()
+
+    super
+
   setup: ->
     @agentBreeds ["citizens", "cops"]
     @size = 0.9
@@ -655,7 +664,7 @@ class MM.Model extends ABM.Model
             @moveToRandomEmptyLocation()
 
         if !@imprisoned() # just released included
-          empty = @randomEmptyNeighbor()
+          empty = @randomEmptyNeighbor(@config.vision)
 
           if @model.config.type is MM.TYPES.enclave
             if empty and (@riskAversion > 0.5 and
@@ -665,7 +674,7 @@ class MM.Model extends ABM.Model
                 (empty.position.y < 0 or empty.position.y > 0 and
                   empty.position.y < @patch.position.y))
 
-              empty = @randomEmptyNeighbor()
+              empty = @randomEmptyNeighbor(@config.vision)
 
           @moveTo(empty.position) if empty
 
@@ -740,7 +749,7 @@ class MM.Model extends ABM.Model
       cop.moveToRandomEmptyLocation()
 
       cop.act = ->
-        empty = @randomEmptyNeighbor()
+        empty = @randomEmptyNeighbor(@config.vision)
         @moveTo(empty.position) if empty
         @makeArrest()
 
@@ -760,8 +769,6 @@ class MM.Model extends ABM.Model
 
     unless @isHeadless
       window.modelUI.resetPlot()
-
-    unless @isHeadless
       @views.current().populate(@)
       @consoleLog()
 
@@ -777,7 +784,9 @@ class MM.Model extends ABM.Model
       window.modelUI.drawPlot()
 
     @media.current().once()
-    @views.current().once()
+
+    unless @isHeadless
+      @views.current().once()
 
     @recordData()
 
@@ -858,7 +867,6 @@ class MM.Model extends ABM.Model
 class MM.Initializer extends MM.Model
   @initialize: (@config) ->
     @config ?= new MM.Config
-    console.log @config
     return new MM.Initializer(u.merge(@config.modelOptions, {config: @config}))
     #return new MM.Initializer(@config) TODO
   

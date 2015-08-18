@@ -21,8 +21,9 @@ class MM.Config
   type: MM.TYPES.normal
 
 #  view: MM.VIEWS.none
+  view: MM.VIEWS.arrest_probability
 #  view: MM.VIEWS.net_risk
-  view: MM.VIEWS.follow
+#  view: MM.VIEWS.follow
 
   citizenDensity: 0.7
   #copDensity: 0.02
@@ -52,7 +53,7 @@ class MM.Config
       Agent: MM.Agent
       patchSize: 20
       #mapSize: 20
-      mapSize: 40
+      mapSize: 5
       isTorus: true
     }
 
