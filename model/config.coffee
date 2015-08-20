@@ -53,7 +53,7 @@ class MM.Config
       Agent: MM.Agent
       patchSize: 20
       #mapSize: 20
-      mapSize: 5
+      mapSize: 20
       isTorus: true
     }
 

@@ -53,7 +53,7 @@ class MM.Config
       Agent: MM.Agent
       patchSize: 20
       #mapSize: 20
-      mapSize: 5
+      mapSize: 20
       isTorus: true
     }
 
@@ -695,17 +695,17 @@ class MM.Model extends ABM.Model
             cops += 1
           else
             if @model.config.type is MM.TYPES.micro
-              if agent.breed.name is "citizen"
+              if agent.breed.name is "citizens"
                 actives += agent.activeMicro
             else
-              if agent.breed.name is "citizen" and agent.active
+              if agent.breed.name is "citizens" and agent.active
                 actives += 1
 
         @calculateArrestProbability(cops, actives)
 
       citizen.calculateArrestProbability = (cops, actives) ->
-        1 - Math.exp(-1 * @config.kConstant * Math.floor(cops / actives))
-#        1 - Math.exp(-1 * @config.kConstant * cops / actives)
+#        1 - Math.exp(-1 * @config.kConstant * Math.floor(cops / actives))
+        1 - Math.exp(-1 * @config.kConstant * cops / actives)
 
       citizen.netRisk = ->
         @arrestProbability() * @riskAversion
