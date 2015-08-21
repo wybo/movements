@@ -26,9 +26,9 @@ class MM.Config
 #  view: MM.VIEWS.follow
 
   citizenDensity: 0.7
-  #copDensity: 0.02
+  #copDensity: 0.04
   #copDensity: 0.012
-  copDensity: 0.04
+  copDensity: 0.021
   maxPrisonSentence: 30 # J
   regimeLegitimacy: 0.82 # L
   threshold: 0.1
@@ -401,7 +401,6 @@ class MM.UI
     @plotDiv = $("#graph")
     @gui = new dat.GUI()
     @setupControls()
-    @setupPlot()
 
   setupControls: () ->
     settings =
@@ -411,6 +410,8 @@ class MM.UI
       medium: [MM.MEDIA]
       citizenDensity: {min: 0, max: 1}
       copDensity: {min: 0, max: 0.10}
+      maxPrisonSentence: {min: 0, max: 1000}
+      regimeLegitimacy: {min: 0, max: 1}
 
     buttons =
       step: ->
@@ -421,13 +422,15 @@ class MM.UI
         window.model.restart()
 
     for key, value of settings
+      console.log settings
       if u.isArray(value)
         if key == "view"
           adder = @gui.add(@model.config, key, value...)
           adder.onChange((newView) =>
             @model.views.old().reset()
-            @model.views.current().restart()
+            @model.views.current().reset()
             @model.views.current().populate(@model)
+            @model.views.current().start()
             @model.views.updateOld()
           )
         else if key == "medium"
@@ -448,8 +451,9 @@ class MM.UI
     for key, bull of buttons
       @gui.add(buttons, key)
 
-  setupPlot: () ->
-    @plotOptions = {
+
+  resetPlot: ->
+    options = {
       series: {
         shadowSize: 0
       } # faster without shadows
@@ -457,11 +461,12 @@ class MM.UI
         min: 0
       }
       grid: {
-        markings: []
+        markings: [
+          { color: "#000", lineWidth: 1, xaxis: { from: 2, to: 2 } }
+        ]
       }
     }
 
-  resetPlot: ->
     @model.resetData()
     @plotRioters = []
     for key, variable of @model.config.ui
@@ -469,7 +474,8 @@ class MM.UI
         label: variable.label, color: variable.color, data: @model.data[key]
       })
 
-    @plotter = $.plot(@plotDiv, @plotRioters, @plotOptions)
+    @plotter = $.plot(@plotDiv, @plotRioters, options)
+    @plotOptions = @plotter.getOptions()
     @drawPlot()
 
   drawPlot: ->
@@ -478,8 +484,8 @@ class MM.UI
     @plotter.draw()
 
   addMediaMarker: ->
-    @mediaMarker = true
-    console.log "Adding MEDIA MARKER"
+    ticks = @model.animator.ticks
+    @plotOptions.grid.markings.push { color: "#000", lineWidth: 1, xaxis: { from: ticks, to: ticks } }
 
 # Copyright 2014, Wybo Wiersma, available under the GPL v3
 # This model builds upon Epsteins model of protest, and illustrates
@@ -535,7 +541,11 @@ class MM.ViewFollow extends MM.View
     super
 
   populate: (model) ->
+    console.log 'Getting to model'
+    console.log model
+
     super(model)
+
 
     @agent = model.citizens.first().viewMirror()
 
@@ -705,7 +715,10 @@ class MM.Model extends ABM.Model
 
       citizen.calculateArrestProbability = (cops, actives) ->
 #        1 - Math.exp(-1 * @config.kConstant * Math.floor(cops / actives))
-        1 - Math.exp(-1 * @config.kConstant * cops / actives)
+        if cops * 3 > actives
+          return 1 - Math.exp(-1 * @config.kConstant * cops / actives)
+        else
+          return 0
 
       citizen.netRisk = ->
         @arrestProbability() * @riskAversion
@@ -755,17 +768,19 @@ class MM.Model extends ABM.Model
 
       cop.makeArrest = ->
         protesters = 0
-        passives = 0
+        cops = 0
         for agent in @neighbors(@config.vision)
           if agent.breed.name is "citizens" and agent.active
             protesters += 1
-          else
-            passives += 1
+          else if agent.breed.name is "cops"
+            cops += 1
 
-        protester = @neighbors(@config.vision).sample((agent) ->
-          agent.breed.name is "citizens" and agent.active)
-        if protester
-          protester.imprison(1 + u.randomInt(@config.maxPrisonSentence))
+        if cops * 3 > protesters
+          protester = @neighbors(@config.vision).sample((agent) ->
+            agent.breed.name is "citizens" and agent.active)
+
+          if protester
+            protester.imprison(1 + u.randomInt(@config.maxPrisonSentence))
 
     unless @isHeadless
       window.modelUI.resetPlot()

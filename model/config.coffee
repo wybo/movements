@@ -26,9 +26,9 @@ class MM.Config
 #  view: MM.VIEWS.follow
 
   citizenDensity: 0.7
-  #copDensity: 0.02
+  #copDensity: 0.04
   #copDensity: 0.012
-  copDensity: 0.04
+  copDensity: 0.021
   maxPrisonSentence: 30 # J
   regimeLegitimacy: 0.82 # L
   threshold: 0.1

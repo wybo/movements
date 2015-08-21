@@ -4,7 +4,11 @@ class MM.ViewFollow extends MM.View
     super
 
   populate: (model) ->
+    console.log 'Getting to model'
+    console.log model
+
     super(model)
+
 
     @agent = model.citizens.first().viewMirror()
 

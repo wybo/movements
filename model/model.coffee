@@ -86,7 +86,10 @@ class MM.Model extends ABM.Model
 
       citizen.calculateArrestProbability = (cops, actives) ->
 #        1 - Math.exp(-1 * @config.kConstant * Math.floor(cops / actives))
-        1 - Math.exp(-1 * @config.kConstant * cops / actives)
+        if cops * 3 > actives
+          return 1 - Math.exp(-1 * @config.kConstant * cops / actives)
+        else
+          return 0
 
       citizen.netRisk = ->
         @arrestProbability() * @riskAversion
@@ -136,17 +139,19 @@ class MM.Model extends ABM.Model
 
       cop.makeArrest = ->
         protesters = 0
-        passives = 0
+        cops = 0
         for agent in @neighbors(@config.vision)
           if agent.breed.name is "citizens" and agent.active
             protesters += 1
-          else
-            passives += 1
+          else if agent.breed.name is "cops"
+            cops += 1
 
-        protester = @neighbors(@config.vision).sample((agent) ->
-          agent.breed.name is "citizens" and agent.active)
-        if protester
-          protester.imprison(1 + u.randomInt(@config.maxPrisonSentence))
+        if cops * 3 > protesters
+          protester = @neighbors(@config.vision).sample((agent) ->
+            agent.breed.name is "citizens" and agent.active)
+
+          if protester
+            protester.imprison(1 + u.randomInt(@config.maxPrisonSentence))
 
     unless @isHeadless
       window.modelUI.resetPlot()

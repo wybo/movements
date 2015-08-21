@@ -16,7 +16,6 @@ class MM.UI
     @plotDiv = $("#graph")
     @gui = new dat.GUI()
     @setupControls()
-    @setupPlot()
 
   setupControls: () ->
     settings =
@@ -26,6 +25,8 @@ class MM.UI
       medium: [MM.MEDIA]
       citizenDensity: {min: 0, max: 1}
       copDensity: {min: 0, max: 0.10}
+      maxPrisonSentence: {min: 0, max: 1000}
+      regimeLegitimacy: {min: 0, max: 1}
 
     buttons =
       step: ->
@@ -36,13 +37,15 @@ class MM.UI
         window.model.restart()
 
     for key, value of settings
+      console.log settings
       if u.isArray(value)
         if key == "view"
           adder = @gui.add(@model.config, key, value...)
           adder.onChange((newView) =>
             @model.views.old().reset()
-            @model.views.current().restart()
+            @model.views.current().reset()
             @model.views.current().populate(@model)
+            @model.views.current().start()
             @model.views.updateOld()
           )
         else if key == "medium"
@@ -63,8 +66,9 @@ class MM.UI
     for key, bull of buttons
       @gui.add(buttons, key)
 
-  setupPlot: () ->
-    @plotOptions = {
+
+  resetPlot: ->
+    options = {
       series: {
         shadowSize: 0
       } # faster without shadows
@@ -72,11 +76,12 @@ class MM.UI
         min: 0
       }
       grid: {
-        markings: []
+        markings: [
+          { color: "#000", lineWidth: 1, xaxis: { from: 2, to: 2 } }
+        ]
       }
     }
 
-  resetPlot: ->
     @model.resetData()
     @plotRioters = []
     for key, variable of @model.config.ui
@@ -84,7 +89,8 @@ class MM.UI
         label: variable.label, color: variable.color, data: @model.data[key]
       })
 
-    @plotter = $.plot(@plotDiv, @plotRioters, @plotOptions)
+    @plotter = $.plot(@plotDiv, @plotRioters, options)
+    @plotOptions = @plotter.getOptions()
     @drawPlot()
 
   drawPlot: ->
@@ -93,5 +99,5 @@ class MM.UI
     @plotter.draw()
 
   addMediaMarker: ->
-    @mediaMarker = true
-    console.log "Adding MEDIA MARKER"
+    ticks = @model.animator.ticks
+    @plotOptions.grid.markings.push { color: "#000", lineWidth: 1, xaxis: { from: ticks, to: ticks } }
