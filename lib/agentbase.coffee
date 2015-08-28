@@ -49,7 +49,10 @@ ABM.util =
   # `instanceof` See [underscore.coffee](http://goo.gl/L0umK)
   #
   # TODO fix: Array.isArray or (object) ->
-  #
+  
+  isObject: (object) ->
+    return !!(object && (typeof object == "object"))
+
   isArray: (object) ->
     !!(object and object.concat and object.unshift and not object.callee)
 
@@ -741,10 +744,23 @@ ABM.util.array =
     else
       array[array.length - 1]
 
+  # Return all elements of array that match condition
+  #
+  select: (array, condition = null) ->
+    newArray = new ABM.Array
+
+    for object in array
+      if condition(object)
+        newArray.push object
+
+    return newArray
+
   # Return random element of array or number random elements of array.
-  # Note: array elements presumed unique, i.e. objects or distinct
-  # primitives Note: clone, shuffle then first number has poor
-  # performance.
+  #
+  # Note: Objects are presumed unique, and the same object will never
+  # be included twice if more than one random object is requested.
+  #
+  # Note: clone, shuffle then first number has poor performance.
   #
   sample: (array, numberOrCondition = null, condition = null) ->
     if u.isFunction numberOrCondition
@@ -752,25 +768,20 @@ ABM.util.array =
     else if numberOrCondition?
       number = Math.floor(numberOrCondition)
 
-    if number?
+    if @empty array
+      return null
+
+    if condition?
+      @sample(@select(array, condition), number)
+    else if number?
       newArray = new ABM.Array
       object = true
       while newArray.length < number and object?
-        object = @sample(array, condition)
+        object = @sample(array)
         if object and object not in newArray
           newArray.push object
       return newArray
-    else if condition?
-      checked = new ABM.Array
-      while checked.length < array.length
-        object = @sample(array)
-        if object and object not in checked
-          checked.push object
-          if condition(object)
-            return object
     else
-      if @empty array
-        return null
       return array[u.randomInt array.length]
 
   # True if object is in array.
@@ -2071,23 +2082,28 @@ class ABM.Agent
   #
   neighbors: (options) ->
     options ?= 1
-    if options.radius
-      square = @neighbors(options.radius)
-      if options.cone
-        options.heading ?= @heading
-        # adopt heading unless explicitly given
-        neighbors = square.inCone(@position, options)
-      else
-        neighbors = square.inRadius(@position, options)
-    else
-      neighbors = @breed.from []
-      if @patch
-        for patch in @patch.neighbors(options)
-          for agent in patch.agents
-            if agent isnt @
-              neighbors.push agent
 
-    neighbors
+    if u.isNumber(options)
+      options = {range: options}
+
+    if !options.meToo
+      options = u.merge(options, {meToo: true, not: @})
+
+    if !@patch # not on the map
+      return new @model.Set
+    else
+      if options.radius
+        square = @patch.neighborAgents(options.radius)
+        if options.cone
+          options.heading ?= @heading
+          # adopt heading unless explicitly given
+          neighbors = square.inCone(@position, options)
+        else
+          neighbors = square.inRadius(@position, options)
+      else
+        neighbors = @patch.neighborAgents(options)
+
+      return neighbors
 
   # ### Life and death
 
@@ -3034,6 +3050,19 @@ class ABM.Patch
 
       if cacheKey?
         @neighborsCache[cacheKey] = neighbors
+
+    return neighbors
+
+  # Get agents on neigboring patches.
+  #
+  neighborAgents: (options) ->
+    neighbors = new @model.Set
+    notAgent = options.not
+    delete options.not
+    for patch in @neighbors(options)
+      for agent in patch.agents
+        if agent isnt notAgent
+          neighbors.push agent
 
     return neighbors
 

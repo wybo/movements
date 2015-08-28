@@ -9,7 +9,7 @@ log = (object) -> console.log object
 
 MM.TYPES = {normal: "0", enclave: "1", micro: "2"}
 MM.MEDIA = {none: 0, email: "1", website: "2", forum: "3"}
-MM.VIEWS = {none: 0, grievances: "1", arrest_probability: "2", net_risk: "3", follow: "4"}
+MM.VIEWS = {none: 0, grievance: "1", risk_aversion: "2", arrest_probability: "3", net_risk: "4", follow: "5"}
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -18,23 +18,28 @@ class MM.Config
 #  medium: MM.MEDIA.forum
 #  medium: MM.MEDIA.website
 
-  type: MM.TYPES.normal
+#  type: MM.TYPES.normal
+  type: MM.TYPES.enclave
+#  type: MM.TYPES.micro
 
 #  view: MM.VIEWS.none
-  view: MM.VIEWS.arrest_probability
+#  view: MM.VIEWS.grievance
+  view: MM.VIEWS.risk_aversion
+#  view: MM.VIEWS.arrest_probability
 #  view: MM.VIEWS.net_risk
 #  view: MM.VIEWS.follow
 
   citizenDensity: 0.7
   #copDensity: 0.04
   #copDensity: 0.012
-  copDensity: 0.021
+  copDensity: 0.02
   maxPrisonSentence: 30 # J
   regimeLegitimacy: 0.82 # L
   threshold: 0.1
   thresholdMicro: 0.0
   #vision: {diamond: 7} # Neumann 7, v and v*
   vision: {radius: 7} # Neumann 7, v and v*
+  walk: {radius: 2} # Neumann 7, v and v*
   kConstant: 2.3 # k
 
   ui: {
@@ -53,7 +58,7 @@ class MM.Config
       Agent: MM.Agent
       patchSize: 20
       #mapSize: 20
-      mapSize: 20
+      mapSize: 30
       isTorus: true
     }
 
@@ -107,11 +112,89 @@ class MM.Agent extends ABM.Agent
     @color = new u.color color
     @sprite = null
 
+  countCopsActives: (vision, patch) ->
+    cops = 0
+    actives = 0
+
+    if patch
+      neighbors = patch.neighborAgents(vision)
+    else
+      neighbors = @neighbors(vision)
+
+    for agent in neighbors
+      if agent.breed.name is "cops"
+        cops += 1
+      else
+        if @model.config.type is MM.TYPES.micro
+          if agent.breed.name is "citizens"
+            actives += agent.activeMicro
+        else
+          if agent.breed.name is "citizens" and agent.active
+            actives += 1
+
+    return {cops: cops, actives: actives}
+
+  calculateArrestProbability: (count) ->
+#        1 - Math.exp(-1 * @config.kConstant * Math.floor(cops / actives))
+    if count.cops * 5 > count.actives
+      return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.actives)
+    else
+      return 0
+
+  moveToRandomEmptyNeighbor: (walk) ->
+    empty = @randomEmptyNeighbor(walk)
+
+    if empty
+      @moveTo(empty.position)
+
+  moveToRandomUpperHalf: (walk, upper = true) ->
+    empties = @randomEmptyNeighbors(walk)
+    toEmpty = null
+    if upper
+      mostVertical = @model.world.min.y - 1
+    else
+      mostVertical = @model.world.max.y + 1
+    console.log upper
+    console.log mostVertical
+
+    for empty in empties
+      vertical = empty.position.y
+
+      # Already in the upper half, done
+      if (vertical > 0 and upper) or
+          (vertical < 0 and !upper)
+        @moveTo(empty.position)
+        return
+
+      # Edge up
+      if (vertical > mostVertical and upper) or
+          (vertical < mostVertical and !upper)
+        mostVertical = vertical
+        toEmpty = empty
+    
+    @moveTo(toEmpty.position) if toEmpty
+
   moveToRandomEmptyLocation: ->
     @moveTo(@model.patches.sample((patch) -> patch.empty()).position)
 
-  randomEmptyNeighbor: (vision) ->
-    @patch.neighbors(vision).sample((patch) -> patch.empty())
+  moveToArrestProbability: (walk, vision, highest = true) ->
+    empties = @randomEmptyNeighbors(walk)
+    toEmpty = empties.pop()
+    mostArrest = @calculateArrestProbability(@countCopsActives(vision, toEmpty)) if toEmpty
+    for empty in empties
+      arrest = @calculateArrestProbability(@countCopsActives(vision, empty))
+      if (arrest > mostArrest and highest) or
+          (arrest < mostArrest and !highest)
+        mostArrest = arrest
+        toEmpty = empty
+    
+    @moveTo(toEmpty.position) if toEmpty
+
+  randomEmptyNeighbor: (walk) ->
+    @patch.neighbors(walk).sample((patch) -> patch.empty())
+
+  randomEmptyNeighbors: (walk) ->
+    @patch.neighbors(walk).select((patch) -> patch.empty()).shuffle()
 
 class MM.Media
   constructor: (model, options = {}) ->
@@ -604,6 +687,23 @@ class MM.ViewNone extends MM.View
 
   step: ->
 
+class MM.ViewRiskAversion extends MM.View
+  setup: ->
+    @size = 1.0
+    super
+
+  populate: (options) ->
+    super(options)
+
+    for agent in @agents
+      if agent.original.breed.name is "citizens"
+        agent.color = u.color.red.fraction(agent.original.riskAversion)
+      else
+        agent.color = agent.original.color
+
+  step: ->
+    super
+
 class MM.Views
   constructor: (model, options = {}) ->
     @model = model
@@ -611,7 +711,8 @@ class MM.Views
     @views = new ABM.Array
 
     @views[MM.VIEWS.none] = new MM.ViewNone(@model.config.viewModelOptions)
-    @views[MM.VIEWS.grievances] = new MM.ViewGrievance(@model.config.viewModelOptions)
+    @views[MM.VIEWS.grievance] = new MM.ViewGrievance(@model.config.viewModelOptions)
+    @views[MM.VIEWS.risk_aversion] = new MM.ViewRiskAversion(@model.config.viewModelOptions)
     @views[MM.VIEWS.arrest_probability] = new MM.ViewArrestProbability(@model.config.viewModelOptions)
     @views[MM.VIEWS.net_risk] = new MM.ViewNetRisk(@model.config.viewModelOptions)
     @views[MM.VIEWS.follow] = new MM.ViewFollow(@model.config.viewModelOptions)
@@ -674,19 +775,15 @@ class MM.Model extends ABM.Model
             @moveToRandomEmptyLocation()
 
         if !@imprisoned() # just released included
-          empty = @randomEmptyNeighbor(@config.vision)
-
           if @model.config.type is MM.TYPES.enclave
-            if empty and (@riskAversion > 0.5 and
-                (empty.position.y > 0 or empty.position.y < 0 and
-                  empty.position.y > @patch.position.y)) or
-                (@riskAversion < 0.5 and
-                (empty.position.y < 0 or empty.position.y > 0 and
-                  empty.position.y < @patch.position.y))
-
-              empty = @randomEmptyNeighbor(@config.vision)
-
-          @moveTo(empty.position) if empty
+            if @riskAversion > 0.5
+              @moveToRandomUpperHalf(@config.walk, true)
+            else
+              @moveToRandomUpperHalf(@config.walk, false)
+          else if @active
+            @advance()
+          else
+            @moveToRandomEmptyNeighbor(@config.walk)
 
           @activate()
 
@@ -694,31 +791,10 @@ class MM.Model extends ABM.Model
         @hardship * (1 - @config.regimeLegitimacy)
 
       citizen.arrestProbability = ->
-        cops = 0
-        actives = 1
-        # Switch on effect test
-        #if @mediumMirror()? and @mediumMirror().reading? and @mediumMirror().reading.active
-        #  actives += 10
-  
-        for agent in @neighbors(@config.vision)
-          if agent.breed.name is "cops"
-            cops += 1
-          else
-            if @model.config.type is MM.TYPES.micro
-              if agent.breed.name is "citizens"
-                actives += agent.activeMicro
-            else
-              if agent.breed.name is "citizens" and agent.active
-                actives += 1
+        count = @countCopsActives(@config.vision)
+        count.actives += 1
 
-        @calculateArrestProbability(cops, actives)
-
-      citizen.calculateArrestProbability = (cops, actives) ->
-#        1 - Math.exp(-1 * @config.kConstant * Math.floor(cops / actives))
-        if cops * 3 > actives
-          return 1 - Math.exp(-1 * @config.kConstant * cops / actives)
-        else
-          return 0
+        @calculateArrestProbability(count)
 
       citizen.netRisk = ->
         @arrestProbability() * @riskAversion
@@ -729,6 +805,9 @@ class MM.Model extends ABM.Model
 
       citizen.imprisoned = ->
         @prisonSentence > 0
+
+      citizen.advance = ->
+        @moveToArrestProbability(@config.walk, @config.vision, false)
 
       citizen.activate = ->
         activation = @grievance() - @netRisk()
@@ -762,20 +841,19 @@ class MM.Model extends ABM.Model
       cop.moveToRandomEmptyLocation()
 
       cop.act = ->
-        empty = @randomEmptyNeighbor(@config.vision)
-        @moveTo(empty.position) if empty
-        @makeArrest()
+        count = @countCopsActives(@config.vision)
+        count.cops += 1
+
+        if @calculateArrestProbability(count) > 0
+          @makeArrest()
+          @moveToRandomEmptyNeighbor()
+        else
+          @retreat()
+
+      cop.retreat = ->
+        @moveToArrestProbability(@config.walk, @config.vision, true)
 
       cop.makeArrest = ->
-        protesters = 0
-        cops = 0
-        for agent in @neighbors(@config.vision)
-          if agent.breed.name is "citizens" and agent.active
-            protesters += 1
-          else if agent.breed.name is "cops"
-            cops += 1
-
-        if cops * 3 > protesters
           protester = @neighbors(@config.vision).sample((agent) ->
             agent.breed.name is "citizens" and agent.active)
 
@@ -867,12 +945,12 @@ class MM.Model extends ABM.Model
     console.log 'Calibration:'
     console.log '  Arrest Probability:'
 
-    for pair in [
-        [0, 1],
-        [1, 1], [2, 1], [3, 1], [4, 1]
-        [1, 4], [2, 4], [3, 4], [4, 4]
+    for count in [
+        {cops: 0, actives: 1},
+        {cops: 1, actives: 1}, {cops: 2, actives: 1}, {cops: 3, actives: 1},
+        {cops: 1, actives: 4}, {cops: 2, actives: 4}, {cops: 3, actives: 4}
       ]
-      console.log @citizens[0].calculateArrestProbability(pair[0], pair[1])
+      console.log @citizens[0].calculateArrestProbability(count)
 
     console.log 'Citizens:'
     console.log @citizens

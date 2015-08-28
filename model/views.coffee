@@ -5,7 +5,8 @@ class MM.Views
     @views = new ABM.Array
 
     @views[MM.VIEWS.none] = new MM.ViewNone(@model.config.viewModelOptions)
-    @views[MM.VIEWS.grievances] = new MM.ViewGrievance(@model.config.viewModelOptions)
+    @views[MM.VIEWS.grievance] = new MM.ViewGrievance(@model.config.viewModelOptions)
+    @views[MM.VIEWS.risk_aversion] = new MM.ViewRiskAversion(@model.config.viewModelOptions)
     @views[MM.VIEWS.arrest_probability] = new MM.ViewArrestProbability(@model.config.viewModelOptions)
     @views[MM.VIEWS.net_risk] = new MM.ViewNetRisk(@model.config.viewModelOptions)
     @views[MM.VIEWS.follow] = new MM.ViewFollow(@model.config.viewModelOptions)

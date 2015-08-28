@@ -45,19 +45,15 @@ class MM.Model extends ABM.Model
             @moveToRandomEmptyLocation()
 
         if !@imprisoned() # just released included
-          empty = @randomEmptyNeighbor(@config.vision)
-
           if @model.config.type is MM.TYPES.enclave
-            if empty and (@riskAversion > 0.5 and
-                (empty.position.y > 0 or empty.position.y < 0 and
-                  empty.position.y > @patch.position.y)) or
-                (@riskAversion < 0.5 and
-                (empty.position.y < 0 or empty.position.y > 0 and
-                  empty.position.y < @patch.position.y))
-
-              empty = @randomEmptyNeighbor(@config.vision)
-
-          @moveTo(empty.position) if empty
+            if @riskAversion > 0.5
+              @moveToRandomUpperHalf(@config.walk, true)
+            else
+              @moveToRandomUpperHalf(@config.walk, false)
+          else if @active
+            @advance()
+          else
+            @moveToRandomEmptyNeighbor(@config.walk)
 
           @activate()
 
@@ -65,31 +61,10 @@ class MM.Model extends ABM.Model
         @hardship * (1 - @config.regimeLegitimacy)
 
       citizen.arrestProbability = ->
-        cops = 0
-        actives = 1
-        # Switch on effect test
-        #if @mediumMirror()? and @mediumMirror().reading? and @mediumMirror().reading.active
-        #  actives += 10
-  
-        for agent in @neighbors(@config.vision)
-          if agent.breed.name is "cops"
-            cops += 1
-          else
-            if @model.config.type is MM.TYPES.micro
-              if agent.breed.name is "citizens"
-                actives += agent.activeMicro
-            else
-              if agent.breed.name is "citizens" and agent.active
-                actives += 1
+        count = @countCopsActives(@config.vision)
+        count.actives += 1
 
-        @calculateArrestProbability(cops, actives)
-
-      citizen.calculateArrestProbability = (cops, actives) ->
-#        1 - Math.exp(-1 * @config.kConstant * Math.floor(cops / actives))
-        if cops * 3 > actives
-          return 1 - Math.exp(-1 * @config.kConstant * cops / actives)
-        else
-          return 0
+        @calculateArrestProbability(count)
 
       citizen.netRisk = ->
         @arrestProbability() * @riskAversion
@@ -100,6 +75,9 @@ class MM.Model extends ABM.Model
 
       citizen.imprisoned = ->
         @prisonSentence > 0
+
+      citizen.advance = ->
+        @moveToArrestProbability(@config.walk, @config.vision, false)
 
       citizen.activate = ->
         activation = @grievance() - @netRisk()
@@ -133,20 +111,19 @@ class MM.Model extends ABM.Model
       cop.moveToRandomEmptyLocation()
 
       cop.act = ->
-        empty = @randomEmptyNeighbor(@config.vision)
-        @moveTo(empty.position) if empty
-        @makeArrest()
+        count = @countCopsActives(@config.vision)
+        count.cops += 1
+
+        if @calculateArrestProbability(count) > 0
+          @makeArrest()
+          @moveToRandomEmptyNeighbor()
+        else
+          @retreat()
+
+      cop.retreat = ->
+        @moveToArrestProbability(@config.walk, @config.vision, true)
 
       cop.makeArrest = ->
-        protesters = 0
-        cops = 0
-        for agent in @neighbors(@config.vision)
-          if agent.breed.name is "citizens" and agent.active
-            protesters += 1
-          else if agent.breed.name is "cops"
-            cops += 1
-
-        if cops * 3 > protesters
           protester = @neighbors(@config.vision).sample((agent) ->
             agent.breed.name is "citizens" and agent.active)
 
@@ -238,12 +215,12 @@ class MM.Model extends ABM.Model
     console.log 'Calibration:'
     console.log '  Arrest Probability:'
 
-    for pair in [
-        [0, 1],
-        [1, 1], [2, 1], [3, 1], [4, 1]
-        [1, 4], [2, 4], [3, 4], [4, 4]
+    for count in [
+        {cops: 0, actives: 1},
+        {cops: 1, actives: 1}, {cops: 2, actives: 1}, {cops: 3, actives: 1},
+        {cops: 1, actives: 4}, {cops: 2, actives: 4}, {cops: 3, actives: 4}
       ]
-      console.log @citizens[0].calculateArrestProbability(pair[0], pair[1])
+      console.log @citizens[0].calculateArrestProbability(count)
 
     console.log 'Citizens:'
     console.log @citizens

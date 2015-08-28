@@ -9,7 +9,7 @@ log = (object) -> console.log object
 
 MM.TYPES = {normal: "0", enclave: "1", micro: "2"}
 MM.MEDIA = {none: 0, email: "1", website: "2", forum: "3"}
-MM.VIEWS = {none: 0, grievances: "1", arrest_probability: "2", net_risk: "3", follow: "4"}
+MM.VIEWS = {none: 0, grievance: "1", risk_aversion: "2", arrest_probability: "3", net_risk: "4", follow: "5"}
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -18,23 +18,28 @@ class MM.Config
 #  medium: MM.MEDIA.forum
 #  medium: MM.MEDIA.website
 
-  type: MM.TYPES.normal
+#  type: MM.TYPES.normal
+  type: MM.TYPES.enclave
+#  type: MM.TYPES.micro
 
 #  view: MM.VIEWS.none
-  view: MM.VIEWS.arrest_probability
+#  view: MM.VIEWS.grievance
+  view: MM.VIEWS.risk_aversion
+#  view: MM.VIEWS.arrest_probability
 #  view: MM.VIEWS.net_risk
 #  view: MM.VIEWS.follow
 
   citizenDensity: 0.7
   #copDensity: 0.04
   #copDensity: 0.012
-  copDensity: 0.021
+  copDensity: 0.02
   maxPrisonSentence: 30 # J
   regimeLegitimacy: 0.82 # L
   threshold: 0.1
   thresholdMicro: 0.0
   #vision: {diamond: 7} # Neumann 7, v and v*
   vision: {radius: 7} # Neumann 7, v and v*
+  walk: {radius: 2} # Neumann 7, v and v*
   kConstant: 2.3 # k
 
   ui: {
@@ -53,7 +58,7 @@ class MM.Config
       Agent: MM.Agent
       patchSize: 20
       #mapSize: 20
-      mapSize: 20
+      mapSize: 30
       isTorus: true
     }
 
