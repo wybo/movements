@@ -8,24 +8,30 @@ u = ABM.util # ABM.util alias
 log = (object) -> console.log object
 
 MM.TYPES = {normal: "0", enclave: "1", micro: "2"}
+MM.CALCULATIONS = {epstein: "0", wilensky: "1", overpowered: "2", real: "3"}
 MM.MEDIA = {none: 0, email: "1", website: "2", forum: "3"}
 MM.VIEWS = {none: 0, grievance: "1", risk_aversion: "2", arrest_probability: "3", net_risk: "4", follow: "5"}
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
+  type: MM.TYPES.normal
+#  type: MM.TYPES.enclave
+#  type: MM.TYPES.micro
+
+#  calculation: MM.CALCULATIONS.epstein
+#  calculation: MM.CALCULATIONS.wilensky
+#  calculation: MM.CALCULATIONS.overpowered
+  calculation: MM.CALCULATIONS.real
+
   medium: MM.MEDIA.none
 #  medium: MM.MEDIA.email
 #  medium: MM.MEDIA.forum
 #  medium: MM.MEDIA.website
 
-#  type: MM.TYPES.normal
-  type: MM.TYPES.enclave
-#  type: MM.TYPES.micro
-
 #  view: MM.VIEWS.none
 #  view: MM.VIEWS.grievance
-  view: MM.VIEWS.risk_aversion
-#  view: MM.VIEWS.arrest_probability
+#  view: MM.VIEWS.risk_aversion
+  view: MM.VIEWS.arrest_probability
 #  view: MM.VIEWS.net_risk
 #  view: MM.VIEWS.follow
 
@@ -135,11 +141,24 @@ class MM.Agent extends ABM.Agent
     return {cops: cops, actives: actives}
 
   calculateArrestProbability: (count) ->
-#        1 - Math.exp(-1 * @config.kConstant * Math.floor(cops / actives))
-    if count.cops * 5 > count.actives
-      return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.actives)
-    else
-      return 0
+    if @model.config.calculation == MM.CALCULATIONS.epstein
+      return 1 - Math.exp(-1 * @config.kConstant * cops / actives)
+    else if @model.config.calculation == MM.CALCULATIONS.wilensky
+      return 1 - Math.exp(-1 * @config.kConstant * Math.floor(cops / actives))
+    else if @model.config.calculation == MM.CALCULATIONS.overpowered
+      if count.cops * 5 > count.actives
+        return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.actives)
+      else
+        return 0
+    else # real
+      if count.cops > count.actives
+        return 1
+      else
+        fraction = count.cops / count.actives
+        if fraction < 0.20
+          return 0
+        else
+          return fraction
 
   moveToRandomEmptyNeighbor: (walk) ->
     empty = @randomEmptyNeighbor(walk)
@@ -147,30 +166,31 @@ class MM.Agent extends ABM.Agent
     if empty
       @moveTo(empty.position)
 
+  # Assumes a world with an y-axis that runs from -X to X
+  #
   moveToRandomUpperHalf: (walk, upper = true) ->
     empties = @randomEmptyNeighbors(walk)
-    toEmpty = null
-    if upper
-      mostVertical = @model.world.min.y - 1
+
+    # Already up there
+    if upper and @position.y > 0
+      toEmpty = empties.sample((o) -> o.position.y > 0)
+    else if !upper and @position.y <= 0
+      toEmpty = empties.sample((o) -> o.position.y <= 0)
     else
-      mostVertical = @model.world.max.y + 1
-    console.log upper
-    console.log mostVertical
+      toEmpty = null
+      if upper
+        mostVertical = @model.world.min.y - 1
+      else
+        mostVertical = @model.world.max.y + 1
 
-    for empty in empties
-      vertical = empty.position.y
+      for empty in empties
+        vertical = empty.position.y
 
-      # Already in the upper half, done
-      if (vertical > 0 and upper) or
-          (vertical < 0 and !upper)
-        @moveTo(empty.position)
-        return
-
-      # Edge up
-      if (vertical > mostVertical and upper) or
-          (vertical < mostVertical and !upper)
-        mostVertical = vertical
-        toEmpty = empty
+        # Edge up
+        if (vertical > mostVertical and upper) or
+            (vertical < mostVertical and !upper)
+          mostVertical = vertical
+          toEmpty = empty
     
     @moveTo(toEmpty.position) if toEmpty
 
@@ -488,9 +508,10 @@ class MM.UI
   setupControls: () ->
     settings =
       type: [MM.TYPES]
+      calculation: [MM.CALCULATIONS]
+      medium: [MM.MEDIA]
       view: [MM.VIEWS]
       #medium: [MM.MEDIA], {onChange: 55}
-      medium: [MM.MEDIA]
       citizenDensity: {min: 0, max: 1}
       copDensity: {min: 0, max: 0.10}
       maxPrisonSentence: {min: 0, max: 1000}
@@ -505,7 +526,6 @@ class MM.UI
         window.model.restart()
 
     for key, value of settings
-      console.log settings
       if u.isArray(value)
         if key == "view"
           adder = @gui.add(@model.config, key, value...)
@@ -624,13 +644,12 @@ class MM.ViewFollow extends MM.View
     super
 
   populate: (model) ->
-    console.log 'Getting to model'
-    console.log model
-
     super(model)
 
-
     @agent = model.citizens.first().viewMirror()
+
+    console.log "Selected agent for following:"
+    console.log @agent
 
   step: ->
     super

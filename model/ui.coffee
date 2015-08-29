@@ -20,9 +20,10 @@ class MM.UI
   setupControls: () ->
     settings =
       type: [MM.TYPES]
+      calculation: [MM.CALCULATIONS]
+      medium: [MM.MEDIA]
       view: [MM.VIEWS]
       #medium: [MM.MEDIA], {onChange: 55}
-      medium: [MM.MEDIA]
       citizenDensity: {min: 0, max: 1}
       copDensity: {min: 0, max: 0.10}
       maxPrisonSentence: {min: 0, max: 1000}
@@ -37,7 +38,6 @@ class MM.UI
         window.model.restart()
 
     for key, value of settings
-      console.log settings
       if u.isArray(value)
         if key == "view"
           adder = @gui.add(@model.config, key, value...)

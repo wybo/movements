@@ -38,11 +38,24 @@ class MM.Agent extends ABM.Agent
     return {cops: cops, actives: actives}
 
   calculateArrestProbability: (count) ->
-#        1 - Math.exp(-1 * @config.kConstant * Math.floor(cops / actives))
-    if count.cops * 5 > count.actives
-      return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.actives)
-    else
-      return 0
+    if @model.config.calculation == MM.CALCULATIONS.epstein
+      return 1 - Math.exp(-1 * @config.kConstant * cops / actives)
+    else if @model.config.calculation == MM.CALCULATIONS.wilensky
+      return 1 - Math.exp(-1 * @config.kConstant * Math.floor(cops / actives))
+    else if @model.config.calculation == MM.CALCULATIONS.overpowered
+      if count.cops * 5 > count.actives
+        return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.actives)
+      else
+        return 0
+    else # real
+      if count.cops > count.actives
+        return 1
+      else
+        fraction = count.cops / count.actives
+        if fraction < 0.20
+          return 0
+        else
+          return fraction
 
   moveToRandomEmptyNeighbor: (walk) ->
     empty = @randomEmptyNeighbor(walk)
@@ -50,30 +63,31 @@ class MM.Agent extends ABM.Agent
     if empty
       @moveTo(empty.position)
 
+  # Assumes a world with an y-axis that runs from -X to X
+  #
   moveToRandomUpperHalf: (walk, upper = true) ->
     empties = @randomEmptyNeighbors(walk)
-    toEmpty = null
-    if upper
-      mostVertical = @model.world.min.y - 1
+
+    # Already up there
+    if upper and @position.y > 0
+      toEmpty = empties.sample((o) -> o.position.y > 0)
+    else if !upper and @position.y <= 0
+      toEmpty = empties.sample((o) -> o.position.y <= 0)
     else
-      mostVertical = @model.world.max.y + 1
-    console.log upper
-    console.log mostVertical
+      toEmpty = null
+      if upper
+        mostVertical = @model.world.min.y - 1
+      else
+        mostVertical = @model.world.max.y + 1
 
-    for empty in empties
-      vertical = empty.position.y
+      for empty in empties
+        vertical = empty.position.y
 
-      # Already in the upper half, done
-      if (vertical > 0 and upper) or
-          (vertical < 0 and !upper)
-        @moveTo(empty.position)
-        return
-
-      # Edge up
-      if (vertical > mostVertical and upper) or
-          (vertical < mostVertical and !upper)
-        mostVertical = vertical
-        toEmpty = empty
+        # Edge up
+        if (vertical > mostVertical and upper) or
+            (vertical < mostVertical and !upper)
+          mostVertical = vertical
+          toEmpty = empty
     
     @moveTo(toEmpty.position) if toEmpty
 

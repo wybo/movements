@@ -8,24 +8,30 @@ u = ABM.util # ABM.util alias
 log = (object) -> console.log object
 
 MM.TYPES = {normal: "0", enclave: "1", micro: "2"}
+MM.CALCULATIONS = {epstein: "0", wilensky: "1", overpowered: "2", real: "3"}
 MM.MEDIA = {none: 0, email: "1", website: "2", forum: "3"}
 MM.VIEWS = {none: 0, grievance: "1", risk_aversion: "2", arrest_probability: "3", net_risk: "4", follow: "5"}
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
+  type: MM.TYPES.normal
+#  type: MM.TYPES.enclave
+#  type: MM.TYPES.micro
+
+#  calculation: MM.CALCULATIONS.epstein
+#  calculation: MM.CALCULATIONS.wilensky
+#  calculation: MM.CALCULATIONS.overpowered
+  calculation: MM.CALCULATIONS.real
+
   medium: MM.MEDIA.none
 #  medium: MM.MEDIA.email
 #  medium: MM.MEDIA.forum
 #  medium: MM.MEDIA.website
 
-#  type: MM.TYPES.normal
-  type: MM.TYPES.enclave
-#  type: MM.TYPES.micro
-
 #  view: MM.VIEWS.none
 #  view: MM.VIEWS.grievance
-  view: MM.VIEWS.risk_aversion
-#  view: MM.VIEWS.arrest_probability
+#  view: MM.VIEWS.risk_aversion
+  view: MM.VIEWS.arrest_probability
 #  view: MM.VIEWS.net_risk
 #  view: MM.VIEWS.follow
 
