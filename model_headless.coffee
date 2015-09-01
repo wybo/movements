@@ -27,7 +27,7 @@ class MM.Config
   type: MM.TYPES.normal
   calculation: MM.CALCULATIONS.real
   medium: MM.MEDIA.none
-  view: MM.VIEWS.arrest_probability
+  view: MM.VIEWS.hardship
   
   retreat: true
   advance: false
@@ -115,9 +115,10 @@ class MM.Agent extends ABM.Agent
     @color = new u.color color
     @sprite = null
 
-  countCopsActives: (vision, patch) ->
+  countNeighbours: (vision, patch) ->
     cops = 0
     actives = 0
+    citizens = 0
 
     if patch
       neighbors = patch.neighborAgents(vision)
@@ -128,6 +129,7 @@ class MM.Agent extends ABM.Agent
       if agent.breed.name is "cops"
         cops += 1
       else
+        citizens += 1
         if @model.config.type is MM.TYPES.micro
           if agent.breed.name is "citizens"
             actives += agent.activeMicro
@@ -135,7 +137,7 @@ class MM.Agent extends ABM.Agent
           if agent.breed.name is "citizens" and agent.active
             actives += 1
 
-    return {cops: cops, actives: actives}
+    return {cops: cops, citizens: citizens, actives: actives}
 
   calculatePerceivedArrestProbability: (count) ->
     return @calculateCopWillMakeArrestProbability(count) *
@@ -162,6 +164,9 @@ class MM.Agent extends ABM.Agent
       return count.cops * 7 / count.actives
     else
       return 1
+
+  calculateExcitement: (count) ->
+    return (count.actives / count.citizens) ** 1
 
   moveToRandomEmptyNeighbor: (walk) ->
     empty = @randomEmptyNeighbor(walk)
@@ -221,9 +226,9 @@ class MM.Agent extends ABM.Agent
   moveTowardsArrestProbability: (walk, vision, highest = true) ->
     empties = @randomEmptyNeighbors(walk)
     toEmpty = empties.pop()
-    mostArrest = @calculatePerceivedArrestProbability(@countCopsActives(vision, toEmpty)) if toEmpty
+    mostArrest = @calculatePerceivedArrestProbability(@countNeighbours(vision, toEmpty)) if toEmpty
     for empty in empties
-      arrest = @calculatePerceivedArrestProbability(@countCopsActives(vision, empty))
+      arrest = @calculatePerceivedArrestProbability(@countNeighbours(vision, empty))
       if (arrest > mostArrest and highest) or
           (arrest < mostArrest and !highest)
         mostArrest = arrest
@@ -651,6 +656,25 @@ class MM.View extends ABM.Model
     agent.size = @size
     agent.shape = "square"
 
+class MM.ViewArrestProbability extends MM.View
+  setup: ->
+    @size = 1.0
+    super
+
+  populate: (options) ->
+    super(options)
+
+    for agent in @agents
+      if agent.original.breed.name is "cops"
+        agent.color = agent.original.color
+
+  step: ->
+    super
+
+    for agent in @agents
+      if agent.original.breed.name is "citizens"
+        agent.color = u.color.red.fraction(agent.original.arrestProbability())
+
 class MM.ViewFollow extends MM.View
   setup: ->
     @size = 1.0
@@ -808,7 +832,7 @@ class MM.Model extends ABM.Model
         @hardship * (1 - @config.regimeLegitimacy)
 
       citizen.arrestProbability = ->
-        count = @countCopsActives(@config.vision)
+        count = @countNeighbours(@config.vision)
         count.actives += 1
 
         @calculatePerceivedArrestProbability(count)
@@ -858,7 +882,7 @@ class MM.Model extends ABM.Model
       cop.moveToRandomEmptyLocation()
 
       cop.act = ->
-        count = @countCopsActives(@config.vision)
+        count = @countNeighbours(@config.vision)
         count.cops += 1
 
         if @calculateCopWillMakeArrestProbability(count) > u.randomFloat()
@@ -987,7 +1011,7 @@ class MM.ModelSimple extends ABM.Model
     super
 
   setup: ->
-    @agentBreeds ["citizens"]
+    @agentBreeds ["citizens", "cops"]
     @size = 0.9
     @resetData()
 
@@ -1005,16 +1029,24 @@ class MM.ModelSimple extends ABM.Model
 
       citizen.hardship = u.randomFloat() # H
       citizen.active = false
+      citizen.prisonSentence = 0
 
       citizen.act = ->
-        @moveToRandomEmptyNeighbor(@config.walk)
-        @activate()
+        if @imprisoned()
+          @prisonSentence -= 1
+
+          if !@imprisoned() # just released
+             @moveToRandomEmptyLocation()
+
+        if !@imprisoned()
+          @moveToRandomEmptyNeighbor(@config.walk)
+          @activate()
 
       citizen.excitement = ->
-        count = @countCopsActives(@config.vision)
+        count = @countNeighbours(@config.vision)
         count.actives += 1
 
-        @calculatePerceivedArrestProbability(count)
+        @calculateExcitement(count)
 
       citizen.activate = ->
         if @excitement() > @hardship
@@ -1023,6 +1055,31 @@ class MM.ModelSimple extends ABM.Model
         else
           @active = false
           @setColor "green"
+
+       citizen.imprison = (sentence) ->
+         @prisonSentence = sentence
+         @moveOff()
+
+       citizen.imprisoned = ->
+         @prisonSentence > 0
+
+     for cop in @cops.create @config.copDensity * space
+       cop.config = @config
+       cop.size = @size
+       cop.shape = "person"
+       cop.setColor "blue"
+       cop.moveToRandomEmptyLocation()
+
+       cop.act = ->
+         @makeArrest()
+         @moveToRandomEmptyNeighbor()
+
+       cop.makeArrest = ->
+          protester = @neighbors(@config.vision).sample((agent) ->
+            agent.breed.name is "citizens" and agent.active)
+
+          if protester
+            protester.imprison(1 + u.randomInt(@config.maxPrisonSentence))
 
     unless @isHeadless
       window.modelUI.resetPlot()
@@ -1048,12 +1105,16 @@ class MM.ModelSimple extends ABM.Model
     @recordData()
 
   prisoners: ->
-    []
+    prisoners = []
+    for citizen in @citizens
+      if citizen.imprisoned()
+        prisoners.push citizen
+    prisoners
 
   actives: ->
     actives = []
     for citizen in @citizens
-      if citizen.active and not citizen.imprisoned()
+      if citizen.active
         actives.push citizen
     actives
 
@@ -1061,7 +1122,7 @@ class MM.ModelSimple extends ABM.Model
     []
 
   cops: ->
-    []
+    @cops.length
 
   tickData: ->
     citizens = @citizens.length
@@ -1115,7 +1176,7 @@ class MM.ModelSimple extends ABM.Model
     console.log 'Cops:'
     console.log @cops
 
-class MM.Initializer extends MM.Model
+class MM.Initializer extends MM.ModelSimple
   @initialize: (@config) ->
     @config ?= new MM.Config
     return new MM.Initializer(u.merge(@config.modelOptions, {config: @config}))

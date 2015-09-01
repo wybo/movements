@@ -15,9 +15,10 @@ class MM.Agent extends ABM.Agent
     @color = new u.color color
     @sprite = null
 
-  countCopsActives: (vision, patch) ->
+  countNeighbours: (vision, patch) ->
     cops = 0
     actives = 0
+    citizens = 0
 
     if patch
       neighbors = patch.neighborAgents(vision)
@@ -28,6 +29,7 @@ class MM.Agent extends ABM.Agent
       if agent.breed.name is "cops"
         cops += 1
       else
+        citizens += 1
         if @model.config.type is MM.TYPES.micro
           if agent.breed.name is "citizens"
             actives += agent.activeMicro
@@ -35,7 +37,7 @@ class MM.Agent extends ABM.Agent
           if agent.breed.name is "citizens" and agent.active
             actives += 1
 
-    return {cops: cops, actives: actives}
+    return {cops: cops, citizens: citizens, actives: actives}
 
   calculatePerceivedArrestProbability: (count) ->
     return @calculateCopWillMakeArrestProbability(count) *
@@ -62,6 +64,9 @@ class MM.Agent extends ABM.Agent
       return count.cops * 7 / count.actives
     else
       return 1
+
+  calculateExcitement: (count) ->
+    return (count.actives / count.citizens) ** 1
 
   moveToRandomEmptyNeighbor: (walk) ->
     empty = @randomEmptyNeighbor(walk)
@@ -121,9 +126,9 @@ class MM.Agent extends ABM.Agent
   moveTowardsArrestProbability: (walk, vision, highest = true) ->
     empties = @randomEmptyNeighbors(walk)
     toEmpty = empties.pop()
-    mostArrest = @calculatePerceivedArrestProbability(@countCopsActives(vision, toEmpty)) if toEmpty
+    mostArrest = @calculatePerceivedArrestProbability(@countNeighbours(vision, toEmpty)) if toEmpty
     for empty in empties
-      arrest = @calculatePerceivedArrestProbability(@countCopsActives(vision, empty))
+      arrest = @calculatePerceivedArrestProbability(@countNeighbours(vision, empty))
       if (arrest > mostArrest and highest) or
           (arrest < mostArrest and !highest)
         mostArrest = arrest

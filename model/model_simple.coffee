@@ -8,7 +8,7 @@ class MM.ModelSimple extends ABM.Model
     super
 
   setup: ->
-    @agentBreeds ["citizens"]
+    @agentBreeds ["citizens", "cops"]
     @size = 0.9
     @resetData()
 
@@ -26,16 +26,24 @@ class MM.ModelSimple extends ABM.Model
 
       citizen.hardship = u.randomFloat() # H
       citizen.active = false
+      citizen.prisonSentence = 0
 
       citizen.act = ->
-        @moveToRandomEmptyNeighbor(@config.walk)
-        @activate()
+        if @imprisoned()
+          @prisonSentence -= 1
+
+          if !@imprisoned() # just released
+             @moveToRandomEmptyLocation()
+
+        if !@imprisoned()
+          @moveToRandomEmptyNeighbor(@config.walk)
+          @activate()
 
       citizen.excitement = ->
-        count = @countCopsActives(@config.vision)
+        count = @countNeighbours(@config.vision)
         count.actives += 1
 
-        @calculatePerceivedArrestProbability(count)
+        @calculateExcitement(count)
 
       citizen.activate = ->
         if @excitement() > @hardship
@@ -44,6 +52,31 @@ class MM.ModelSimple extends ABM.Model
         else
           @active = false
           @setColor "green"
+
+       citizen.imprison = (sentence) ->
+         @prisonSentence = sentence
+         @moveOff()
+
+       citizen.imprisoned = ->
+         @prisonSentence > 0
+
+     for cop in @cops.create @config.copDensity * space
+       cop.config = @config
+       cop.size = @size
+       cop.shape = "person"
+       cop.setColor "blue"
+       cop.moveToRandomEmptyLocation()
+
+       cop.act = ->
+         @makeArrest()
+         @moveToRandomEmptyNeighbor()
+
+       cop.makeArrest = ->
+          protester = @neighbors(@config.vision).sample((agent) ->
+            agent.breed.name is "citizens" and agent.active)
+
+          if protester
+            protester.imprison(1 + u.randomInt(@config.maxPrisonSentence))
 
     unless @isHeadless
       window.modelUI.resetPlot()
@@ -69,12 +102,16 @@ class MM.ModelSimple extends ABM.Model
     @recordData()
 
   prisoners: ->
-    []
+    prisoners = []
+    for citizen in @citizens
+      if citizen.imprisoned()
+        prisoners.push citizen
+    prisoners
 
   actives: ->
     actives = []
     for citizen in @citizens
-      if citizen.active and not citizen.imprisoned()
+      if citizen.active
         actives.push citizen
     actives
 
@@ -82,7 +119,7 @@ class MM.ModelSimple extends ABM.Model
     []
 
   cops: ->
-    []
+    @cops.length
 
   tickData: ->
     citizens = @citizens.length

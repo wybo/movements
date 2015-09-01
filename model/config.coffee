@@ -27,7 +27,7 @@ class MM.Config
   type: MM.TYPES.normal
   calculation: MM.CALCULATIONS.real
   medium: MM.MEDIA.none
-  view: MM.VIEWS.arrest_probability
+  view: MM.VIEWS.hardship
   
   retreat: true
   advance: false

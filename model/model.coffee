@@ -67,7 +67,7 @@ class MM.Model extends ABM.Model
         @hardship * (1 - @config.regimeLegitimacy)
 
       citizen.arrestProbability = ->
-        count = @countCopsActives(@config.vision)
+        count = @countNeighbours(@config.vision)
         count.actives += 1
 
         @calculatePerceivedArrestProbability(count)
@@ -117,7 +117,7 @@ class MM.Model extends ABM.Model
       cop.moveToRandomEmptyLocation()
 
       cop.act = ->
-        count = @countCopsActives(@config.vision)
+        count = @countNeighbours(@config.vision)
         count.cops += 1
 
         if @calculateCopWillMakeArrestProbability(count) > u.randomFloat()
