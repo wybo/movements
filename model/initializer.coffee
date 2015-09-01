@@ -1,4 +1,4 @@
-class MM.Initializer extends MM.Model
+class MM.Initializer extends MM.ModelSimple
   @initialize: (@config) ->
     @config ?= new MM.Config
     return new MM.Initializer(u.merge(@config.modelOptions, {config: @config}))
