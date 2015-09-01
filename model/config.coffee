@@ -27,7 +27,7 @@ class MM.Config
   type: MM.TYPES.normal
   calculation: MM.CALCULATIONS.real
   medium: MM.MEDIA.none
-  view: MM.VIEWS.hardship
+  view: MM.VIEWS.arrest_probability
   
   retreat: true
   advance: false
@@ -60,6 +60,7 @@ class MM.Config
     sharedModelOptions = {
       Agent: MM.Agent
       patchSize: 20
+      #mapSize: 15
       #mapSize: 20
       mapSize: 30
       isTorus: true

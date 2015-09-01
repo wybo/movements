@@ -61,12 +61,16 @@ class MM.Agent extends ABM.Agent
       else
         return 0
     else if MM.CALCULATIONS.real == @model.config.calculation
-      return count.cops * 7 / count.actives
+      overwhelm = count.cops * 7 / count.actives
+      if overwhelm > 1
+        return 1
+      else
+        return overwhelm
     else
       return 1
 
   calculateExcitement: (count) ->
-    return (count.actives / count.citizens) ** 1
+    return (count.actives / count.citizens) ** 2
 
   moveToRandomEmptyNeighbor: (walk) ->
     empty = @randomEmptyNeighbor(walk)

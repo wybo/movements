@@ -69,8 +69,16 @@ class MM.Model extends ABM.Model
       citizen.arrestProbability = ->
         count = @countNeighbours(@config.vision)
         count.actives += 1
+        count.citizens += 1
 
         @calculatePerceivedArrestProbability(count)
+
+      citizen.excitement = ->
+        count = @countNeighbours(@config.vision)
+        count.actives += 1
+        count.citizens += 1
+
+        @calculateExcitement(count)
 
       citizen.netRisk = ->
         @arrestProbability() * @riskAversion
@@ -86,7 +94,8 @@ class MM.Model extends ABM.Model
         @moveAwayFromArrestProbability(@config.walk, @config.vision)
 
       citizen.activate = ->
-        activation = @grievance() - @netRisk()
+        activation = @grievance() - @netRisk() + @excitement() * 0.2
+        #activation = @grievance() - @netRisk()
 
         if @model.config.type is MM.TYPES.micro
           if activation > @config.threshold

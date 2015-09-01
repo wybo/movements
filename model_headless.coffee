@@ -27,7 +27,7 @@ class MM.Config
   type: MM.TYPES.normal
   calculation: MM.CALCULATIONS.real
   medium: MM.MEDIA.none
-  view: MM.VIEWS.hardship
+  view: MM.VIEWS.arrest_probability
   
   retreat: true
   advance: false
@@ -60,6 +60,7 @@ class MM.Config
     sharedModelOptions = {
       Agent: MM.Agent
       patchSize: 20
+      #mapSize: 15
       #mapSize: 20
       mapSize: 30
       isTorus: true
@@ -161,12 +162,16 @@ class MM.Agent extends ABM.Agent
       else
         return 0
     else if MM.CALCULATIONS.real == @model.config.calculation
-      return count.cops * 7 / count.actives
+      overwhelm = count.cops * 7 / count.actives
+      if overwhelm > 1
+        return 1
+      else
+        return overwhelm
     else
       return 1
 
   calculateExcitement: (count) ->
-    return (count.actives / count.citizens) ** 1
+    return (count.actives / count.citizens) ** 2
 
   moveToRandomEmptyNeighbor: (walk) ->
     empty = @randomEmptyNeighbor(walk)
@@ -834,8 +839,16 @@ class MM.Model extends ABM.Model
       citizen.arrestProbability = ->
         count = @countNeighbours(@config.vision)
         count.actives += 1
+        count.citizens += 1
 
         @calculatePerceivedArrestProbability(count)
+
+      citizen.excitement = ->
+        count = @countNeighbours(@config.vision)
+        count.actives += 1
+        count.citizens += 1
+
+        @calculateExcitement(count)
 
       citizen.netRisk = ->
         @arrestProbability() * @riskAversion
@@ -851,7 +864,8 @@ class MM.Model extends ABM.Model
         @moveAwayFromArrestProbability(@config.walk, @config.vision)
 
       citizen.activate = ->
-        activation = @grievance() - @netRisk()
+        activation = @grievance() - @netRisk() + @excitement() * 0.2
+        #activation = @grievance() - @netRisk()
 
         if @model.config.type is MM.TYPES.micro
           if activation > @config.threshold
@@ -1176,7 +1190,8 @@ class MM.ModelSimple extends ABM.Model
     console.log 'Cops:'
     console.log @cops
 
-class MM.Initializer extends MM.ModelSimple
+#class MM.Initializer extends MM.ModelSimple
+class MM.Initializer extends MM.Model
   @initialize: (@config) ->
     @config ?= new MM.Config
     return new MM.Initializer(u.merge(@config.modelOptions, {config: @config}))
