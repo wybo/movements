@@ -7,33 +7,30 @@ if typeof ABM == 'undefined'
 u = ABM.util # ABM.util alias
 log = (object) -> console.log object
 
-MM.TYPES = {normal: "0", enclave: "1", micro: "2"}
-MM.CALCULATIONS = {epstein: "0", wilensky: "1", overpowered: "2", real: "3"}
-MM.MEDIA = {none: 0, email: "1", website: "2", forum: "3"}
-MM.VIEWS = {none: 0, grievance: "1", risk_aversion: "2", arrest_probability: "3", net_risk: "4", follow: "5"}
+indexHash = (array) ->
+  hash = {}
+  i = 0
+  for key in array
+    hash[key] = "#{i++}"
+
+  return hash
+
+MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
+MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
+MM.MEDIA = indexHash(["none", "email", "website", "forum"])
+MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "arrest_probability", "net_risk", "follow"])
 # turn back to numbers once dat.gui fixed
+
+console.log MM.VIEWS
 
 class MM.Config
   type: MM.TYPES.normal
-#  type: MM.TYPES.enclave
-#  type: MM.TYPES.micro
-
-#  calculation: MM.CALCULATIONS.epstein
-#  calculation: MM.CALCULATIONS.wilensky
-#  calculation: MM.CALCULATIONS.overpowered
   calculation: MM.CALCULATIONS.real
-
   medium: MM.MEDIA.none
-#  medium: MM.MEDIA.email
-#  medium: MM.MEDIA.forum
-#  medium: MM.MEDIA.website
-
-#  view: MM.VIEWS.none
-#  view: MM.VIEWS.grievance
-#  view: MM.VIEWS.risk_aversion
   view: MM.VIEWS.arrest_probability
-#  view: MM.VIEWS.net_risk
-#  view: MM.VIEWS.follow
+  
+  retreat: true
+  advance: false
 
   citizenDensity: 0.7
   #copDensity: 0.04

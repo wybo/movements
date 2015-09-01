@@ -4,6 +4,8 @@
 
 class MM.View extends ABM.Model
   setup: ->
+    @agentBreeds ["citizens", "cops"]
+
     for patch in @patches.create()
       patch.color = u.color.white
 
@@ -19,7 +21,11 @@ class MM.View extends ABM.Model
         agent.moveOff()
 
   createAgent: (original) ->
-    @agents.create 1
+    if original.breed.name == "citizens"
+      @citizens.create 1
+    else
+      @cops.create 1
+
     agent = @agents.last()
     agent.original = original
     original.viewMirrors[original.model.config.view] = agent

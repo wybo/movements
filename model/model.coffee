@@ -45,15 +45,21 @@ class MM.Model extends ABM.Model
             @moveToRandomEmptyLocation()
 
         if !@imprisoned() # just released included
-          if @model.config.type is MM.TYPES.enclave
-            if @riskAversion > 0.5
-              @moveToRandomUpperHalf(@config.walk, true)
+          if MM.TYPES.enclave == @model.config.type
+            if @riskAversion < 0.5
+              @moveToRandomUpperHalf(@config.walk)
             else
-              @moveToRandomUpperHalf(@config.walk, false)
-          else if @active
-            @advance()
+              @moveToRandomBottomHalf(@config.walk)
+          else if MM.TYPES.focal_point == @model.config.type
+            if @riskAversion < 0.5
+              @moveTowardsPoint(@config.walk, {x: 0, y: 0})
+            else
+              @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
           else
-            @moveToRandomEmptyNeighbor(@config.walk)
+            if @config.advance and @active
+              @advance()
+            else
+              @moveToRandomEmptyNeighbor(@config.walk)
 
           @activate()
 
@@ -64,7 +70,7 @@ class MM.Model extends ABM.Model
         count = @countCopsActives(@config.vision)
         count.actives += 1
 
-        @calculateArrestProbability(count)
+        @calculatePerceivedArrestProbability(count)
 
       citizen.netRisk = ->
         @arrestProbability() * @riskAversion
@@ -77,7 +83,7 @@ class MM.Model extends ABM.Model
         @prisonSentence > 0
 
       citizen.advance = ->
-        @moveToArrestProbability(@config.walk, @config.vision, false)
+        @moveAwayFromArrestProbability(@config.walk, @config.vision)
 
       citizen.activate = ->
         activation = @grievance() - @netRisk()
@@ -114,14 +120,17 @@ class MM.Model extends ABM.Model
         count = @countCopsActives(@config.vision)
         count.cops += 1
 
-        if @calculateArrestProbability(count) > 0
+        if @calculateCopWillMakeArrestProbability(count) > u.randomFloat()
           @makeArrest()
           @moveToRandomEmptyNeighbor()
         else
-          @retreat()
+          if @config.retreat
+            @retreat()
+          else
+            @moveToRandomEmptyNeighbor()
 
       cop.retreat = ->
-        @moveToArrestProbability(@config.walk, @config.vision, true)
+        @moveTowardsArrestProbability(@config.walk, @config.vision, true)
 
       cop.makeArrest = ->
           protester = @neighbors(@config.vision).sample((agent) ->
@@ -220,7 +229,7 @@ class MM.Model extends ABM.Model
         {cops: 1, actives: 1}, {cops: 2, actives: 1}, {cops: 3, actives: 1},
         {cops: 1, actives: 4}, {cops: 2, actives: 4}, {cops: 3, actives: 4}
       ]
-      console.log @citizens[0].calculateArrestProbability(count)
+      console.log @citizens[0].calculatePerceivedArrestProbability(count)
 
     console.log 'Citizens:'
     console.log @citizens

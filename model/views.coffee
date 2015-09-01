@@ -4,12 +4,15 @@ class MM.Views
 
     @views = new ABM.Array
 
+    genericView = new MM.ViewGeneric(u.merge(@model.config.viewModelOptions, {config: @model.config}))
+
+    for key, viewNumber of MM.VIEWS
+      @views[viewNumber] = genericView
+
     @views[MM.VIEWS.none] = new MM.ViewNone(@model.config.viewModelOptions)
-    @views[MM.VIEWS.grievance] = new MM.ViewGrievance(@model.config.viewModelOptions)
-    @views[MM.VIEWS.risk_aversion] = new MM.ViewRiskAversion(@model.config.viewModelOptions)
-    @views[MM.VIEWS.arrest_probability] = new MM.ViewArrestProbability(@model.config.viewModelOptions)
-    @views[MM.VIEWS.net_risk] = new MM.ViewNetRisk(@model.config.viewModelOptions)
     @views[MM.VIEWS.follow] = new MM.ViewFollow(@model.config.viewModelOptions)
+
+    console.log @views
 
     @updateOld()
 

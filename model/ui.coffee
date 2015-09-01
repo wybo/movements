@@ -28,6 +28,8 @@ class MM.UI
       copDensity: {min: 0, max: 0.10}
       maxPrisonSentence: {min: 0, max: 1000}
       regimeLegitimacy: {min: 0, max: 1}
+      threshold: {min: -1, max: 1}
+      thresholdMicro: {min: -1, max: 1}
 
     buttons =
       step: ->
