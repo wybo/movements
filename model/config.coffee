@@ -18,6 +18,7 @@ indexHash = (array) ->
 MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.MEDIA = indexHash(["none", "email", "website", "forum", "facebook_wall"])
+MM.MEDIUM_TYPES = indexHash(["normal", "micro"])
 MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "arrest_probability", "net_risk", "follow"])
 # turn back to numbers once dat.gui fixed
 
@@ -27,12 +28,13 @@ class MM.Config
   type: MM.TYPES.normal
   calculation: MM.CALCULATIONS.real
   medium: MM.MEDIA.facebook_wall
+  medium_type: MM.MEDIUM_TYPES.micro
   view: MM.VIEWS.arrest_probability
   
   cops_retreat: true
   actives_advance: false
   excitement: true
-  friends: true
+  friends: 50
 
   citizenDensity: 0.7
   #copDensity: 0.04
@@ -64,7 +66,7 @@ class MM.Config
       patchSize: 20
       #mapSize: 15
       #mapSize: 20
-      mapSize: 30
+      mapSize: 20
       isTorus: true
     }
 

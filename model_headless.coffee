@@ -18,6 +18,7 @@ indexHash = (array) ->
 MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.MEDIA = indexHash(["none", "email", "website", "forum", "facebook_wall"])
+MM.MEDIUM_TYPES = indexHash(["normal", "micro"])
 MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "arrest_probability", "net_risk", "follow"])
 # turn back to numbers once dat.gui fixed
 
@@ -27,12 +28,13 @@ class MM.Config
   type: MM.TYPES.normal
   calculation: MM.CALCULATIONS.real
   medium: MM.MEDIA.facebook_wall
+  medium_type: MM.MEDIUM_TYPES.micro
   view: MM.VIEWS.arrest_probability
   
   cops_retreat: true
   actives_advance: false
   excitement: true
-  friends: true
+  friends: 50
 
   citizenDensity: 0.7
   #copDensity: 0.04
@@ -64,7 +66,7 @@ class MM.Config
       patchSize: 20
       #mapSize: 15
       #mapSize: 20
-      mapSize: 30
+      mapSize: 20
       isTorus: true
     }
 
@@ -91,10 +93,11 @@ class MM.Config
     @modelOptions.isHeadless = @mediaModelOptions.isHeadless = true
 
 class MM.Message
-  constructor: (options) ->
-    @from = options.from
-    @to = options.to
-    @active = options.active
+  constructor: (from, to) ->
+    @from = from
+    @to = to
+    @active = @from.original.active
+    @activism = @from.original.activism
     @readers = new ABM.Array
   
   destroy: ->
@@ -128,12 +131,15 @@ class MM.Medium extends ABM.Model
       agent.size = @size
       agent.heading = u.degreesToRadians(270)
       agent.color = original.color
+      agent.count = {posts: 0, activism: 0}
 
       agent.read = (message) ->
         @closeMessage()
 
         if message
           message.readers.push(@)
+          @count.posts += 1
+          @count.activism += message.activism
 
         @reading = message
 
@@ -143,11 +149,16 @@ class MM.Medium extends ABM.Model
 
         @reading = null
 
+      agent.resetCount = ->
+        @count = {posts: 0, activism: 0}
+
     return original.mediumMirror()
 
   colorPatch: (patch, message) ->
-    if message.active
+    if message.activism == 1.0
       patch.color = u.color.pink
+    else if message.activism > 0
+      patch.color = u.color.orange
     else
       patch.color = u.color.lightgray
 
@@ -173,10 +184,8 @@ class MM.MediumGenericDelivery extends MM.Medium
 
     return agent
 
-  newMessage: (sender, receiver) ->
-    @route new MM.Message {
-      from: sender, to: receiver, active: sender.original.active
-    }
+  newMessage: (from, to) ->
+    @route new MM.Message from, to
 
   route: (message) ->
     @inboxes[message.to.original.id].push message
@@ -255,6 +264,7 @@ class MM.Agent extends ABM.Agent
     cops = 0
     actives = 0
     citizens = 0
+    activism = 0
 
     if patch
       neighbors = patch.neighborAgents(vision)
@@ -271,13 +281,13 @@ class MM.Agent extends ABM.Agent
           friends_multiplier = 1
 
         citizens += friends_multiplier
-        
-        if @model.config.type is MM.TYPES.micro
-          actives += agent.activeMicro * friends_multiplier
-        else if agent.active
+
+        if agent.active
           actives += friends_multiplier
 
-    return {cops: cops, citizens: citizens, actives: actives}
+        activism += agent.activism * friends_multiplier
+
+    return {cops: cops, citizens: citizens, actives: actives, activism: activism}
 
   #### Movement
 
@@ -440,7 +450,7 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
 
   newPost: (agent) ->
     friends = @agents.sample(30, (o) ->
-      agent.isFriendsWith(o)
+      agent.original.isFriendsWith(o.original)
     )
 
     for friend in friends
@@ -500,7 +510,7 @@ class MM.MediumForum extends MM.Medium
       for message in @
         message.destroy() # takes readers as well
 
-    newThread.post new MM.Message from: agent, active: agent.original.active
+    newThread.post new MM.Message agent
 
     @threads.unshift newThread
     
@@ -509,7 +519,7 @@ class MM.MediumForum extends MM.Medium
       thread.destroy()
 
   newComment: (agent) ->
-    agent.reading.thread.post new MM.Message from: agent, active: agent.original.active
+    agent.reading.thread.post new MM.Message agent
 
   moveForward: (agent) ->
     reading = agent.reading
@@ -567,7 +577,7 @@ class MM.MediumWebsite extends MM.Medium
     @drawAll()
 
   newPage: (agent) ->
-    @sites.unshift new MM.Message from: agent, active: agent.original.active
+    @sites.unshift new MM.Message agent
     @dropSite()
 
   dropSite: ->
@@ -616,6 +626,7 @@ class MM.UI
       type: [MM.TYPES]
       calculation: [MM.CALCULATIONS]
       medium: [MM.MEDIA]
+      medium_type: [MM.MEDIUM_TYPES]
       view: [MM.VIEWS]
       #medium: [MM.MEDIA], {onChange: 55}
       citizenDensity: {min: 0, max: 1}
@@ -880,7 +891,7 @@ class MM.Model extends ABM.Model
       citizen.hardship = u.randomFloat() # H
       citizen.riskAversion = u.randomFloat() # R
       citizen.active = false
-      citizen.activeMicro = 0.0
+      citizen.activism = 0.0
       citizen.prisonSentence = 0
 
       citizen.act = ->
@@ -914,13 +925,32 @@ class MM.Model extends ABM.Model
 
       citizen.arrestProbability = ->
         count = @countNeighbours(@config.vision)
+  
+        if MM.TYPES.micro == @config.type
+          count.actives = count.activism
+
         count.actives += 1
         count.citizens += 1
+
+        if MM.MEDIA.none != @config.medium and @mediumMirror()
+          medium_count = @mediumMirror().count
+
+          if MM.MEDIUM_TYPES.micro == @config.medium_type
+            count.actives += medium_count.activism
+          else
+            count.actives += medium_count.actives
+
+          count.citizens += medium_count.posts
+          @mediumMirror().resetCount()
 
         @calculatePerceivedArrestProbability(count)
 
       citizen.excitement = ->
         count = @countNeighbours(@config.vision)
+       
+        if MM.TYPES.micro == @config.type
+          count.actives = count.activism
+
         count.actives += 1
         count.citizens += 1
 
@@ -946,31 +976,26 @@ class MM.Model extends ABM.Model
             activation += @excitement() * 0.2
         #activation = @grievance() - @netRisk()
 
-        if @model.config.type is MM.TYPES.micro
-          if activation > @config.threshold
-            @active = true
-            @setColor "red"
-            @activeMicro = 1.0
-          else if activation > @config.thresholdMicro
-            @active = false
-            @setColor "orange"
-            @activeMicro = 0.4
-          else
-            @active = false
-            @setColor "green"
-            @activeMicro = 0.0
+        if activation > @config.threshold
+          @active = true
+          @activism = 1.0
+          @setColor "red"
         else
-          if activation > @config.threshold
-            @active = true
-            @setColor "red"
+          @active = false
+          if activation > @config.thresholdMicro
+            @activism = 0.4
+
+            if MM.TYPES.micro == @model.config.type
+              @setColor "orange"
+            else
+              @setColor "green"
           else
-            @active = false
+            @activism = 0.0
             @setColor "green"
 
-    ii = 0
     if @config.friends
       for citizen in @citizens
-        citizen.makeRandomFriends(150)
+        citizen.makeRandomFriends(@config.friends)
 
     for cop in @cops.create @config.copDensity * space
       cop.config = @config
@@ -1042,7 +1067,7 @@ class MM.Model extends ABM.Model
   micros: ->
     micros = []
     for citizen in @citizens
-      if !citizen.active and citizen.activeMicro > 0 and
+      if !citizen.active and citizen.activism > 0 and
           not citizen.imprisoned()
         micros.push citizen
     micros

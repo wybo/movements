@@ -57,6 +57,7 @@ class MM.Agent extends ABM.Agent
     cops = 0
     actives = 0
     citizens = 0
+    activism = 0
 
     if patch
       neighbors = patch.neighborAgents(vision)
@@ -73,13 +74,13 @@ class MM.Agent extends ABM.Agent
           friends_multiplier = 1
 
         citizens += friends_multiplier
-        
-        if @model.config.type is MM.TYPES.micro
-          actives += agent.activeMicro * friends_multiplier
-        else if agent.active
+
+        if agent.active
           actives += friends_multiplier
 
-    return {cops: cops, citizens: citizens, actives: actives}
+        activism += agent.activism * friends_multiplier
+
+    return {cops: cops, citizens: citizens, actives: actives, activism: activism}
 
   #### Movement
 

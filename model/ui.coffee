@@ -22,6 +22,7 @@ class MM.UI
       type: [MM.TYPES]
       calculation: [MM.CALCULATIONS]
       medium: [MM.MEDIA]
+      medium_type: [MM.MEDIUM_TYPES]
       view: [MM.VIEWS]
       #medium: [MM.MEDIA], {onChange: 55}
       citizenDensity: {min: 0, max: 1}

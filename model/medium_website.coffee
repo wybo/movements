@@ -20,7 +20,7 @@ class MM.MediumWebsite extends MM.Medium
     @drawAll()
 
   newPage: (agent) ->
-    @sites.unshift new MM.Message from: agent, active: agent.original.active
+    @sites.unshift new MM.Message agent
     @dropSite()
 
   dropSite: ->

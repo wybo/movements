@@ -52,7 +52,7 @@ class MM.MediumForum extends MM.Medium
       for message in @
         message.destroy() # takes readers as well
 
-    newThread.post new MM.Message from: agent, active: agent.original.active
+    newThread.post new MM.Message agent
 
     @threads.unshift newThread
     
@@ -61,7 +61,7 @@ class MM.MediumForum extends MM.Medium
       thread.destroy()
 
   newComment: (agent) ->
-    agent.reading.thread.post new MM.Message from: agent, active: agent.original.active
+    agent.reading.thread.post new MM.Message agent
 
   moveForward: (agent) ->
     reading = agent.reading

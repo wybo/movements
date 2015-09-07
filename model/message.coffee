@@ -1,8 +1,9 @@
 class MM.Message
-  constructor: (options) ->
-    @from = options.from
-    @to = options.to
-    @active = options.active
+  constructor: (from, to) ->
+    @from = from
+    @to = to
+    @active = @from.original.active
+    @activism = @from.original.activism
     @readers = new ABM.Array
   
   destroy: ->

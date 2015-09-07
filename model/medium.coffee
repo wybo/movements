@@ -25,12 +25,15 @@ class MM.Medium extends ABM.Model
       agent.size = @size
       agent.heading = u.degreesToRadians(270)
       agent.color = original.color
+      agent.count = {posts: 0, activism: 0}
 
       agent.read = (message) ->
         @closeMessage()
 
         if message
           message.readers.push(@)
+          @count.posts += 1
+          @count.activism += message.activism
 
         @reading = message
 
@@ -40,11 +43,16 @@ class MM.Medium extends ABM.Model
 
         @reading = null
 
+      agent.resetCount = ->
+        @count = {posts: 0, activism: 0}
+
     return original.mediumMirror()
 
   colorPatch: (patch, message) ->
-    if message.active
+    if message.activism == 1.0
       patch.color = u.color.pink
+    else if message.activism > 0
+      patch.color = u.color.orange
     else
       patch.color = u.color.lightgray
 

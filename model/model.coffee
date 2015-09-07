@@ -34,7 +34,7 @@ class MM.Model extends ABM.Model
       citizen.hardship = u.randomFloat() # H
       citizen.riskAversion = u.randomFloat() # R
       citizen.active = false
-      citizen.activeMicro = 0.0
+      citizen.activism = 0.0
       citizen.prisonSentence = 0
 
       citizen.act = ->
@@ -68,13 +68,32 @@ class MM.Model extends ABM.Model
 
       citizen.arrestProbability = ->
         count = @countNeighbours(@config.vision)
+  
+        if MM.TYPES.micro == @config.type
+          count.actives = count.activism
+
         count.actives += 1
         count.citizens += 1
+
+        if MM.MEDIA.none != @config.medium and @mediumMirror()
+          medium_count = @mediumMirror().count
+
+          if MM.MEDIUM_TYPES.micro == @config.medium_type
+            count.actives += medium_count.activism
+          else
+            count.actives += medium_count.actives
+
+          count.citizens += medium_count.posts
+          @mediumMirror().resetCount()
 
         @calculatePerceivedArrestProbability(count)
 
       citizen.excitement = ->
         count = @countNeighbours(@config.vision)
+       
+        if MM.TYPES.micro == @config.type
+          count.actives = count.activism
+
         count.actives += 1
         count.citizens += 1
 
@@ -100,31 +119,26 @@ class MM.Model extends ABM.Model
             activation += @excitement() * 0.2
         #activation = @grievance() - @netRisk()
 
-        if @model.config.type is MM.TYPES.micro
-          if activation > @config.threshold
-            @active = true
-            @setColor "red"
-            @activeMicro = 1.0
-          else if activation > @config.thresholdMicro
-            @active = false
-            @setColor "orange"
-            @activeMicro = 0.4
-          else
-            @active = false
-            @setColor "green"
-            @activeMicro = 0.0
+        if activation > @config.threshold
+          @active = true
+          @activism = 1.0
+          @setColor "red"
         else
-          if activation > @config.threshold
-            @active = true
-            @setColor "red"
+          @active = false
+          if activation > @config.thresholdMicro
+            @activism = 0.4
+
+            if MM.TYPES.micro == @model.config.type
+              @setColor "orange"
+            else
+              @setColor "green"
           else
-            @active = false
+            @activism = 0.0
             @setColor "green"
 
-    ii = 0
     if @config.friends
       for citizen in @citizens
-        citizen.makeRandomFriends(150)
+        citizen.makeRandomFriends(@config.friends)
 
     for cop in @cops.create @config.copDensity * space
       cop.config = @config
@@ -196,7 +210,7 @@ class MM.Model extends ABM.Model
   micros: ->
     micros = []
     for citizen in @citizens
-      if !citizen.active and citizen.activeMicro > 0 and
+      if !citizen.active and citizen.activism > 0 and
           not citizen.imprisoned()
         micros.push citizen
     micros
