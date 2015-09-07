@@ -56,7 +56,7 @@ class MM.Model extends ABM.Model
             else
               @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
           else
-            if @config.advance and @active
+            if @config.actives_advance and @active
               @advance()
             else
               @moveToRandomEmptyNeighbor(@config.walk)
@@ -94,7 +94,10 @@ class MM.Model extends ABM.Model
         @moveAwayFromArrestProbability(@config.walk, @config.vision)
 
       citizen.activate = ->
-        activation = @grievance() - @netRisk() + @excitement() * 0.2
+        activation = @grievance() - @netRisk()
+        if @config.excitement
+          if activation < 1
+            activation += @excitement() * 0.2
         #activation = @grievance() - @netRisk()
 
         if @model.config.type is MM.TYPES.micro
@@ -118,6 +121,11 @@ class MM.Model extends ABM.Model
             @active = false
             @setColor "green"
 
+    ii = 0
+    if @config.friends
+      for citizen in @citizens
+        citizen.makeRandomFriends(150)
+
     for cop in @cops.create @config.copDensity * space
       cop.config = @config
       cop.size = @size
@@ -133,7 +141,7 @@ class MM.Model extends ABM.Model
           @makeArrest()
           @moveToRandomEmptyNeighbor()
         else
-          if @config.retreat
+          if @config.cops_retreat
             @retreat()
           else
             @moveToRandomEmptyNeighbor()

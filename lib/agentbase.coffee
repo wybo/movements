@@ -712,8 +712,15 @@ ABM.util.array =
   any: (array) ->
     not @empty(array)
 
+  # Checks for emptyness.
+  #
   empty: (array) ->
     array.length is 0
+
+  # Clears the array.
+  #
+  clear: (array) ->
+    array.length = 0
 
   # Make a copy of the array. Needed when you don't want to modify the
   # given array with mutator methods like sort, splice or your own
@@ -744,13 +751,24 @@ ABM.util.array =
     else
       array[array.length - 1]
 
-  # Return all elements of array that match condition
+  # Return all elements of array that match condition.
   #
   select: (array, condition = null) ->
     newArray = new ABM.Array
 
     for object in array
       if condition(object)
+        newArray.push object
+
+    return newArray
+
+  # Return all elements of array that don't match condition.
+  #
+  reject: (array, condition = null) ->
+    newArray = new ABM.Array
+
+    for object in array
+      if !condition(object)
         newArray.push object
 
     return newArray
@@ -768,18 +786,24 @@ ABM.util.array =
     else if numberOrCondition?
       number = Math.floor(numberOrCondition)
 
-    if @empty array
+    if @empty array and !number?
       return null
 
     if condition?
-      @sample(@select(array, condition), number)
+      return @sample(@select(array, condition), number)
     else if number?
+      unique = array.clone().uniq()
+      if number > unique.length
+        number = unique.length
+
       newArray = new ABM.Array
       object = true
+
       while newArray.length < number and object?
-        object = @sample(array)
+        object = @sample(array) # array, not unique to preserve odds
         if object and object not in newArray
           newArray.push object
+
       return newArray
     else
       return array[u.randomInt array.length]
@@ -993,7 +1017,7 @@ ABM.util.array =
     else
       newArray.push addArray
 
-    newArray
+    return newArray
 
   # Return an array with values in [low, high], defaults to [0, 1].
   # Note: to have a half-open interval, [low, high), try high = high - .00009
@@ -1003,9 +1027,11 @@ ABM.util.array =
     max = @max array
     scale = 1 / (max - min)
     newArray = []
+
     for number in array
       newArray.push u.linearInterpolate(low, high, scale * (number - min))
-    newArray
+
+    return newArray
 
   normalizeInt: (array, low, high) ->
     (Math.round i for i in @normalize array, low, high)

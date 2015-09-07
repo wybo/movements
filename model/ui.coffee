@@ -30,6 +30,10 @@ class MM.UI
       regimeLegitimacy: {min: 0, max: 1}
       threshold: {min: -1, max: 1}
       thresholdMicro: {min: -1, max: 1}
+      cops_retreat: null
+      actives_advance: null
+      excitement: null
+      friends: null
 
     buttons =
       step: ->

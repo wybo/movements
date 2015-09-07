@@ -17,7 +17,7 @@ indexHash = (array) ->
 
 MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
-MM.MEDIA = indexHash(["none", "email", "website", "forum"])
+MM.MEDIA = indexHash(["none", "email", "website", "forum", "facebook_wall"])
 MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "arrest_probability", "net_risk", "follow"])
 # turn back to numbers once dat.gui fixed
 
@@ -26,16 +26,18 @@ console.log MM.VIEWS
 class MM.Config
   type: MM.TYPES.normal
   calculation: MM.CALCULATIONS.real
-  medium: MM.MEDIA.none
+  medium: MM.MEDIA.facebook_wall
   view: MM.VIEWS.arrest_probability
   
-  retreat: true
-  advance: false
+  cops_retreat: true
+  actives_advance: false
+  excitement: true
+  friends: true
 
   citizenDensity: 0.7
   #copDensity: 0.04
   #copDensity: 0.012
-  copDensity: 0.02
+  copDensity: 0.025
   maxPrisonSentence: 30 # J
   regimeLegitimacy: 0.82 # L
   threshold: 0.1

@@ -17,7 +17,7 @@ indexHash = (array) ->
 
 MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
-MM.MEDIA = indexHash(["none", "email", "website", "forum"])
+MM.MEDIA = indexHash(["none", "email", "website", "forum", "facebook_wall"])
 MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "arrest_probability", "net_risk", "follow"])
 # turn back to numbers once dat.gui fixed
 
@@ -26,16 +26,18 @@ console.log MM.VIEWS
 class MM.Config
   type: MM.TYPES.normal
   calculation: MM.CALCULATIONS.real
-  medium: MM.MEDIA.none
+  medium: MM.MEDIA.facebook_wall
   view: MM.VIEWS.arrest_probability
   
-  retreat: true
-  advance: false
+  cops_retreat: true
+  actives_advance: false
+  excitement: true
+  friends: true
 
   citizenDensity: 0.7
   #copDensity: 0.04
   #copDensity: 0.012
-  copDensity: 0.02
+  copDensity: 0.025
   maxPrisonSentence: 30 # J
   regimeLegitimacy: 0.82 # L
   threshold: 0.1
@@ -99,179 +101,6 @@ class MM.Message
     for reader in @readers
       reader.die()
 
-class MM.Agent extends ABM.Agent
-  constructor: ->
-    super
-
-    @mediumMirrors = new ABM.Array # TODO move to model
-    @viewMirrors = new ABM.Array # TODO move to model
-
-  mediumMirror: ->
-    @mediumMirrors[@model.config.medium]
-
-  viewMirror: ->
-    @viewMirrors[@model.config.view]
-
-  setColor: (color) ->
-    @color = new u.color color
-    @sprite = null
-
-  countNeighbours: (vision, patch) ->
-    cops = 0
-    actives = 0
-    citizens = 0
-
-    if patch
-      neighbors = patch.neighborAgents(vision)
-    else
-      neighbors = @neighbors(vision)
-
-    for agent in neighbors
-      if agent.breed.name is "cops"
-        cops += 1
-      else
-        citizens += 1
-        if @model.config.type is MM.TYPES.micro
-          if agent.breed.name is "citizens"
-            actives += agent.activeMicro
-        else
-          if agent.breed.name is "citizens" and agent.active
-            actives += 1
-
-    return {cops: cops, citizens: citizens, actives: actives}
-
-  calculatePerceivedArrestProbability: (count) ->
-    return @calculateCopWillMakeArrestProbability(count) *
-      @calculateSpecificCitizenArrestProbability(count)
-
-  calculateSpecificCitizenArrestProbability: (count) ->
-    if MM.CALCULATIONS.epstein == @model.config.calculation or MM.CALCULATIONS.overpowered == @model.config.calculation
-      return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.actives)
-    else if MM.CALCULATIONS.wilensky == @model.config.calculation
-      return 1 - Math.exp(-1 * @config.kConstant * Math.floor(count.cops / count.actives))
-    else # real
-      if count.cops > count.actives
-        return 1
-      else
-        return count.cops / count.actives
-
-  calculateCopWillMakeArrestProbability: (count) ->
-    if MM.CALCULATIONS.overpowered == @model.config.calculation
-      if count.cops * 5 > count.actives
-        return 1
-      else
-        return 0
-    else if MM.CALCULATIONS.real == @model.config.calculation
-      overwhelm = count.cops * 7 / count.actives
-      if overwhelm > 1
-        return 1
-      else
-        return overwhelm
-    else
-      return 1
-
-  calculateExcitement: (count) ->
-    return (count.actives / count.citizens) ** 2
-
-  moveToRandomEmptyNeighbor: (walk) ->
-    empty = @randomEmptyNeighbor(walk)
-
-    if empty
-      @moveTo(empty.position)
-
-  moveTowardsPoint: (walk, point, towards = true) ->
-    empties = @randomEmptyNeighbors(walk)
-    toEmpty = empties.pop()
-    lowestDistance = toEmpty.distance(point) if toEmpty
-    for empty in empties
-      distance = empty.distance(point)
-      if (distance < lowestDistance and towards) or
-          (distance > lowestDistance and !towards)
-        lowestDistance = distance
-        toEmpty = empty
-    
-    @moveTo(toEmpty.position) if toEmpty
-
-  moveAwayFromPoint: (walk, point) ->
-    @moveTowardsPoint(walk, point, false)
-
-  # Assumes a world with an y-axis that runs from -X to X
-  moveToRandomUpperHalf: (walk, upper = true) ->
-    empties = @randomEmptyNeighbors(walk)
-
-    # Already up there
-    if upper and @position.y > 0
-      toEmpty = empties.sample((o) -> o.position.y > 0)
-    else if !upper and @position.y <= 0
-      toEmpty = empties.sample((o) -> o.position.y <= 0)
-    else
-      toEmpty = null
-      if upper
-        mostVertical = @model.world.minCoordinate.y
-      else
-        mostVertical = @model.world.maxCoordinate.y
-
-      for empty in empties
-        vertical = empty.position.y
-
-        # Edge up
-        if (vertical > mostVertical and upper) or
-            (vertical < mostVertical and !upper)
-          mostVertical = vertical
-          toEmpty = empty
-    
-    @moveTo(toEmpty.position) if toEmpty
-
-  moveToRandomBottomHalf: (walk) ->
-    @moveToRandomUpperHalf(walk, false)
-
-  moveToRandomEmptyLocation: ->
-    @moveTo(@model.patches.sample((patch) -> patch.empty()).position)
-
-  moveTowardsArrestProbability: (walk, vision, highest = true) ->
-    empties = @randomEmptyNeighbors(walk)
-    toEmpty = empties.pop()
-    mostArrest = @calculatePerceivedArrestProbability(@countNeighbours(vision, toEmpty)) if toEmpty
-    for empty in empties
-      arrest = @calculatePerceivedArrestProbability(@countNeighbours(vision, empty))
-      if (arrest > mostArrest and highest) or
-          (arrest < mostArrest and !highest)
-        mostArrest = arrest
-        toEmpty = empty
-    
-    @moveTo(toEmpty.position) if toEmpty
-
-  moveAwayFromArrestProbability: (walk, vision) ->
-    @moveTowardsArrestProbability(walk, vision, false)
-
-  randomEmptyNeighbor: (walk) ->
-    @patch.neighbors(walk).sample((patch) -> patch.empty())
-
-  randomEmptyNeighbors: (walk) ->
-    @patch.neighbors(walk).select((patch) -> patch.empty()).shuffle()
-
-class MM.Media
-  constructor: (model, options = {}) ->
-    @model = model
-
-    @media = new ABM.Array
-
-    @media[MM.MEDIA.none] = new MM.MediumNone(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.forum] = new MM.MediumForum(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.website] = new MM.MediumWebsite(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.email] = new MM.MediumEMail(@model.config.mediaModelOptions)
-
-    @updateOld()
-
-  current: ->
-    @media[@model.config.medium]
-
-  old: ->
-    @media[@model.config.oldMedium]
-
-  updateOld: ->
-    @model.config.oldMedium = @model.config.medium
-
 # Copyright 2014, Wybo Wiersma, available under the GPL v3
 # This model builds upon Epsteins model of protest, and illustrates
 # the possible impact of social media on protest formation.
@@ -330,30 +159,23 @@ class MM.Medium extends ABM.Model
     for agent in @agents
       agent.color = agent.original.color
 
-class MM.MediumEMail extends MM.Medium
+class MM.MediumGenericDelivery extends MM.Medium
   setup: ->
     super
 
     @inboxes = new ABM.Array
 
-  step: ->
-    for agent in @agents
-      if u.randomInt(3) == 1
-        @newMail(agent)
-      else
-        agent.readMail()
+  createAgent: (original) ->
+    agent = super
 
-    @drawAll()
+    if !agent.inbox
+      agent.inbox = @inboxes[agent.original.id] = new ABM.Array
 
-  use: (original) ->
-    agent = @createAgent(original)
-    agent.inbox = @inboxes[agent.original.id] = new ABM.Array
-    agent.readMail = ->
-      agent.read(@inbox.pop())
+    return agent
 
-  newMail: (agent) ->
+  newMessage: (sender, receiver) ->
     @route new MM.Message {
-      from: agent, to: @agents.sample(), active: agent.original.active
+      from: sender, to: receiver, active: sender.original.active
     }
 
   route: (message) ->
@@ -373,6 +195,256 @@ class MM.MediumEMail extends MM.Medium
         @colorPatch(patch, message)
 
       agent.moveTo x: x, y: y_offset
+
+class MM.Agent extends ABM.Agent
+  constructor: ->
+    super
+
+    @mediumMirrors = new ABM.Array # TODO move to model
+    @viewMirrors = new ABM.Array # TODO move to model
+
+    @friends_hash = {}
+    @friends = []
+
+  mediumMirror: ->
+    @mediumMirrors[@model.config.medium]
+
+  viewMirror: ->
+    @viewMirrors[@model.config.view]
+
+  setColor: (color) ->
+    @color = new u.color color
+    @sprite = null
+
+  #### Calculations and counting
+
+  calculatePerceivedArrestProbability: (count) ->
+    return @calculateCopWillMakeArrestProbability(count) *
+      @calculateSpecificCitizenArrestProbability(count)
+
+  calculateSpecificCitizenArrestProbability: (count) ->
+    if MM.CALCULATIONS.epstein == @model.config.calculation or MM.CALCULATIONS.overpowered == @model.config.calculation
+      return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.actives)
+    else if MM.CALCULATIONS.wilensky == @model.config.calculation
+      return 1 - Math.exp(-1 * @config.kConstant * Math.floor(count.cops / count.actives))
+    else # real
+      if count.cops > count.actives
+        return 1
+      else
+        return count.cops / count.actives
+
+  calculateCopWillMakeArrestProbability: (count) ->
+    if MM.CALCULATIONS.overpowered == @model.config.calculation
+      if count.cops * 5 > count.actives
+        return 1
+      else
+        return 0
+    else if MM.CALCULATIONS.real == @model.config.calculation
+      overwhelm = count.cops * 7 / count.actives
+      if overwhelm > 1
+        return 1
+      else
+        return overwhelm
+    else
+      return 1
+
+  calculateExcitement: (count) ->
+    return (count.actives / count.citizens) ** 2
+
+  countNeighbours: (vision, patch) ->
+    cops = 0
+    actives = 0
+    citizens = 0
+
+    if patch
+      neighbors = patch.neighborAgents(vision)
+    else
+      neighbors = @neighbors(vision)
+
+    for agent in neighbors
+      if agent.breed.name is "cops"
+        cops += 1
+      else
+        if @model.config.friends
+          friends_multiplier = 2
+        else
+          friends_multiplier = 1
+
+        citizens += friends_multiplier
+        
+        if @model.config.type is MM.TYPES.micro
+          actives += agent.activeMicro * friends_multiplier
+        else if agent.active
+          actives += friends_multiplier
+
+    return {cops: cops, citizens: citizens, actives: actives}
+
+  #### Movement
+
+  moveTowardsPoint: (walk, point, towards = true) ->
+    empties = @randomEmptyNeighbors(walk)
+    toEmpty = empties.pop()
+    lowestDistance = toEmpty.distance(point) if toEmpty
+    for empty in empties
+      distance = empty.distance(point)
+      if (distance < lowestDistance and towards) or
+          (distance > lowestDistance and !towards)
+        lowestDistance = distance
+        toEmpty = empty
+    
+    @moveTo(toEmpty.position) if toEmpty
+
+  moveAwayFromPoint: (walk, point) ->
+    @moveTowardsPoint(walk, point, false)
+
+  # Assumes a world with an y-axis that runs from -X to X
+  moveToRandomUpperHalf: (walk, upper = true) ->
+    empties = @randomEmptyNeighbors(walk)
+
+    # Already up there
+    if upper and @position.y > 0
+      toEmpty = empties.sample((o) -> o.position.y > 0)
+    else if !upper and @position.y <= 0
+      toEmpty = empties.sample((o) -> o.position.y <= 0)
+    else
+      toEmpty = null
+      if upper
+        mostVertical = @model.world.minCoordinate.y
+      else
+        mostVertical = @model.world.maxCoordinate.y
+
+      for empty in empties
+        vertical = empty.position.y
+
+        # Edge up
+        if (vertical > mostVertical and upper) or
+            (vertical < mostVertical and !upper)
+          mostVertical = vertical
+          toEmpty = empty
+    
+    @moveTo(toEmpty.position) if toEmpty
+
+  moveToRandomBottomHalf: (walk) ->
+    @moveToRandomUpperHalf(walk, false)
+
+  moveTowardsArrestProbability: (walk, vision, highest = true) ->
+    empties = @randomEmptyNeighbors(walk)
+    toEmpty = empties.pop()
+    mostArrest = @calculatePerceivedArrestProbability(@countNeighbours(vision, toEmpty)) if toEmpty
+    for empty in empties
+      arrest = @calculatePerceivedArrestProbability(@countNeighbours(vision, empty))
+      if (arrest > mostArrest and highest) or
+          (arrest < mostArrest and !highest)
+        mostArrest = arrest
+        toEmpty = empty
+    
+    @moveTo(toEmpty.position) if toEmpty
+
+  moveAwayFromArrestProbability: (walk, vision) ->
+    @moveTowardsArrestProbability(walk, vision, false)
+
+  moveToRandomEmptyLocation: ->
+    @moveTo(@model.patches.sample((patch) -> patch.empty()).position)
+
+  moveToRandomEmptyNeighbor: (walk) ->
+    empty = @randomEmptyNeighbor(walk)
+
+    if empty
+      @moveTo(empty.position)
+
+  randomEmptyNeighbor: (walk) ->
+    @patch.neighbors(walk).sample((patch) -> patch.empty())
+
+  randomEmptyNeighbors: (walk) ->
+    @patch.neighbors(walk).select((patch) -> patch.empty()).shuffle()
+
+  #### Misc
+
+  isFriendsWith: (citizen) ->
+    @friends_hash[citizen.id]
+
+  makeRandomFriends: (number) ->
+    needed = number - @friends.length # friends already made by others
+    id = @id # taken into closure
+    friends = @model.citizens.sample(needed, (o) ->
+      o.friends.length < number and id != o.id
+    )
+
+    for friend in friends
+      @friends.push friend
+      friend.friends.push @
+      @friends_hash[friend.id] = true
+      friend.friends_hash[@id] = true
+
+class MM.Media
+  constructor: (model, options = {}) ->
+    @model = model
+
+    @media = new ABM.Array
+
+    @media[MM.MEDIA.none] = new MM.MediumNone(@model.config.mediaModelOptions)
+    @media[MM.MEDIA.email] = new MM.MediumEMail(@model.config.mediaModelOptions)
+    @media[MM.MEDIA.website] = new MM.MediumWebsite(@model.config.mediaModelOptions)
+    @media[MM.MEDIA.forum] = new MM.MediumForum(@model.config.mediaModelOptions)
+    @media[MM.MEDIA.facebook_wall] = new MM.MediumFacebookWall(@model.config.mediaModelOptions)
+
+    @updateOld()
+
+  current: ->
+    @media[@model.config.medium]
+
+  old: ->
+    @media[@model.config.oldMedium]
+
+  updateOld: ->
+    @model.config.oldMedium = @model.config.medium
+
+class MM.MediumEMail extends MM.MediumGenericDelivery
+  setup: ->
+    super
+
+  step: ->
+    for agent in @agents
+      if u.randomInt(3) == 1
+        @newMessage(agent, @agents.sample())
+      else
+        agent.readMail()
+
+    @drawAll()
+
+  use: (original) ->
+    agent = @createAgent(original)
+    agent.readMail = ->
+      agent.read(@inbox.pop())
+
+class MM.MediumFacebookWall extends MM.MediumGenericDelivery
+  setup: ->
+    super
+
+  step: ->
+    for agent in @agents
+      if u.randomInt(3) == 1
+        @newPost(agent)
+      else
+        agent.readPosts()
+
+    @drawAll()
+
+  use: (original) ->
+    agent = @createAgent(original)
+    agent.readPosts = ->
+      for post in @inbox
+        agent.read(post)
+
+      @inbox.clear()
+
+  newPost: (agent) ->
+    friends = @agents.sample(30, (o) ->
+      agent.isFriendsWith(o)
+    )
+
+    for friend in friends
+      @newMessage(agent, friend)
 
 class MM.MediumForum extends MM.Medium
   setup: ->
@@ -552,6 +624,10 @@ class MM.UI
       regimeLegitimacy: {min: 0, max: 1}
       threshold: {min: -1, max: 1}
       thresholdMicro: {min: -1, max: 1}
+      cops_retreat: null
+      actives_advance: null
+      excitement: null
+      friends: null
 
     buttons =
       step: ->
@@ -826,7 +902,7 @@ class MM.Model extends ABM.Model
             else
               @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
           else
-            if @config.advance and @active
+            if @config.actives_advance and @active
               @advance()
             else
               @moveToRandomEmptyNeighbor(@config.walk)
@@ -864,7 +940,10 @@ class MM.Model extends ABM.Model
         @moveAwayFromArrestProbability(@config.walk, @config.vision)
 
       citizen.activate = ->
-        activation = @grievance() - @netRisk() + @excitement() * 0.2
+        activation = @grievance() - @netRisk()
+        if @config.excitement
+          if activation < 1
+            activation += @excitement() * 0.2
         #activation = @grievance() - @netRisk()
 
         if @model.config.type is MM.TYPES.micro
@@ -888,6 +967,11 @@ class MM.Model extends ABM.Model
             @active = false
             @setColor "green"
 
+    ii = 0
+    if @config.friends
+      for citizen in @citizens
+        citizen.makeRandomFriends(150)
+
     for cop in @cops.create @config.copDensity * space
       cop.config = @config
       cop.size = @size
@@ -903,7 +987,7 @@ class MM.Model extends ABM.Model
           @makeArrest()
           @moveToRandomEmptyNeighbor()
         else
-          if @config.retreat
+          if @config.cops_retreat
             @retreat()
           else
             @moveToRandomEmptyNeighbor()

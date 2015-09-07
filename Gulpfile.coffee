@@ -31,8 +31,9 @@ readFilePaths = (sourceDir, firstFiles, lastFiles, excludeFiles) ->
 
 uiFiles = ['initializer_head']
 
-FilePaths = readFilePaths 'model/', ['config', 'message'],
-    ['model', 'model_simple', 'initializer'], uiFiles
+FilePaths = readFilePaths 'model/',
+  ['config', 'message', 'medium', 'medium_generic_delivery'],
+  ['model', 'model_simple', 'initializer'], uiFiles
 
 UIFilePaths = completeFilePaths(uiFiles)
 

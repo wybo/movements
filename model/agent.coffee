@@ -5,6 +5,9 @@ class MM.Agent extends ABM.Agent
     @mediumMirrors = new ABM.Array # TODO move to model
     @viewMirrors = new ABM.Array # TODO move to model
 
+    @friends_hash = {}
+    @friends = []
+
   mediumMirror: ->
     @mediumMirrors[@model.config.medium]
 
@@ -15,29 +18,7 @@ class MM.Agent extends ABM.Agent
     @color = new u.color color
     @sprite = null
 
-  countNeighbours: (vision, patch) ->
-    cops = 0
-    actives = 0
-    citizens = 0
-
-    if patch
-      neighbors = patch.neighborAgents(vision)
-    else
-      neighbors = @neighbors(vision)
-
-    for agent in neighbors
-      if agent.breed.name is "cops"
-        cops += 1
-      else
-        citizens += 1
-        if @model.config.type is MM.TYPES.micro
-          if agent.breed.name is "citizens"
-            actives += agent.activeMicro
-        else
-          if agent.breed.name is "citizens" and agent.active
-            actives += 1
-
-    return {cops: cops, citizens: citizens, actives: actives}
+  #### Calculations and counting
 
   calculatePerceivedArrestProbability: (count) ->
     return @calculateCopWillMakeArrestProbability(count) *
@@ -72,11 +53,35 @@ class MM.Agent extends ABM.Agent
   calculateExcitement: (count) ->
     return (count.actives / count.citizens) ** 2
 
-  moveToRandomEmptyNeighbor: (walk) ->
-    empty = @randomEmptyNeighbor(walk)
+  countNeighbours: (vision, patch) ->
+    cops = 0
+    actives = 0
+    citizens = 0
 
-    if empty
-      @moveTo(empty.position)
+    if patch
+      neighbors = patch.neighborAgents(vision)
+    else
+      neighbors = @neighbors(vision)
+
+    for agent in neighbors
+      if agent.breed.name is "cops"
+        cops += 1
+      else
+        if @model.config.friends
+          friends_multiplier = 2
+        else
+          friends_multiplier = 1
+
+        citizens += friends_multiplier
+        
+        if @model.config.type is MM.TYPES.micro
+          actives += agent.activeMicro * friends_multiplier
+        else if agent.active
+          actives += friends_multiplier
+
+    return {cops: cops, citizens: citizens, actives: actives}
+
+  #### Movement
 
   moveTowardsPoint: (walk, point, towards = true) ->
     empties = @randomEmptyNeighbors(walk)
@@ -124,9 +129,6 @@ class MM.Agent extends ABM.Agent
   moveToRandomBottomHalf: (walk) ->
     @moveToRandomUpperHalf(walk, false)
 
-  moveToRandomEmptyLocation: ->
-    @moveTo(@model.patches.sample((patch) -> patch.empty()).position)
-
   moveTowardsArrestProbability: (walk, vision, highest = true) ->
     empties = @randomEmptyNeighbors(walk)
     toEmpty = empties.pop()
@@ -143,8 +145,35 @@ class MM.Agent extends ABM.Agent
   moveAwayFromArrestProbability: (walk, vision) ->
     @moveTowardsArrestProbability(walk, vision, false)
 
+  moveToRandomEmptyLocation: ->
+    @moveTo(@model.patches.sample((patch) -> patch.empty()).position)
+
+  moveToRandomEmptyNeighbor: (walk) ->
+    empty = @randomEmptyNeighbor(walk)
+
+    if empty
+      @moveTo(empty.position)
+
   randomEmptyNeighbor: (walk) ->
     @patch.neighbors(walk).sample((patch) -> patch.empty())
 
   randomEmptyNeighbors: (walk) ->
     @patch.neighbors(walk).select((patch) -> patch.empty()).shuffle()
+
+  #### Misc
+
+  isFriendsWith: (citizen) ->
+    @friends_hash[citizen.id]
+
+  makeRandomFriends: (number) ->
+    needed = number - @friends.length # friends already made by others
+    id = @id # taken into closure
+    friends = @model.citizens.sample(needed, (o) ->
+      o.friends.length < number and id != o.id
+    )
+
+    for friend in friends
+      @friends.push friend
+      friend.friends.push @
+      @friends_hash[friend.id] = true
+      friend.friends_hash[@id] = true
