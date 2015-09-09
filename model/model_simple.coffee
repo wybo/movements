@@ -40,7 +40,7 @@ class MM.ModelSimple extends ABM.Model
           @activate()
 
       citizen.excitement = ->
-        count = @countNeighbours(@config.vision)
+        count = @countNeighbors(@config.vision)
         count.actives += 1
 
         @calculateExcitement(count)
@@ -72,7 +72,7 @@ class MM.ModelSimple extends ABM.Model
          @moveToRandomEmptyNeighbor()
 
        cop.makeArrest = ->
-          protester = @neighbors(@config.vision).sample((agent) ->
+          protester = @neighbors(@config.vision).sample(condition: (agent) ->
             agent.breed.name is "citizens" and agent.active)
 
           if protester

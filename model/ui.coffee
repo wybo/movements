@@ -22,7 +22,7 @@ class MM.UI
       type: [MM.TYPES]
       calculation: [MM.CALCULATIONS]
       medium: [MM.MEDIA]
-      medium_type: [MM.MEDIUM_TYPES]
+      mediumType: [MM.MEDIUM_TYPES]
       view: [MM.VIEWS]
       #medium: [MM.MEDIA], {onChange: 55}
       citizenDensity: {min: 0, max: 1}
@@ -31,10 +31,12 @@ class MM.UI
       regimeLegitimacy: {min: 0, max: 1}
       threshold: {min: -1, max: 1}
       thresholdMicro: {min: -1, max: 1}
-      cops_retreat: null
-      actives_advance: null
+      copsRetreat: null
+      activesAdvance: null
       excitement: null
       friends: null
+      friendsMultiplier: {min: 1, max: 5}
+      mediumCountsFor: {min: 0, max: 20}
 
     buttons =
       step: ->

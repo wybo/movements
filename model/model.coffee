@@ -13,7 +13,7 @@ class MM.Model extends ABM.Model
     @resetData()
 
     for patch in @patches.create()
-      if @config.type is MM.TYPES.enclave
+      if MM.TYPES.enclave == @config.type
 
         if patch.position.y > 0
           patch.color = u.color.random type: "gray", min: 180, max: 204
@@ -45,18 +45,18 @@ class MM.Model extends ABM.Model
             @moveToRandomEmptyLocation()
 
         if !@imprisoned() # just released included
-          if MM.TYPES.enclave == @model.config.type
+          if MM.TYPES.enclave == @config.type
             if @riskAversion < 0.5
               @moveToRandomUpperHalf(@config.walk)
             else
               @moveToRandomBottomHalf(@config.walk)
-          else if MM.TYPES.focal_point == @model.config.type
+          else if MM.TYPES.focal_point == @config.type
             if @riskAversion < 0.5
               @moveTowardsPoint(@config.walk, {x: 0, y: 0})
             else
               @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
           else
-            if @config.actives_advance and @active
+            if @config.activesAdvance and @active
               @advance()
             else
               @moveToRandomEmptyNeighbor(@config.walk)
@@ -67,7 +67,10 @@ class MM.Model extends ABM.Model
         @hardship * (1 - @config.regimeLegitimacy)
 
       citizen.arrestProbability = ->
-        count = @countNeighbours(@config.vision)
+        count = @countNeighbors(vision: @config.vision)
+
+        if MM.MEDIA.none != @config.medium and @mediumMirror()
+          count = @scaleDownNeighbors(count, @config.mediumCountsFor)
   
         if MM.TYPES.micro == @config.type
           count.actives = count.activism
@@ -76,20 +79,21 @@ class MM.Model extends ABM.Model
         count.citizens += 1
 
         if MM.MEDIA.none != @config.medium and @mediumMirror()
-          medium_count = @mediumMirror().count
+          mediumCount = @mediumMirror().countFor(@config.mediumCountsFor)
 
-          if MM.MEDIUM_TYPES.micro == @config.medium_type
-            count.actives += medium_count.activism
+          if MM.MEDIUM_TYPES.micro == @config.mediumType or MM.MEDIUM_TYPES.uncensored == @config.mediumType
+            count.actives += mediumCount.activism
           else
-            count.actives += medium_count.actives
+            count.actives += mediumCount.actives
 
-          count.citizens += medium_count.posts
+          count.citizens += mediumCount.reads # mediumCountsFor
+
           @mediumMirror().resetCount()
 
         @calculatePerceivedArrestProbability(count)
 
       citizen.excitement = ->
-        count = @countNeighbours(@config.vision)
+        count = @countNeighbors(vision: @config.vision)
        
         if MM.TYPES.micro == @config.type
           count.actives = count.activism
@@ -117,23 +121,17 @@ class MM.Model extends ABM.Model
         if @config.excitement
           if activation < 1
             activation += @excitement() * 0.2
-        #activation = @grievance() - @netRisk()
 
-        if activation > @config.threshold
-          @active = true
-          @activism = 1.0
+        status = @calculateActiveStatus(activation)
+        @active = status.active
+        @activism = status.activism
+
+        if @active
           @setColor "red"
         else
-          @active = false
-          if activation > @config.thresholdMicro
-            @activism = 0.4
-
-            if MM.TYPES.micro == @model.config.type
-              @setColor "orange"
-            else
-              @setColor "green"
+          if @activism > 0 and MM.TYPES.micro == @config.type
+            @setColor "orange"
           else
-            @activism = 0.0
             @setColor "green"
 
     if @config.friends
@@ -148,14 +146,14 @@ class MM.Model extends ABM.Model
       cop.moveToRandomEmptyLocation()
 
       cop.act = ->
-        count = @countNeighbours(@config.vision)
+        count = @countNeighbors(vision: @config.vision)
         count.cops += 1
 
         if @calculateCopWillMakeArrestProbability(count) > u.randomFloat()
           @makeArrest()
           @moveToRandomEmptyNeighbor()
         else
-          if @config.cops_retreat
+          if @config.copsRetreat
             @retreat()
           else
             @moveToRandomEmptyNeighbor()
@@ -164,7 +162,7 @@ class MM.Model extends ABM.Model
         @moveTowardsArrestProbability(@config.walk, @config.vision, true)
 
       cop.makeArrest = ->
-          protester = @neighbors(@config.vision).sample((agent) ->
+          protester = @neighbors(@config.vision).sample(condition: (agent) ->
             agent.breed.name is "citizens" and agent.active)
 
           if protester
@@ -209,10 +207,11 @@ class MM.Model extends ABM.Model
 
   micros: ->
     micros = []
-    for citizen in @citizens
-      if !citizen.active and citizen.activism > 0 and
-          not citizen.imprisoned()
-        micros.push citizen
+    if MM.TYPES.micro == @config.type
+      for citizen in @citizens
+        if !citizen.active and citizen.activism > 0 and
+            not citizen.imprisoned()
+          micros.push citizen
     micros
 
   tickData: ->

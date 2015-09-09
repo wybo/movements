@@ -10,7 +10,11 @@ class MM.Medium extends ABM.Model
   setup: ->
     @size = 0.6
 
-    @dummyAgent = {original: {active: false}, read: (->), dummy: true}
+    @dummyAgent = {
+      original: {active: false, activism: 0.0, config: {}}
+      read: (->)
+      dummy: true
+    }
 
     for patch in @patches.create()
       patch.color = u.color.white
@@ -25,14 +29,27 @@ class MM.Medium extends ABM.Model
       agent.size = @size
       agent.heading = u.degreesToRadians(270)
       agent.color = original.color
-      agent.count = {posts: 0, activism: 0}
+      agent.count = {reads: 0, actives: 0, activism: 0}
+      agent.countFor = (countFor) ->
+        if @count.reads != 0
+          fraction = countFor / @count.reads
+        else
+          fraction = 0
+
+        return {
+          reads: countFor
+          actives: fraction * @count.actives
+          activism: fraction * @count.activism
+        }
 
       agent.read = (message) ->
         @closeMessage()
 
         if message
           message.readers.push(@)
-          @count.posts += 1
+          @count.reads += 1
+          if message.active
+            @count.actives += 1
           @count.activism += message.activism
 
         @reading = message
@@ -44,7 +61,7 @@ class MM.Medium extends ABM.Model
         @reading = null
 
       agent.resetCount = ->
-        @count = {posts: 0, activism: 0}
+        @count = {reads: 0, actives: 0, activism: 0}
 
     return original.mediumMirror()
 

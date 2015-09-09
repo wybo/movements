@@ -20,7 +20,7 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
       @inbox.clear()
 
   newPost: (agent) ->
-    friends = @agents.sample(30, (o) ->
+    friends = @agents.sample(size: 30, condition: (o) ->
       agent.original.isFriendsWith(o.original)
     )
 
