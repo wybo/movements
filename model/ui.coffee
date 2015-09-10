@@ -35,7 +35,7 @@ class MM.UI
       activesAdvance: null
       excitement: null
       friends: null
-      friendsMultiplier: {min: 1, max: 5}
+      friendsMultiplier: {min: 0, max: 5}
       mediumCountsFor: {min: 0, max: 20}
 
     buttons =

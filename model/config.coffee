@@ -33,17 +33,18 @@ class MM.Config
   
   copsRetreat: true
   activesAdvance: false
-  excitement: true
+  excitement: false
   friends: 50
-  friendsMultiplier: 2
+  friendsMultiplier: 1 # 1 actively cancels out friends
   mediumCountsFor: 5
 
   citizenDensity: 0.7
   #copDensity: 0.04
   #copDensity: 0.012
-  copDensity: 0.025
+  copDensity: 0.020
   maxPrisonSentence: 30 # J
-  regimeLegitimacy: 0.82 # L
+  #regimeLegitimacy: 0.82 # L
+  regimeLegitimacy: 0.70 # L
   threshold: 0.1
   thresholdMicro: 0.0
   #vision: {diamond: 7} # Neumann 7, v and v*
@@ -68,7 +69,7 @@ class MM.Config
       patchSize: 20
       #mapSize: 15
       #mapSize: 20
-      mapSize: 20
+      mapSize: 30
       isTorus: true
     }
 

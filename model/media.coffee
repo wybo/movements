@@ -4,11 +4,12 @@ class MM.Media
 
     @media = new ABM.Array
 
-    @media[MM.MEDIA.none] = new MM.MediumNone(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.email] = new MM.MediumEMail(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.website] = new MM.MediumWebsite(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.forum] = new MM.MediumForum(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.facebook_wall] = new MM.MediumFacebookWall(@model.config.mediaModelOptions)
+    options = u.merge(@model.config.mediaModelOptions, {config: @model.config})
+    @media[MM.MEDIA.none] = new MM.MediumNone(options)
+    @media[MM.MEDIA.email] = new MM.MediumEMail(options)
+    @media[MM.MEDIA.website] = new MM.MediumWebsite(options)
+    @media[MM.MEDIA.forum] = new MM.MediumForum(options)
+    @media[MM.MEDIA.facebook_wall] = new MM.MediumFacebookWall(options)
 
     @updateOld()
 

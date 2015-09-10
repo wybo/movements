@@ -76,7 +76,7 @@ class MM.Agent extends ABM.Agent
       if agent.breed.name is "cops"
         cops += 1
       else
-        if @config.friends
+        if @config.friends and @config.friendsMultiplier != 1 and @isFriendsWith(agent)
           friendsMultiplier = @config.friendsMultiplier
         else
           friendsMultiplier = 1

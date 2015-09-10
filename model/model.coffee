@@ -149,14 +149,11 @@ class MM.Model extends ABM.Model
         count = @countNeighbors(vision: @config.vision)
         count.cops += 1
 
-        if @calculateCopWillMakeArrestProbability(count) > u.randomFloat()
+        if @config.copsRetreat and @calculateCopWillMakeArrestProbability(count) < u.randomFloat()
+          @retreat()
+        else
           @makeArrest()
           @moveToRandomEmptyNeighbor()
-        else
-          if @config.copsRetreat
-            @retreat()
-          else
-            @moveToRandomEmptyNeighbor()
 
       cop.retreat = ->
         @moveTowardsArrestProbability(@config.walk, @config.vision, true)

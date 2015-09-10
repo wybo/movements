@@ -33,17 +33,18 @@ class MM.Config
   
   copsRetreat: true
   activesAdvance: false
-  excitement: true
+  excitement: false
   friends: 50
-  friendsMultiplier: 2
+  friendsMultiplier: 1 # 1 actively cancels out friends
   mediumCountsFor: 5
 
   citizenDensity: 0.7
   #copDensity: 0.04
   #copDensity: 0.012
-  copDensity: 0.025
+  copDensity: 0.020
   maxPrisonSentence: 30 # J
-  regimeLegitimacy: 0.82 # L
+  #regimeLegitimacy: 0.82 # L
+  regimeLegitimacy: 0.70 # L
   threshold: 0.1
   thresholdMicro: 0.0
   #vision: {diamond: 7} # Neumann 7, v and v*
@@ -68,7 +69,7 @@ class MM.Config
       patchSize: 20
       #mapSize: 15
       #mapSize: 20
-      mapSize: 20
+      mapSize: 30
       isTorus: true
     }
 
@@ -125,7 +126,7 @@ class MM.Medium extends ABM.Model
     @size = 0.6
 
     @dummyAgent = {
-      original: {active: false, activism: 0.0, config: {}}
+      original: {active: false, activism: 0.0, config: @config}
       read: (->)
       dummy: true
     }
@@ -138,7 +139,7 @@ class MM.Medium extends ABM.Model
       @agents.create 1
       agent = @agents.last()
       agent.original = original
-      original.mediumMirrors[original.model.config.medium] = agent
+      original.mediumMirrors[@config.medium] = agent
 
       agent.size = @size
       agent.heading = u.degreesToRadians(270)
@@ -181,9 +182,9 @@ class MM.Medium extends ABM.Model
 
   colorPatch: (patch, message) ->
     if message.activism == 1.0
+      patch.color = u.color.salmon
+    else if message.activism > 0 and (MM.MEDIUM_TYPES.micro == @config.mediumType or MM.MEDIUM_TYPES.uncensored == @config.mediumType)
       patch.color = u.color.pink
-    else if message.activism > 0
-      patch.color = u.color.orange
     else
       patch.color = u.color.lightgray
 
@@ -308,7 +309,7 @@ class MM.Agent extends ABM.Agent
       if agent.breed.name is "cops"
         cops += 1
       else
-        if @config.friends
+        if @config.friends and @config.friendsMultiplier != 1 and @isFriendsWith(agent)
           friendsMultiplier = @config.friendsMultiplier
         else
           friendsMultiplier = 1
@@ -438,11 +439,12 @@ class MM.Media
 
     @media = new ABM.Array
 
-    @media[MM.MEDIA.none] = new MM.MediumNone(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.email] = new MM.MediumEMail(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.website] = new MM.MediumWebsite(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.forum] = new MM.MediumForum(@model.config.mediaModelOptions)
-    @media[MM.MEDIA.facebook_wall] = new MM.MediumFacebookWall(@model.config.mediaModelOptions)
+    options = u.merge(@model.config.mediaModelOptions, {config: @model.config})
+    @media[MM.MEDIA.none] = new MM.MediumNone(options)
+    @media[MM.MEDIA.email] = new MM.MediumEMail(options)
+    @media[MM.MEDIA.website] = new MM.MediumWebsite(options)
+    @media[MM.MEDIA.forum] = new MM.MediumForum(options)
+    @media[MM.MEDIA.facebook_wall] = new MM.MediumFacebookWall(options)
 
     @updateOld()
 
@@ -685,7 +687,7 @@ class MM.UI
       activesAdvance: null
       excitement: null
       friends: null
-      friendsMultiplier: {min: 1, max: 5}
+      friendsMultiplier: {min: 0, max: 5}
       mediumCountsFor: {min: 0, max: 20}
 
     buttons =
@@ -1054,14 +1056,11 @@ class MM.Model extends ABM.Model
         count = @countNeighbors(vision: @config.vision)
         count.cops += 1
 
-        if @calculateCopWillMakeArrestProbability(count) > u.randomFloat()
+        if @config.copsRetreat and @calculateCopWillMakeArrestProbability(count) < u.randomFloat()
+          @retreat()
+        else
           @makeArrest()
           @moveToRandomEmptyNeighbor()
-        else
-          if @config.copsRetreat
-            @retreat()
-          else
-            @moveToRandomEmptyNeighbor()
 
       cop.retreat = ->
         @moveTowardsArrestProbability(@config.walk, @config.vision, true)

@@ -1,11 +1,12 @@
 code = require "./model_headless.coffee"
 MM = code.MM
 
-#reruns = 8 # To average it out
-reruns = 25 # To average it out
+reruns = 3
+#reruns = 25 # To average it out
 
-#generations = 15 # 15 days
-generations = 150 # 15 days
+generations = 10
+#generations = 15
+#generations = 150 # 15 days
 
 setups = [
   {label: "None normal", medium: MM.MEDIA.none, type: MM.TYPES.normal},

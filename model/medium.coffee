@@ -11,7 +11,7 @@ class MM.Medium extends ABM.Model
     @size = 0.6
 
     @dummyAgent = {
-      original: {active: false, activism: 0.0, config: {}}
+      original: {active: false, activism: 0.0, config: @config}
       read: (->)
       dummy: true
     }
@@ -24,7 +24,7 @@ class MM.Medium extends ABM.Model
       @agents.create 1
       agent = @agents.last()
       agent.original = original
-      original.mediumMirrors[original.model.config.medium] = agent
+      original.mediumMirrors[@config.medium] = agent
 
       agent.size = @size
       agent.heading = u.degreesToRadians(270)
@@ -67,9 +67,9 @@ class MM.Medium extends ABM.Model
 
   colorPatch: (patch, message) ->
     if message.activism == 1.0
+      patch.color = u.color.salmon
+    else if message.activism > 0 and (MM.MEDIUM_TYPES.micro == @config.mediumType or MM.MEDIUM_TYPES.uncensored == @config.mediumType)
       patch.color = u.color.pink
-    else if message.activism > 0
-      patch.color = u.color.orange
     else
       patch.color = u.color.lightgray
 
