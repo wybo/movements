@@ -1,17 +1,19 @@
 code = require "./model_headless.coffee"
 MM = code.MM
 
-reruns = 3
+#reruns = 2
+reruns = 30
 #reruns = 25 # To average it out
 
-generations = 10
-#generations = 15
+#generations = 2
+generations = 300
 #generations = 150 # 15 days
 
 setups = [
-  {label: "None normal", medium: MM.MEDIA.none, type: MM.TYPES.normal},
-  {label: "Forum normal", medium: MM.MEDIA.forum, type: MM.TYPES.normal},
-  {label: "None enclave", medium: MM.MEDIA.none, type: MM.TYPES.enclave},
+  {label: "None normal", medium: MM.MEDIA.none}
+  {label: "Facebook normal", medium: MM.MEDIA.facebook_wall, medium_type: MM.MEDIUM_TYPES.normal}
+  {label: "Facebook micro", medium: MM.MEDIA.facebook_wall, medium_type: MM.MEDIUM_TYPES.micro}
+  {label: "Facebook uncensored", medium: MM.MEDIA.facebook_wall, medium_type: MM.MEDIUM_TYPES.uncensored}
   {label: "Forum enclave", medium: MM.MEDIA.forum, type: MM.TYPES.enclave}
 ]
 
@@ -67,6 +69,8 @@ run_test = (setup) ->
     for pair, k in variable
       runs[0][key][k][1] = Math.round(runs[0][key][k][1] / runs.length * 100) / 100
 
+  config.config = null # removing circularity
+  setup.config = config # full config
   return {setup: setup, data: runs[0]}
 
 for setup in setups

@@ -194,8 +194,9 @@ class MM.Agent extends ABM.Agent
       o.friends.length < number and id != o.id
     )
 
-    for friend in friends
-      @friends.push friend
-      friend.friends.push @
-      @friends_hash[friend.id] = true
-      friend.friends_hash[@id] = true
+    if friends # TODO FIX!
+      for friend in friends
+        @friends.push friend
+        friend.friends.push @
+        @friends_hash[friend.id] = true
+        friend.friends_hash[@id] = true

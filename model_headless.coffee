@@ -22,48 +22,48 @@ MM.MEDIUM_TYPES = indexHash(["normal", "micro", "uncensored"])
 MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "arrest_probability", "net_risk", "follow"])
 # turn back to numbers once dat.gui fixed
 
-console.log MM.VIEWS
-
 class MM.Config
-  type: MM.TYPES.normal
-  calculation: MM.CALCULATIONS.real
-  medium: MM.MEDIA.facebook_wall
-  mediumType: MM.MEDIUM_TYPES.micro
-  view: MM.VIEWS.arrest_probability
-  
-  copsRetreat: true
-  activesAdvance: false
-  excitement: false
-  friends: 50
-  friendsMultiplier: 1 # 1 actively cancels out friends
-  mediumCountsFor: 5
-
-  citizenDensity: 0.7
-  #copDensity: 0.04
-  #copDensity: 0.012
-  copDensity: 0.020
-  maxPrisonSentence: 30 # J
-  #regimeLegitimacy: 0.82 # L
-  regimeLegitimacy: 0.70 # L
-  threshold: 0.1
-  thresholdMicro: 0.0
-  #vision: {diamond: 7} # Neumann 7, v and v*
-  vision: {radius: 7} # Neumann 7, v and v*
-  walk: {radius: 2} # Neumann 7, v and v*
-  kConstant: 2.3 # k
-
-  ui: {
-    passives: {label: "Passives", color: "green"},
-    actives: {label: "Actives", color: "red"},
-    prisoners: {label: "Prisoners", color: "black"},
-    cops: {label: "Cops", color: "blue"},
-    media: {label: "Media", color: "black"}
-    micros: {label: "Micros", color: "orange"},
-  }
-
-  # ### Do not modify below unless you know what you're doing.
 
   constructor: ->
+    @type = MM.TYPES.normal
+    @calculation = MM.CALCULATIONS.real
+    @medium = MM.MEDIA.facebook_wall
+    @mediumType = MM.MEDIUM_TYPES.micro
+    @view = MM.VIEWS.arrest_probability
+    
+    @copsRetreat = true
+    @activesAdvance = false
+    @excitement = true
+    @friends = 50
+    @friendsMultiplier = 1 # 1 actively cancels out friends
+    @mediumCountsFor = 5
+
+    @citizenDensity = 0.7
+    #@copDensity = 0.04
+    #@copDensity = 0.012
+    @copDensity = 0.025
+    @maxPrisonSentence = 30 # J
+    #@regimeLegitimacy = 0.82 # L
+    #@regimeLegitimacy = 0.70 # L
+    @regimeLegitimacy = 0.60 # L
+    @threshold = 0.1
+    @thresholdMicro = 0.0
+    #@vision = {diamond: 7} # Neumann 7, v and v*
+    @vision = {radius: 7} # Neumann 7, v and v*
+    @walk = {radius: 2} # Neumann 7, v and v*
+    @kConstant = 2.3 # k
+
+    @ui = {
+      passives: {label: "Passives", color: "green"},
+      actives: {label: "Actives", color: "red"},
+      prisoners: {label: "Prisoners", color: "black"},
+      cops: {label: "Cops", color: "blue"},
+      media: {label: "Media", color: "black"}
+      micros: {label: "Micros", color: "orange"},
+    }
+
+    # ### Do not modify below unless you know what you're doing.
+
     sharedModelOptions = {
       Agent: MM.Agent
       patchSize: 20
@@ -427,11 +427,12 @@ class MM.Agent extends ABM.Agent
       o.friends.length < number and id != o.id
     )
 
-    for friend in friends
-      @friends.push friend
-      friend.friends.push @
-      @friends_hash[friend.id] = true
-      friend.friends_hash[@id] = true
+    if friends # TODO FIX!
+      for friend in friends
+        @friends.push friend
+        friend.friends.push @
+        @friends_hash[friend.id] = true
+        friend.friends_hash[@id] = true
 
 class MM.Media
   constructor: (model, options = {}) ->
