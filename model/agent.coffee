@@ -90,7 +90,14 @@ class MM.Agent extends ABM.Agent
 
     return {cops: cops, citizens: citizens, actives: actives, activism: activism}
 
-  scaleDownNeighbors: (count, remove) ->
+  scaleDownNeighbors: (count, fraction) ->
+    if fraction and fraction < 1
+      count.actives = count.actives * fraction
+      count.citizens = count.citizens * fraction
+      count.activism = count.activism * fraction
+    return count
+
+  removeNeighbors: (count, remove) ->
     if remove and remove > 0
       newCitizens = count.citizens - remove
       if newCitizens > 0
@@ -190,9 +197,15 @@ class MM.Agent extends ABM.Agent
   makeRandomFriends: (number) ->
     needed = number - @friends.length # friends already made by others
     id = @id # taken into closure
-    friends = @model.citizens.sample(size: needed, condition: (o) ->
-      o.friends.length < number and id != o.id
-    )
+    if @config.friendsHardshipHomophilous
+      hardship = @hardship
+      friends = @model.citizens.sample(size: needed, condition: (o) ->
+        o.friends.length < number and id != o.id and (hardship >= 0.5 and o.hardship >= 0.5 or hardship < 0.5 and o.hardship < 0.5)
+      )
+    else
+      friends = @model.citizens.sample(size: needed, condition: (o) ->
+        o.friends.length < number and id != o.id
+      )
 
     if friends # TODO FIX!
       for friend in friends

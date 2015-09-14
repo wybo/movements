@@ -28,20 +28,22 @@ class MM.Config
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
     @medium = MM.MEDIA.facebook_wall
-    @mediumType = MM.MEDIUM_TYPES.micro
+    @mediumType = MM.MEDIUM_TYPES.normal
     @view = MM.VIEWS.arrest_probability
     
     @copsRetreat = true
     @activesAdvance = false
     @excitement = true
-    @friends = 50
+    @friends = 50 # also used for Fb
     @friendsMultiplier = 1 # 1 actively cancels out friends
-    @mediumCountsFor = 5
+    @friendsHardshipHomophilous = true
+    @mediumCountsFor = 0.20
+    #@mediumCountsFor = 0.25
 
     @citizenDensity = 0.7
     #@copDensity = 0.04
     #@copDensity = 0.012
-    @copDensity = 0.025
+    @copDensity = 0.03
     @maxPrisonSentence = 30 # J
     #@regimeLegitimacy = 0.82 # L
     #@regimeLegitimacy = 0.70 # L
@@ -85,6 +87,7 @@ class MM.Config
     @mediaModelOptions = {
       Agent: MM.Agent
       div: "medium"
+      #patchSize: 15
       patchSize: 10
       min: {x: 0, y: 0}
       max: {x: 39, y: 39}
@@ -323,7 +326,14 @@ class MM.Agent extends ABM.Agent
 
     return {cops: cops, citizens: citizens, actives: actives, activism: activism}
 
-  scaleDownNeighbors: (count, remove) ->
+  scaleDownNeighbors: (count, fraction) ->
+    if fraction and fraction < 1
+      count.actives = count.actives * fraction
+      count.citizens = count.citizens * fraction
+      count.activism = count.activism * fraction
+    return count
+
+  removeNeighbors: (count, remove) ->
     if remove and remove > 0
       newCitizens = count.citizens - remove
       if newCitizens > 0
@@ -423,9 +433,15 @@ class MM.Agent extends ABM.Agent
   makeRandomFriends: (number) ->
     needed = number - @friends.length # friends already made by others
     id = @id # taken into closure
-    friends = @model.citizens.sample(size: needed, condition: (o) ->
-      o.friends.length < number and id != o.id
-    )
+    if @config.friendsHardshipHomophilous
+      hardship = @hardship
+      friends = @model.citizens.sample(size: needed, condition: (o) ->
+        o.friends.length < number and id != o.id and (hardship >= 0.5 and o.hardship >= 0.5 or hardship < 0.5 and o.hardship < 0.5)
+      )
+    else
+      friends = @model.citizens.sample(size: needed, condition: (o) ->
+        o.friends.length < number and id != o.id
+      )
 
     if friends # TODO FIX!
       for friend in friends
@@ -689,7 +705,8 @@ class MM.UI
       excitement: null
       friends: null
       friendsMultiplier: {min: 0, max: 5}
-      mediumCountsFor: {min: 0, max: 20}
+      friendsHardshipHomophilous: null
+      mediumCountsFor: {min: 0, max: 1}
 
     buttons =
       step: ->
@@ -978,7 +995,7 @@ class MM.Model extends ABM.Model
         count = @countNeighbors(vision: @config.vision)
 
         if MM.MEDIA.none != @config.medium and @mediumMirror()
-          count = @scaleDownNeighbors(count, @config.mediumCountsFor)
+          count = @scaleDownNeighbors(count, 1 - @config.mediumCountsFor)
   
         if MM.TYPES.micro == @config.type
           count.actives = count.activism
@@ -987,7 +1004,7 @@ class MM.Model extends ABM.Model
         count.citizens += 1
 
         if MM.MEDIA.none != @config.medium and @mediumMirror()
-          mediumCount = @mediumMirror().countFor(@config.mediumCountsFor)
+          mediumCount = @mediumMirror().countFor(@config.mediumCountsFor * count.citizens)
 
           if MM.MEDIUM_TYPES.micro == @config.mediumType or MM.MEDIUM_TYPES.uncensored == @config.mediumType
             count.actives += mediumCount.activism

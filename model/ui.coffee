@@ -36,7 +36,8 @@ class MM.UI
       excitement: null
       friends: null
       friendsMultiplier: {min: 0, max: 5}
-      mediumCountsFor: {min: 0, max: 20}
+      friendsHardshipHomophilous: null
+      mediumCountsFor: {min: 0, max: 1}
 
     buttons =
       step: ->

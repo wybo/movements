@@ -1,5 +1,8 @@
 code = require "./model_headless.coffee"
 MM = code.MM
+abmcode = require "./lib/agentbase.coffee"
+ABM = abmcode.ABM
+u = ABM.util
 
 #reruns = 2
 reruns = 30
@@ -7,15 +10,33 @@ reruns = 30
 
 #generations = 2
 generations = 300
+#generations = 1500
 #generations = 150 # 15 days
 
-setups = [
+mediaSets = [
   {label: "None normal", medium: MM.MEDIA.none}
   {label: "Facebook normal", medium: MM.MEDIA.facebook_wall, medium_type: MM.MEDIUM_TYPES.normal}
   {label: "Facebook micro", medium: MM.MEDIA.facebook_wall, medium_type: MM.MEDIUM_TYPES.micro}
   {label: "Facebook uncensored", medium: MM.MEDIA.facebook_wall, medium_type: MM.MEDIUM_TYPES.uncensored}
-  {label: "Forum enclave", medium: MM.MEDIA.forum, type: MM.TYPES.enclave}
+#  {label: "Forum enclave", medium: MM.MEDIA.forum, type: MM.TYPES.enclave}
 ]
+
+sets = [
+  {friendsHardshipHomophilous: false, label: "not homophilous"}
+  {friendsHardshipHomophilous: true, label: "homophilous"}
+]
+#sets = [
+#  {mediumCountsFor: 0.05, label: "medium counts for little"}
+#  {mediumCountsFor: 0.20, label: "medium counts for some"}
+#  {mediumCountsFor: 0.50, label: "medium counts for a lot"}
+#]
+
+setups = []
+
+for set in sets
+  for mediaSet in mediaSets
+    newLabel = mediaSet.label + " " + set.label
+    setups.push u.merge(u.merge(mediaSet, set), {label: newLabel})
 
 #tests = [
 #  {

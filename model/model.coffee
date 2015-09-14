@@ -70,7 +70,7 @@ class MM.Model extends ABM.Model
         count = @countNeighbors(vision: @config.vision)
 
         if MM.MEDIA.none != @config.medium and @mediumMirror()
-          count = @scaleDownNeighbors(count, @config.mediumCountsFor)
+          count = @scaleDownNeighbors(count, 1 - @config.mediumCountsFor)
   
         if MM.TYPES.micro == @config.type
           count.actives = count.activism
@@ -79,7 +79,7 @@ class MM.Model extends ABM.Model
         count.citizens += 1
 
         if MM.MEDIA.none != @config.medium and @mediumMirror()
-          mediumCount = @mediumMirror().countFor(@config.mediumCountsFor)
+          mediumCount = @mediumMirror().countFor(@config.mediumCountsFor * count.citizens)
 
           if MM.MEDIUM_TYPES.micro == @config.mediumType or MM.MEDIUM_TYPES.uncensored == @config.mediumType
             count.actives += mediumCount.activism
