@@ -1,3 +1,7 @@
+# Copyright 2014, Wybo Wiersma, available under the GPL v3
+# This model builds upon Epsteins model of protest, and illustrates
+# the possible impact of social media on protest formation.
+
 @MM = MM = {}
 
 if typeof ABM == 'undefined'
