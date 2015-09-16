@@ -9,7 +9,8 @@ I am developing it as part of my thesis.
 Different social mechanisms and media platforms will be added over time.
 
 You can always find the latest working version in this repository, and
-a [live demo here](http://wybowiersma.net/movements/)
+a [live demo on AgentBase here](http://agentbase.org/model.html?7b745fe0c641aca3cd1d)
+[and here](http://wybowiersma.net/movements/)
 
 Installation
 --------------

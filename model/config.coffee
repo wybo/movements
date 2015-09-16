@@ -1,7 +1,7 @@
 # Copyright 2014, Wybo Wiersma, available under the GPL v3. Please
-# cite with url, paper and Wybo Wiersma if you use it. This model
-# builds upon Epsteins model of protest, and illustrates the possible
-# impact of social media on protest formation.
+# cite with url, and author Wybo Wiersma (and if applicable, a paper).
+# This model builds upon Epsteins model of protest, and illustrates
+# the possible impact of social media on protest formation.
 
 @MM = MM = {}
 
@@ -75,8 +75,8 @@ class MM.Config
       Agent: MM.Agent
       patchSize: 20
       #mapSize: 15
-      #mapSize: 20
-      mapSize: 30
+      mapSize: 20
+      #mapSize: 30
       isTorus: true
     }
 

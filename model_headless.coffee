@@ -1,4 +1,5 @@
-# Copyright 2014, Wybo Wiersma, available under the GPL v3
+# Copyright 2014, Wybo Wiersma, available under the GPL v3. Please
+# cite with url, and author Wybo Wiersma (and if applicable, a paper).
 # This model builds upon Epsteins model of protest, and illustrates
 # the possible impact of social media on protest formation.
 
@@ -74,8 +75,8 @@ class MM.Config
       Agent: MM.Agent
       patchSize: 20
       #mapSize: 15
-      #mapSize: 20
-      mapSize: 30
+      mapSize: 20
+      #mapSize: 30
       isTorus: true
     }
 
@@ -681,9 +682,8 @@ class MM.UI
     if element.lenght > 0
       element.remove()
     
-    $("#model_container").append(
-      #  '<div id="graph" style="width: 400px; height: 250px;"></div>')
-      '<div id="graph" style="width: 800px; height: 500px;"></div>')
+    $("#before_graph").after(
+      '<div class="model_container" style="float: left;"><div id="graph" style="width: 500px; height: 400px;"></div></div>')
 
     @model = model
     @plotDiv = $("#graph")
@@ -710,7 +710,6 @@ class MM.UI
       friends: null
       friendsMultiplier: {min: 0, max: 5}
       friendsHardshipHomophilous: null
-      mediumCountsFor: {min: 0, max: 1}
 
     buttons =
       step: ->
@@ -721,25 +720,24 @@ class MM.UI
         window.model.restart()
 
     for key, value of settings
-      if u.isArray(value)
-        if key == "view"
-          adder = @gui.add(@model.config, key, value...)
-          adder.onChange((newView) =>
-            @model.views.old().reset()
-            @model.views.current().reset()
-            @model.views.current().populate(@model)
-            @model.views.current().start()
-            @model.views.updateOld()
-          )
-        else if key == "medium"
-          adder = @gui.add(@model.config, key, value...)
-          adder.onChange((newMedium) =>
-            @model.media.old().reset()
-            @model.media.current().restart()
-            @model.media.updateOld()
-            @addMediaMarker()
-          )
-        else
+      if key == "view"
+        adder = @gui.add(@model.config, key, value...)
+        adder.onChange((newView) =>
+          @model.views.old().reset()
+          @model.views.current().reset()
+          @model.views.current().populate(@model)
+          @model.views.current().start()
+          @model.views.updateOld()
+        )
+      else if key == "medium"
+        adder = @gui.add(@model.config, key, value...)
+        adder.onChange((newMedium) =>
+          @model.media.old().reset()
+          @model.media.current().restart()
+          @model.media.updateOld()
+          @addMediaMarker()
+        )
+      else if u.isArray(value)
           @gui.add(@model.config, key, value...)
       else
         adder = @gui.add(@model.config, key)

@@ -8,7 +8,7 @@
     <script src="model.coffee" type="text/coffeescript"></script>
     <title>AgentBase - Agent Based Model</title>
     <style>
-      #model_container div {
+      #model_container div, .model_container div {
         float: left;
       }
     </style>
@@ -17,8 +17,8 @@
     <p style="font-size: 0.8em;">
       <a href="runs.html">To runs</a>
     </p>
-    <div id="model_container">
-      <div id="world"></div>
+    <div id="model_container" class="model_container">
+      <div style="float: left;" id="world"></div>
     </div>
     <div id="buttons">
       <a class="button" href="#" onclick="window.model.once()">Step</a>
