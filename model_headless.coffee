@@ -28,7 +28,6 @@ MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "arrest_
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
-
   constructor: ->
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
