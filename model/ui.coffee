@@ -20,6 +20,7 @@ class MM.UI
     settings =
       type: [MM.TYPES]
       calculation: [MM.CALCULATIONS]
+      legitimacyCalculation: [MM.LEGITIMACY_CALCULATIONS]
       medium: [MM.MEDIA]
       mediumType: [MM.MEDIUM_TYPES]
       view: [MM.VIEWS]
@@ -27,12 +28,11 @@ class MM.UI
       citizenDensity: {min: 0, max: 1}
       copDensity: {min: 0, max: 0.10}
       maxPrisonSentence: {min: 0, max: 1000}
-      regimeLegitimacy: {min: 0, max: 1}
+      baseRegimeLegitimacy: {min: 0, max: 1}
       threshold: {min: -1, max: 1}
       thresholdMicro: {min: -1, max: 1}
       copsRetreat: null
       activesAdvance: null
-      excitement: null
       friends: null
       friendsMultiplier: {min: 0, max: 5}
       friendsHardshipHomophilous: null

@@ -43,7 +43,7 @@ class MM.ModelSimple extends ABM.Model
         count = @countNeighbors(@config.vision)
         count.actives += 1
 
-        @calculateExcitement(count)
+        return (count.actives / count.citizens) ** 2
 
       citizen.activate = ->
         if @excitement() > @hardship

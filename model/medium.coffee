@@ -23,6 +23,7 @@ class MM.Medium extends ABM.Model
     if !original.mediumMirror()
       @agents.create 1
       agent = @agents.last()
+      agent.config = @config
       agent.original = original
       original.mediumMirrors[@config.medium] = agent
 

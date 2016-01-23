@@ -11,8 +11,6 @@ class MM.ViewGeneric extends MM.View
         citizen.color = u.color.red.fraction(citizen.original.hardship)
       else if MM.VIEWS.risk_aversion == @config.view
         citizen.color = u.color.red.fraction(citizen.original.riskAversion)
-      else if MM.VIEWS.grievance == @config.view
-        citizen.color = u.color.red.fraction(citizen.original.grievance())
 
     for cop in @cops
       cop.color = cop.original.color
@@ -26,3 +24,9 @@ class MM.ViewGeneric extends MM.View
     else if MM.VIEWS.net_risk == @config.view
       for citizen in @citizens
         citizen.color = u.color.red.fraction(citizen.original.netRisk())
+    else if MM.VIEWS.regime_legitimacy == @config.view
+      for citizen in @citizens
+        citizen.color = u.color.red.fraction(citizen.original.regimeLegitimacy())
+    else if MM.VIEWS.grievance == @config.view
+      for citizen in @citizens
+        citizen.color = u.color.red.fraction(citizen.original.grievance())

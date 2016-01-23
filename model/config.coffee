@@ -22,22 +22,23 @@ indexHash = (array) ->
 
 MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
-MM.MEDIA = indexHash(["none", "email", "website", "forum", "facebook_wall"])
+MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
+MM.MEDIA = indexHash(["none", "tv", "email", "website", "forum", "facebook_wall"])
 MM.MEDIUM_TYPES = indexHash(["normal", "micro", "uncensored"])
-MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "arrest_probability", "net_risk", "follow"])
+MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "regime_legitimacy", "arrest_probability", "net_risk", "follow"])
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
   constructor: ->
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
-    @medium = MM.MEDIA.facebook_wall
+    @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
+    @medium = MM.MEDIA.tv
     @mediumType = MM.MEDIUM_TYPES.normal
     @view = MM.VIEWS.arrest_probability
     
-    @copsRetreat = true
+    @copsRetreat = false
     @activesAdvance = false
-    @excitement = true
     @friends = 50 # also used for Fb
     @friendsMultiplier = 1 # 1 actively cancels out friends
     @friendsHardshipHomophilous = true
@@ -48,10 +49,10 @@ class MM.Config
     #@copDensity = 0.04
     #@copDensity = 0.012
     @copDensity = 0.03
+    @arrestDuration = 2
     @maxPrisonSentence = 30 # J
-    #@regimeLegitimacy = 0.82 # L
-    #@regimeLegitimacy = 0.70 # L
-    @regimeLegitimacy = 0.60 # L
+    @baseRegimeLegitimacy = 0.75 # L
+    #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
     #@vision = {diamond: 7} # Neumann 7, v and v*
@@ -62,10 +63,11 @@ class MM.Config
     @ui = {
       passives: {label: "Passives", color: "green"},
       actives: {label: "Actives", color: "red"},
+      micros: {label: "Micros", color: "orange"},
+      arrests: {label: "Arrests", color: "purple"},
       prisoners: {label: "Prisoners", color: "black"},
       cops: {label: "Cops", color: "blue"},
       media: {label: "Media", color: "black"}
-      micros: {label: "Micros", color: "orange"},
     }
 
     # ### Do not modify below unless you know what you're doing.

@@ -28,6 +28,13 @@ class MM.Agent extends ABM.Agent
     else
       return {activism: 0.0, active: false}
 
+  calculateLegitimacyDrop: (count) ->
+    return count.arrests / (count.citizens - count.actives)
+    # could consider taking min of cops + actives, police-violence
+    # or arrests
+    # Make active agents share photos of fights
+    # Two things expressed. Grievance/active and photos 
+
   calculatePerceivedArrestProbability: (count) ->
     return @calculateCopWillMakeArrestProbability(count) *
       @calculateSpecificCitizenArrestProbability(count)
@@ -58,13 +65,11 @@ class MM.Agent extends ABM.Agent
     else
       return 1
 
-  calculateExcitement: (count) ->
-    return (count.actives / count.citizens) ** 2
-
   countNeighbors: (options) ->
     cops = 0
     actives = 0
     citizens = 0
+    arrests = 0
     activism = 0
 
     if options.patch
@@ -83,12 +88,14 @@ class MM.Agent extends ABM.Agent
 
         citizens += friendsMultiplier
 
+        if agent.fighting()
+          arrests += friendsMultiplier
         if agent.active
           actives += friendsMultiplier
 
         activism += agent.activism * friendsMultiplier
 
-    return {cops: cops, citizens: citizens, actives: actives, activism: activism}
+    return {cops: cops, citizens: citizens, actives: actives, activism: activism, arrests: arrests}
 
   scaleDownNeighbors: (count, fraction) ->
     if fraction and fraction < 1

@@ -22,22 +22,23 @@ indexHash = (array) ->
 
 MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
-MM.MEDIA = indexHash(["none", "email", "website", "forum", "facebook_wall"])
+MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
+MM.MEDIA = indexHash(["none", "tv", "email", "website", "forum", "facebook_wall"])
 MM.MEDIUM_TYPES = indexHash(["normal", "micro", "uncensored"])
-MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "arrest_probability", "net_risk", "follow"])
+MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "regime_legitimacy", "arrest_probability", "net_risk", "follow"])
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
   constructor: ->
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
-    @medium = MM.MEDIA.facebook_wall
+    @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
+    @medium = MM.MEDIA.tv
     @mediumType = MM.MEDIUM_TYPES.normal
     @view = MM.VIEWS.arrest_probability
     
-    @copsRetreat = true
+    @copsRetreat = false
     @activesAdvance = false
-    @excitement = true
     @friends = 50 # also used for Fb
     @friendsMultiplier = 1 # 1 actively cancels out friends
     @friendsHardshipHomophilous = true
@@ -48,10 +49,10 @@ class MM.Config
     #@copDensity = 0.04
     #@copDensity = 0.012
     @copDensity = 0.03
+    @arrestDuration = 2
     @maxPrisonSentence = 30 # J
-    #@regimeLegitimacy = 0.82 # L
-    #@regimeLegitimacy = 0.70 # L
-    @regimeLegitimacy = 0.60 # L
+    @baseRegimeLegitimacy = 0.75 # L
+    #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
     #@vision = {diamond: 7} # Neumann 7, v and v*
@@ -62,10 +63,11 @@ class MM.Config
     @ui = {
       passives: {label: "Passives", color: "green"},
       actives: {label: "Actives", color: "red"},
+      micros: {label: "Micros", color: "orange"},
+      arrests: {label: "Arrests", color: "purple"},
       prisoners: {label: "Prisoners", color: "black"},
       cops: {label: "Cops", color: "blue"},
       media: {label: "Media", color: "black"}
-      micros: {label: "Micros", color: "orange"},
     }
 
     # ### Do not modify below unless you know what you're doing.
@@ -145,6 +147,7 @@ class MM.Medium extends ABM.Model
     if !original.mediumMirror()
       @agents.create 1
       agent = @agents.last()
+      agent.config = @config
       agent.original = original
       original.mediumMirrors[@config.medium] = agent
 
@@ -268,6 +271,13 @@ class MM.Agent extends ABM.Agent
     else
       return {activism: 0.0, active: false}
 
+  calculateLegitimacyDrop: (count) ->
+    return count.arrests / (count.citizens - count.actives)
+    # could consider taking min of cops + actives, police-violence
+    # or arrests
+    # Make active agents share photos of fights
+    # Two things expressed. Grievance/active and photos 
+
   calculatePerceivedArrestProbability: (count) ->
     return @calculateCopWillMakeArrestProbability(count) *
       @calculateSpecificCitizenArrestProbability(count)
@@ -298,13 +308,11 @@ class MM.Agent extends ABM.Agent
     else
       return 1
 
-  calculateExcitement: (count) ->
-    return (count.actives / count.citizens) ** 2
-
   countNeighbors: (options) ->
     cops = 0
     actives = 0
     citizens = 0
+    arrests = 0
     activism = 0
 
     if options.patch
@@ -323,12 +331,14 @@ class MM.Agent extends ABM.Agent
 
         citizens += friendsMultiplier
 
+        if agent.fighting()
+          arrests += friendsMultiplier
         if agent.active
           actives += friendsMultiplier
 
         activism += agent.activism * friendsMultiplier
 
-    return {cops: cops, citizens: citizens, actives: actives, activism: activism}
+    return {cops: cops, citizens: citizens, actives: actives, activism: activism, arrests: arrests}
 
   scaleDownNeighbors: (count, fraction) ->
     if fraction and fraction < 1
@@ -462,6 +472,7 @@ class MM.Media
 
     options = u.merge(@model.config.mediaModelOptions, {config: @model.config})
     @media[MM.MEDIA.none] = new MM.MediumNone(options)
+    @media[MM.MEDIA.tv] = new MM.MediumTV(options)
     @media[MM.MEDIA.email] = new MM.MediumEMail(options)
     @media[MM.MEDIA.website] = new MM.MediumWebsite(options)
     @media[MM.MEDIA.forum] = new MM.MediumForum(options)
@@ -616,6 +627,75 @@ class MM.MediumForum extends MM.Medium
       if agent.reading.patch?
         agent.moveTo(agent.reading.patch.position)
 
+class MM.MediumGenericBroadcast extends MM.Medium
+  setup: ->
+    super
+
+    @channels = new ABM.Array
+
+    for n in [0..7]
+      @newChannel(n)
+
+  createAgent: (original) ->
+    agent = super
+
+    if !agent.channel
+      agent.channel = @channels[u.randomInt(@channels.length)]
+
+    return agent
+
+  newChannel: (number) ->
+    newChannel = new ABM.Array
+
+    newChannel.number = number
+
+    newChannel.report = (report) ->
+      report.previous = @last()
+      if report.previous?
+        report.previous.next = report
+  
+      report.channel = @
+  
+      @push(report)
+
+      if @length > report.from.model.world.max.y + 1
+        report = @shift()
+
+        for reader, index in report.readers by -1
+          reader.read(report.next)
+        
+        report.destroy()
+
+    newChannel.destroy = ->
+      for report in @
+        report.destroy() # takes readers as well
+
+    @channels.unshift newChannel
+
+    if @channels.length > @world.max.x + 1
+      throw "Too many channels for world size"
+
+  newReport: (from) ->
+    @route new MM.Message from
+
+  route: (report) ->
+    report.from.channel.report report
+
+  drawAll: ->
+    @copyOriginalColors()
+    @resetPatches()
+
+    for channel, i in @channels
+      #x = i % (@world.max.x + 1)
+      for report, j in channel
+        patch = @patches.patch(x: i, y: j)
+        @colorPatch(patch, report)
+
+    for agent, i in @agents
+      x = agent.channel.number
+
+      agent.moveTo x: x, y: 0
+
 class MM.MediumNone extends MM.Medium
   setup: ->
     super
@@ -623,6 +703,24 @@ class MM.MediumNone extends MM.Medium
   use: (original) ->
 
   step: ->
+
+class MM.MediumTV extends MM.MediumGenericBroadcast
+  setup: ->
+    super
+
+  step: ->
+    for agent in @agents
+      if u.randomInt(3) == 1
+        @newReport(agent)
+      else
+        agent.watchTV()
+
+    @drawAll()
+
+  use: (original) ->
+    agent = @createAgent(original)
+    agent.watchTV = ->
+      agent.read(@channel[0])
 
 class MM.MediumWebsite extends MM.Medium
   setup: ->
@@ -693,6 +791,7 @@ class MM.UI
     settings =
       type: [MM.TYPES]
       calculation: [MM.CALCULATIONS]
+      legitimacyCalculation: [MM.LEGITIMACY_CALCULATIONS]
       medium: [MM.MEDIA]
       mediumType: [MM.MEDIUM_TYPES]
       view: [MM.VIEWS]
@@ -700,12 +799,11 @@ class MM.UI
       citizenDensity: {min: 0, max: 1}
       copDensity: {min: 0, max: 0.10}
       maxPrisonSentence: {min: 0, max: 1000}
-      regimeLegitimacy: {min: 0, max: 1}
+      baseRegimeLegitimacy: {min: 0, max: 1}
       threshold: {min: -1, max: 1}
       thresholdMicro: {min: -1, max: 1}
       copsRetreat: null
       activesAdvance: null
-      excitement: null
       friends: null
       friendsMultiplier: {min: 0, max: 5}
       friendsHardshipHomophilous: null
@@ -873,8 +971,6 @@ class MM.ViewGeneric extends MM.View
         citizen.color = u.color.red.fraction(citizen.original.hardship)
       else if MM.VIEWS.risk_aversion == @config.view
         citizen.color = u.color.red.fraction(citizen.original.riskAversion)
-      else if MM.VIEWS.grievance == @config.view
-        citizen.color = u.color.red.fraction(citizen.original.grievance())
 
     for cop in @cops
       cop.color = cop.original.color
@@ -888,6 +984,12 @@ class MM.ViewGeneric extends MM.View
     else if MM.VIEWS.net_risk == @config.view
       for citizen in @citizens
         citizen.color = u.color.red.fraction(citizen.original.netRisk())
+    else if MM.VIEWS.regime_legitimacy == @config.view
+      for citizen in @citizens
+        citizen.color = u.color.red.fraction(citizen.original.regimeLegitimacy())
+    else if MM.VIEWS.grievance == @config.view
+      for citizen in @citizens
+        citizen.color = u.color.red.fraction(citizen.original.grievance())
 
 class MM.ViewNone extends MM.View
   setup: ->
@@ -959,8 +1061,10 @@ class MM.Model extends ABM.Model
 
       citizen.hardship = u.randomFloat() # H
       citizen.riskAversion = u.randomFloat() # R
+      citizen.lastLegitimacyDrop = 0
       citizen.active = false
       citizen.activism = 0.0
+      citizen.arrestDuration = 0
       citizen.prisonSentence = 0
 
       citizen.act = ->
@@ -970,7 +1074,7 @@ class MM.Model extends ABM.Model
           if !@imprisoned() # just released
             @moveToRandomEmptyLocation()
 
-        if !@imprisoned() # just released included
+        if !@fighting() and !@imprisoned() # including just released
           if MM.TYPES.enclave == @config.type
             if @riskAversion < 0.5
               @moveToRandomUpperHalf(@config.walk)
@@ -990,51 +1094,48 @@ class MM.Model extends ABM.Model
           @activate()
 
       citizen.grievance = ->
-        @hardship * (1 - @config.regimeLegitimacy)
+        @hardship * (1 - @regimeLegitimacy())
+
+      citizen.regimeLegitimacy = ->
+        if MM.LEGITIMACY_CALCULATIONS.base == @config.legitimacyCalculation
+          return @config.baseRegimeLegitimacy
+        else
+          if @imprisoned()
+            return @config.baseRegimeLegitimacy
+          else
+            count = @countNeighbors(vision: @config.vision)
+
+            @lastLegitimacyDrop = (@lastLegitimacyDrop + @calculateLegitimacyDrop(count)) / 2
+
+            return @config.baseRegimeLegitimacy - @lastLegitimacyDrop
 
       citizen.arrestProbability = ->
         count = @countNeighbors(vision: @config.vision)
 
-        if MM.MEDIA.none != @config.medium and @mediumMirror()
-          count = @scaleDownNeighbors(count, 1 - @config.mediumCountsFor)
-  
         if MM.TYPES.micro == @config.type
           count.actives = count.activism
 
         count.actives += 1
         count.citizens += 1
-
-        if MM.MEDIA.none != @config.medium and @mediumMirror()
-          mediumCount = @mediumMirror().countFor(@config.mediumCountsFor * count.citizens)
-
-          if MM.MEDIUM_TYPES.micro == @config.mediumType or MM.MEDIUM_TYPES.uncensored == @config.mediumType
-            count.actives += mediumCount.activism
-          else
-            count.actives += mediumCount.actives
-
-          count.citizens += mediumCount.reads # mediumCountsFor
-
-          @mediumMirror().resetCount()
 
         @calculatePerceivedArrestProbability(count)
-
-      citizen.excitement = ->
-        count = @countNeighbors(vision: @config.vision)
-       
-        if MM.TYPES.micro == @config.type
-          count.actives = count.activism
-
-        count.actives += 1
-        count.citizens += 1
-
-        @calculateExcitement(count)
 
       citizen.netRisk = ->
         @arrestProbability() * @riskAversion
 
-      citizen.imprison = (sentence) ->
-        @prisonSentence = sentence
+      citizen.imprison = ->
+        @prisonSentence = 1 + u.randomInt(@config.maxPrisonSentence)
         @moveOff()
+
+      citizen.arrest = ->
+        @arrestDuration = @config.arrestDuration
+        @setColor "purple"
+
+      citizen.beatUp = ->
+        @arrestDuration -= 1
+
+      citizen.fighting = ->
+        @arrestDuration > 0
 
       citizen.imprisoned = ->
         @prisonSentence > 0
@@ -1044,9 +1145,6 @@ class MM.Model extends ABM.Model
 
       citizen.activate = ->
         activation = @grievance() - @netRisk()
-        if @config.excitement
-          if activation < 1
-            activation += @excitement() * 0.2
 
         status = @calculateActiveStatus(activation)
         @active = status.active
@@ -1068,28 +1166,40 @@ class MM.Model extends ABM.Model
       cop.config = @config
       cop.size = @size
       cop.shape = "person"
+      cop.arresting = null
       cop.setColor "blue"
       cop.moveToRandomEmptyLocation()
 
       cop.act = ->
-        count = @countNeighbors(vision: @config.vision)
-        count.cops += 1
+        if @fighting()
+          @arresting.beatUp()
+          if !@arresting.fighting()
+            @arresting.imprison()
+            @arresting = null
+        if !@fighting()
+          count = @countNeighbors(vision: @config.vision)
+          count.cops += 1
 
-        if @config.copsRetreat and @calculateCopWillMakeArrestProbability(count) < u.randomFloat()
-          @retreat()
-        else
-          @makeArrest()
-          @moveToRandomEmptyNeighbor()
+          if @config.copsRetreat and @calculateCopWillMakeArrestProbability(count) < u.randomFloat()
+            @retreat()
+          else
+            @initiateArrest()
+            @moveToRandomEmptyNeighbor()
 
       cop.retreat = ->
         @moveTowardsArrestProbability(@config.walk, @config.vision, true)
 
-      cop.makeArrest = ->
+      cop.initiateArrest = ->
           protester = @neighbors(@config.vision).sample(condition: (agent) ->
-            agent.breed.name is "citizens" and agent.active)
+            agent.breed.name is "citizens" and
+              agent.active and !agent.fighting())
 
           if protester
-            protester.imprison(1 + u.randomInt(@config.maxPrisonSentence))
+            @arresting = protester
+            @arresting.arrest()
+
+      cop.fighting = ->
+        return (@arresting != null)
 
     unless @isHeadless
       window.modelUI.resetPlot()
@@ -1114,19 +1224,12 @@ class MM.Model extends ABM.Model
 
     @recordData()
 
-  prisoners: ->
-    prisoners = []
-    for citizen in @citizens
-      if citizen.imprisoned()
-        prisoners.push citizen
-    prisoners
-
   actives: ->
     actives = []
     for citizen in @citizens
-      if citizen.active and not citizen.imprisoned()
+      if citizen.active and not (citizen.fighting() or citizen.imprisoned())
         actives.push citizen
-    actives
+    return actives
 
   micros: ->
     micros = []
@@ -1135,26 +1238,47 @@ class MM.Model extends ABM.Model
         if !citizen.active and citizen.activism > 0 and
             not citizen.imprisoned()
           micros.push citizen
-    micros
+    return micros
+
+  arrests: ->
+    arrests = []
+    for citizen in @citizens
+      if citizen.fighting()
+        arrests.push citizen
+    return arrests
+
+  prisoners: ->
+    prisoners = []
+    for citizen in @citizens
+      if citizen.imprisoned()
+        prisoners.push citizen
+    return prisoners
 
   tickData: ->
     citizens = @citizens.length
     actives = @actives().length
     micros = @micros().length
+    arrests = @arrests().length
     prisoners = @prisoners().length
 
     return {
       citizens: citizens
+      passives: citizens - actives - micros - arrests - prisoners
       actives: actives
       micros: micros
+      arrests: arrests
       prisoners: prisoners
-      passives: citizens - actives - micros - prisoners
       cops: @cops.length
     }
 
   resetData: ->
     @data = {
-      passives: [], actives: [], prisoners: [], cops: [], micros: [],
+      passives: [],
+      actives: [],
+      micros: [],
+      arrests: [],
+      prisoners: [],
+      cops: [],
       media: []
     }
     
@@ -1162,11 +1286,12 @@ class MM.Model extends ABM.Model
     ticks = @animator.ticks
     tickData = @tickData()
 
-    #@data.passives.push [ticks, tickData.passives]
+    @data.passives.push [ticks, tickData.passives]
     @data.actives.push [ticks, tickData.actives]
+    @data.micros.push [ticks, tickData.micros]
+    @data.arrests.push [ticks, tickData.arrests]
     @data.prisoners.push [ticks, tickData.prisoners]
     @data.cops.push [ticks, tickData.cops]
-    @data.micros.push [ticks, tickData.micros]
 
   recordMediaChange: ->
     @data.media.push [ticks, 0], [ticks, @citizens.length], null
@@ -1234,7 +1359,7 @@ class MM.ModelSimple extends ABM.Model
         count = @countNeighbors(@config.vision)
         count.actives += 1
 
-        @calculateExcitement(count)
+        return (count.actives / count.citizens) ** 2
 
       citizen.activate = ->
         if @excitement() > @hardship
