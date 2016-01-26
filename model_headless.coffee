@@ -23,7 +23,7 @@ indexHash = (array) ->
 MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
-MM.MEDIA = indexHash(["none", "tv", "email", "website", "forum", "facebook_wall"])
+MM.MEDIA = indexHash(["none", "tv", "newspaper", "email", "website", "forum", "facebook_wall"])
 MM.MEDIUM_TYPES = indexHash(["normal", "micro", "uncensored"])
 MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "regime_legitimacy", "arrest_probability", "net_risk", "follow"])
 # turn back to numbers once dat.gui fixed
@@ -33,7 +33,7 @@ class MM.Config
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
-    @medium = MM.MEDIA.tv
+    @medium = MM.MEDIA.newspaper
     @mediumType = MM.MEDIUM_TYPES.normal
     @view = MM.VIEWS.arrest_probability
     
@@ -120,7 +120,7 @@ class MM.Message
   
   destroy: ->
     for reader in @readers
-      reader.die()
+      reader.die() # TODO nextMessage
 
 # Copyright 2014, Wybo Wiersma, available under the GPL v3
 # This model builds upon Epsteins model of protest, and illustrates
@@ -473,6 +473,7 @@ class MM.Media
     options = u.merge(@model.config.mediaModelOptions, {config: @model.config})
     @media[MM.MEDIA.none] = new MM.MediumNone(options)
     @media[MM.MEDIA.tv] = new MM.MediumTV(options)
+    @media[MM.MEDIA.newspaper] = new MM.MediumNewspaper(options)
     @media[MM.MEDIA.email] = new MM.MediumEMail(options)
     @media[MM.MEDIA.website] = new MM.MediumWebsite(options)
     @media[MM.MEDIA.forum] = new MM.MediumForum(options)
@@ -649,37 +650,37 @@ class MM.MediumGenericBroadcast extends MM.Medium
 
     newChannel.number = number
 
-    newChannel.report = (report) ->
-      report.previous = @last()
-      if report.previous?
-        report.previous.next = report
+    newChannel.message = (message) ->
+      message.previous = @last()
+      if message.previous?
+        message.previous.next = message
   
-      report.channel = @
+      message.channel = @
   
-      @push(report)
+      @push(message)
 
-      if @length > report.from.model.world.max.y + 1
-        report = @shift()
+      if @length > message.from.model.world.max.y + 1
+        message = @shift()
 
-        for reader, index in report.readers by -1
-          reader.read(report.next)
+        for reader, index in message.readers by -1
+          reader.toNextRead()
         
-        report.destroy()
+        message.destroy()
 
     newChannel.destroy = ->
-      for report in @
-        report.destroy() # takes readers as well
+      for message in @
+        message.destroy() # takes readers as well
 
     @channels.unshift newChannel
 
     if @channels.length > @world.max.x + 1
       throw "Too many channels for world size"
 
-  newReport: (from) ->
+  newMessage: (from) ->
     @route new MM.Message from
 
-  route: (report) ->
-    report.from.channel.report report
+  route: (message) ->
+    message.from.channel.message message
 
   drawAll: ->
     @copyOriginalColors()
@@ -687,14 +688,61 @@ class MM.MediumGenericBroadcast extends MM.Medium
 
     for channel, i in @channels
       #x = i % (@world.max.x + 1)
-      for report, j in channel
+      for message, j in channel
         patch = @patches.patch(x: i, y: j)
-        @colorPatch(patch, report)
+        @colorPatch(patch, message)
 
     for agent, i in @agents
       x = agent.channel.number
 
       agent.moveTo x: x, y: 0
+
+class MM.MediumNewspaper extends MM.MediumGenericBroadcast
+  setup: ->
+    super
+
+  step: ->
+    for agent in @agents
+      if u.randomInt(3) == 1
+        @newMessage(agent)
+      else
+        agent.readNewspaper()
+
+    @drawAll()
+
+  use: (original) ->
+    agent = @createAgent(original)
+
+    agent.readNewspaper = ->
+      agent.read(@channel.sample()) # random message
+
+    agent.toNextRead = ->
+      @read(@reading.channel.sample()) # TODO not self!
+
+  drawAll: ->
+    @copyOriginalColors()
+    @resetPatches()
+
+    channelStep = Math.floor(@world.max.x / (@channels.length + 1))
+
+    avg_add = 0
+    avg_div = 0
+    x_offset = channelStep
+    for channel, i in @channels
+      for message, j in channel
+        if j == 1
+          avg_add += message.readers.length
+          avg_div += 1
+
+        for agent, k in message.readers
+          agent.moveTo x: x_offset - k, y: j
+
+        patch = @patches.patch(x: x_offset, y: j)
+        @colorPatch(patch, message)
+
+      x_offset += channelStep
+    
+    console.log avg_add / avg_div
 
 class MM.MediumNone extends MM.Medium
   setup: ->
@@ -711,7 +759,7 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
   step: ->
     for agent in @agents
       if u.randomInt(3) == 1
-        @newReport(agent)
+        @newMessage(agent)
       else
         agent.watchTV()
 
@@ -719,8 +767,12 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
 
   use: (original) ->
     agent = @createAgent(original)
+
     agent.watchTV = ->
       agent.read(@channel[0])
+
+    agent.toNextRead = ->
+      @read(@reading.next) # TODO check if nonexistent
 
   drawAll: ->
     @copyOriginalColors()
@@ -730,9 +782,9 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
 
     x_offset = channelStep
     for channel, i in @channels
-      report = channel[0]
-      if report
-        for agent, j in report.readers
+      message = channel[0]
+      if message
+        for agent, j in message.readers
           k = j - 1
 
           if j == 0
@@ -741,9 +793,9 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
             column_nr = Math.floor(k / (@world.max.y + 1))
             agent.moveTo x: x_offset - column_nr - 1, y: k % (@world.max.y + 1)
 
-      for report, j in channel
+      for message, j in channel
         patch = @patches.patch(x: x_offset, y: j)
-        @colorPatch(patch, report)
+        @colorPatch(patch, message)
 
       x_offset += channelStep
 

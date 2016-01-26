@@ -23,7 +23,7 @@ indexHash = (array) ->
 MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
-MM.MEDIA = indexHash(["none", "tv", "email", "website", "forum", "facebook_wall"])
+MM.MEDIA = indexHash(["none", "tv", "newspaper", "email", "website", "forum", "facebook_wall"])
 MM.MEDIUM_TYPES = indexHash(["normal", "micro", "uncensored"])
 MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "regime_legitimacy", "arrest_probability", "net_risk", "follow"])
 # turn back to numbers once dat.gui fixed
@@ -33,7 +33,7 @@ class MM.Config
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
-    @medium = MM.MEDIA.tv
+    @medium = MM.MEDIA.newspaper
     @mediumType = MM.MEDIUM_TYPES.normal
     @view = MM.VIEWS.arrest_probability
     

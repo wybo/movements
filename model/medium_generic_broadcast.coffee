@@ -20,37 +20,37 @@ class MM.MediumGenericBroadcast extends MM.Medium
 
     newChannel.number = number
 
-    newChannel.report = (report) ->
-      report.previous = @last()
-      if report.previous?
-        report.previous.next = report
+    newChannel.message = (message) ->
+      message.previous = @last()
+      if message.previous?
+        message.previous.next = message
   
-      report.channel = @
+      message.channel = @
   
-      @push(report)
+      @push(message)
 
-      if @length > report.from.model.world.max.y + 1
-        report = @shift()
+      if @length > message.from.model.world.max.y + 1
+        message = @shift()
 
-        for reader, index in report.readers by -1
-          reader.read(report.next)
+        for reader, index in message.readers by -1
+          reader.toNextRead()
         
-        report.destroy()
+        message.destroy()
 
     newChannel.destroy = ->
-      for report in @
-        report.destroy() # takes readers as well
+      for message in @
+        message.destroy() # takes readers as well
 
     @channels.unshift newChannel
 
     if @channels.length > @world.max.x + 1
       throw "Too many channels for world size"
 
-  newReport: (from) ->
+  newMessage: (from) ->
     @route new MM.Message from
 
-  route: (report) ->
-    report.from.channel.report report
+  route: (message) ->
+    message.from.channel.message message
 
   drawAll: ->
     @copyOriginalColors()
@@ -58,9 +58,9 @@ class MM.MediumGenericBroadcast extends MM.Medium
 
     for channel, i in @channels
       #x = i % (@world.max.x + 1)
-      for report, j in channel
+      for message, j in channel
         patch = @patches.patch(x: i, y: j)
-        @colorPatch(patch, report)
+        @colorPatch(patch, message)
 
     for agent, i in @agents
       x = agent.channel.number

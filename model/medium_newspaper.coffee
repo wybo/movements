@@ -1,4 +1,4 @@
-class MM.MediumTV extends MM.MediumGenericBroadcast
+class MM.MediumNewspaper extends MM.MediumGenericBroadcast
   setup: ->
     super
 
@@ -7,18 +7,18 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
       if u.randomInt(3) == 1
         @newMessage(agent)
       else
-        agent.watchTV()
+        agent.readNewspaper()
 
     @drawAll()
 
   use: (original) ->
     agent = @createAgent(original)
 
-    agent.watchTV = ->
-      agent.read(@channel[0])
+    agent.readNewspaper = ->
+      agent.read(@channel.sample()) # random message
 
     agent.toNextRead = ->
-      @read(@reading.next) # TODO check if nonexistent
+      @read(@reading.channel.sample()) # TODO not self!
 
   drawAll: ->
     @copyOriginalColors()
@@ -26,21 +26,21 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
 
     channelStep = Math.floor(@world.max.x / (@channels.length + 1))
 
+    avg_add = 0
+    avg_div = 0
     x_offset = channelStep
     for channel, i in @channels
-      message = channel[0]
-      if message
-        for agent, j in message.readers
-          k = j - 1
-
-          if j == 0
-            agent.moveTo x: x_offset, y: 0
-          else
-            column_nr = Math.floor(k / (@world.max.y + 1))
-            agent.moveTo x: x_offset - column_nr - 1, y: k % (@world.max.y + 1)
-
       for message, j in channel
+        if j == 1
+          avg_add += message.readers.length
+          avg_div += 1
+
+        for agent, k in message.readers
+          agent.moveTo x: x_offset - k, y: j
+
         patch = @patches.patch(x: x_offset, y: j)
         @colorPatch(patch, message)
 
       x_offset += channelStep
+    
+    console.log avg_add / avg_div
