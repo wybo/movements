@@ -6,16 +6,17 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
     for agent in @agents
       if u.randomInt(3) == 1
         @newPost(agent)
-      else
-        agent.readPosts()
+
+      agent.readPosts()
 
     @drawAll()
 
   use: (original) ->
     agent = @createAgent(original)
+
     agent.readPosts = ->
-      for post in @inbox
-        agent.read(post)
+      while true
+        break unless agent.toNextMessage()
 
       @inbox.clear()
 

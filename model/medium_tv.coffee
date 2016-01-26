@@ -6,19 +6,16 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
     for agent in @agents
       if u.randomInt(3) == 1
         @newMessage(agent)
-      else
-        agent.watchTV()
+      
+      agent.toNextMessage()
 
     @drawAll()
 
   use: (original) ->
     agent = @createAgent(original)
 
-    agent.watchTV = ->
-      agent.read(@channel[0])
-
-    agent.toNextRead = ->
-      @read(@reading.next) # TODO check if nonexistent
+    agent.toNextMessage = ->
+      @read(@channel[0])
 
   drawAll: ->
     @copyOriginalColors()

@@ -33,7 +33,7 @@ class MM.MediumGenericBroadcast extends MM.Medium
         message = @shift()
 
         for reader, index in message.readers by -1
-          reader.toNextRead()
+          reader.toNextMessage()
         
         message.destroy()
 

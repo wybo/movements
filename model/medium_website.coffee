@@ -8,29 +8,26 @@ class MM.MediumWebsite extends MM.Medium
       @newPage(@dummyAgent)
 
   use: (original) ->
-    @createAgent(original)
+    agent = @createAgent(original)
+
+    agent.toNextMessage = ->
+      @read(@model.sites.sample())
 
   step: ->
     for agent in @agents
       if u.randomInt(20) == 1
         @newPage(agent)
 
-      @moveToRandomPage(agent)
+      agent.toNextMessage()
 
     @drawAll()
 
   newPage: (agent) ->
     @sites.unshift new MM.Message agent
-    @dropSite()
 
-  dropSite: ->
     if @sites.length > 100
       site = @sites.pop()
-      for reader, index in site.readers by -1
-        @moveToRandomPage(reader)
-
-  moveToRandomPage: (agent) ->
-    agent.read(@sites.sample())
+      site.destroy()
 
   drawAll: ->
     @copyOriginalColors()

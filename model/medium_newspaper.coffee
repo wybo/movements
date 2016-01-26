@@ -7,18 +7,15 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
       if u.randomInt(3) == 1
         @newMessage(agent)
       else
-        agent.readNewspaper()
+        agent.toNextMessage()
 
     @drawAll()
 
   use: (original) ->
     agent = @createAgent(original)
 
-    agent.readNewspaper = ->
-      agent.read(@channel.sample()) # random message
-
-    agent.toNextRead = ->
-      @read(@reading.channel.sample()) # TODO not self!
+    agent.toNextMessage = ->
+      @read(@channel.sample()) # TODO not self!
 
   drawAll: ->
     @copyOriginalColors()

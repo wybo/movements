@@ -14,4 +14,4 @@ class MM.Message
   
   destroy: ->
     for reader in @readers
-      reader.die() # TODO nextMessage
+      reader.toNextMessage()

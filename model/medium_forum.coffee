@@ -12,7 +12,14 @@ class MM.MediumForum extends MM.Medium
 
   use: (original) -> # TODO make super
     agent = @createAgent(original)
-    agent.read(@threads[0][0])
+
+    agent.toNextMessage = (agent) ->
+      if !@reading
+        @read(@model.threads[0][0])
+      else if @reading.next?
+        @read(@reading.next)
+      else if @reading.thread.next?
+        @read(@reading.thread.next.first())
 
   step: ->
     for agent in @agents
@@ -20,7 +27,7 @@ class MM.MediumForum extends MM.Medium
         if u.randomInt(20) == 1
           @newPost(agent)
 
-        @moveForward(agent)
+        agent.toNextMessage()
 
     @drawAll()
 
@@ -63,16 +70,6 @@ class MM.MediumForum extends MM.Medium
   newComment: (agent) ->
     agent.reading.thread.post new MM.Message agent
 
-  moveForward: (agent) ->
-    reading = agent.reading
-
-    if reading.next?
-      agent.read(reading.next)
-    else if reading.thread.next?
-      agent.read(reading.thread.next.first())
-    else
-      agent.die()
-    
   drawAll: ->
     @copyOriginalColors()
     @resetPatches()

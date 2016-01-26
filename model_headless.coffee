@@ -120,7 +120,7 @@ class MM.Message
   
   destroy: ->
     for reader in @readers
-      reader.die() # TODO nextMessage
+      reader.toNextMessage()
 
 # Copyright 2014, Wybo Wiersma, available under the GPL v3
 # This model builds upon Epsteins model of protest, and illustrates
@@ -215,8 +215,11 @@ class MM.MediumGenericDelivery extends MM.Medium
   createAgent: (original) ->
     agent = super
 
-    if !agent.inbox
+    if !agent.inbox # TODO really needed?
       agent.inbox = @inboxes[agent.original.id] = new ABM.Array
+
+    agent.toNextMessage = ->
+      @read(@inbox.pop())
 
     return agent
 
@@ -498,15 +501,13 @@ class MM.MediumEMail extends MM.MediumGenericDelivery
     for agent in @agents
       if u.randomInt(3) == 1
         @newMessage(agent, @agents.sample())
-      else
-        agent.readMail()
+        
+      agent.toNextMessage()
 
     @drawAll()
 
   use: (original) ->
     agent = @createAgent(original)
-    agent.readMail = ->
-      agent.read(@inbox.pop())
 
 class MM.MediumFacebookWall extends MM.MediumGenericDelivery
   setup: ->
@@ -516,16 +517,17 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
     for agent in @agents
       if u.randomInt(3) == 1
         @newPost(agent)
-      else
-        agent.readPosts()
+
+      agent.readPosts()
 
     @drawAll()
 
   use: (original) ->
     agent = @createAgent(original)
+
     agent.readPosts = ->
-      for post in @inbox
-        agent.read(post)
+      while true
+        break unless agent.toNextMessage()
 
       @inbox.clear()
 
@@ -551,7 +553,14 @@ class MM.MediumForum extends MM.Medium
 
   use: (original) -> # TODO make super
     agent = @createAgent(original)
-    agent.read(@threads[0][0])
+
+    agent.toNextMessage = (agent) ->
+      if !@reading
+        @read(@model.threads[0][0])
+      else if @reading.next?
+        @read(@reading.next)
+      else if @reading.thread.next?
+        @read(@reading.thread.next.first())
 
   step: ->
     for agent in @agents
@@ -559,7 +568,7 @@ class MM.MediumForum extends MM.Medium
         if u.randomInt(20) == 1
           @newPost(agent)
 
-        @moveForward(agent)
+        agent.toNextMessage()
 
     @drawAll()
 
@@ -602,16 +611,6 @@ class MM.MediumForum extends MM.Medium
   newComment: (agent) ->
     agent.reading.thread.post new MM.Message agent
 
-  moveForward: (agent) ->
-    reading = agent.reading
-
-    if reading.next?
-      agent.read(reading.next)
-    else if reading.thread.next?
-      agent.read(reading.thread.next.first())
-    else
-      agent.die()
-    
   drawAll: ->
     @copyOriginalColors()
     @resetPatches()
@@ -663,7 +662,7 @@ class MM.MediumGenericBroadcast extends MM.Medium
         message = @shift()
 
         for reader, index in message.readers by -1
-          reader.toNextRead()
+          reader.toNextMessage()
         
         message.destroy()
 
@@ -706,18 +705,15 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
       if u.randomInt(3) == 1
         @newMessage(agent)
       else
-        agent.readNewspaper()
+        agent.toNextMessage()
 
     @drawAll()
 
   use: (original) ->
     agent = @createAgent(original)
 
-    agent.readNewspaper = ->
-      agent.read(@channel.sample()) # random message
-
-    agent.toNextRead = ->
-      @read(@reading.channel.sample()) # TODO not self!
+    agent.toNextMessage = ->
+      @read(@channel.sample()) # TODO not self!
 
   drawAll: ->
     @copyOriginalColors()
@@ -760,19 +756,16 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
     for agent in @agents
       if u.randomInt(3) == 1
         @newMessage(agent)
-      else
-        agent.watchTV()
+      
+      agent.toNextMessage()
 
     @drawAll()
 
   use: (original) ->
     agent = @createAgent(original)
 
-    agent.watchTV = ->
-      agent.read(@channel[0])
-
-    agent.toNextRead = ->
-      @read(@reading.next) # TODO check if nonexistent
+    agent.toNextMessage = ->
+      @read(@channel[0])
 
   drawAll: ->
     @copyOriginalColors()
@@ -809,29 +802,26 @@ class MM.MediumWebsite extends MM.Medium
       @newPage(@dummyAgent)
 
   use: (original) ->
-    @createAgent(original)
+    agent = @createAgent(original)
+
+    agent.toNextMessage = ->
+      @read(@model.sites.sample())
 
   step: ->
     for agent in @agents
       if u.randomInt(20) == 1
         @newPage(agent)
 
-      @moveToRandomPage(agent)
+      agent.toNextMessage()
 
     @drawAll()
 
   newPage: (agent) ->
     @sites.unshift new MM.Message agent
-    @dropSite()
 
-  dropSite: ->
     if @sites.length > 100
       site = @sites.pop()
-      for reader, index in site.readers by -1
-        @moveToRandomPage(reader)
-
-  moveToRandomPage: (agent) ->
-    agent.read(@sites.sample())
+      site.destroy()
 
   drawAll: ->
     @copyOriginalColors()
