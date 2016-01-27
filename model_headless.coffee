@@ -33,7 +33,7 @@ class MM.Config
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
-    @medium = MM.MEDIA.newspaper
+    @medium = MM.MEDIA.tv
     @mediumType = MM.MEDIUM_TYPES.normal
     @view = MM.VIEWS.arrest_probability
     
@@ -119,7 +119,7 @@ class MM.Message
       @activism = @from.original.activism
   
   destroy: ->
-    for reader in @readers
+    for reader in @readers by -1
       reader.toNextMessage()
 
 # Copyright 2014, Wybo Wiersma, available under the GPL v3
@@ -498,7 +498,7 @@ class MM.MediumEMail extends MM.MediumGenericDelivery
     super
 
   step: ->
-    for agent in @agents
+    for agent in @agents by -1
       if u.randomInt(3) == 1
         @newMessage(agent, @agents.sample())
         
@@ -514,7 +514,7 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
     super
 
   step: ->
-    for agent in @agents
+    for agent in @agents by -1
       if u.randomInt(3) == 1
         @newPost(agent)
 
@@ -555,20 +555,19 @@ class MM.MediumForum extends MM.Medium
     agent = @createAgent(original)
 
     agent.toNextMessage = (agent) ->
-      if !@reading
-        @read(@model.threads[0][0])
-      else if @reading.next?
+      if @reading && @reading.next?
         @read(@reading.next)
-      else if @reading.thread.next?
-        @read(@reading.thread.next.first())
+      else if @reading && @reading.thread.next?
+          @read(@reading.thread.next.first())
+      else
+        @read(@model.threads[0][0])
 
   step: ->
-    for agent in @agents
-      if agent # might have died already TODO check this, should not!
-        if u.randomInt(20) == 1
-          @newPost(agent)
+    for agent in @agents by -1
+      if u.randomInt(20) == 1
+        @newPost(agent)
 
-        agent.toNextMessage()
+      agent.toNextMessage()
 
     @drawAll()
 
@@ -609,7 +608,8 @@ class MM.MediumForum extends MM.Medium
       thread.destroy()
 
   newComment: (agent) ->
-    agent.reading.thread.post new MM.Message agent
+    if agent.reading
+      agent.reading.thread.post new MM.Message agent
 
   drawAll: ->
     @copyOriginalColors()
@@ -650,21 +650,12 @@ class MM.MediumGenericBroadcast extends MM.Medium
     newChannel.number = number
 
     newChannel.message = (message) ->
-      message.previous = @last()
-      if message.previous?
-        message.previous.next = message
-  
       message.channel = @
   
-      @push(message)
+      @unshift(message)
 
       if @length > message.from.model.world.max.y + 1
-        message = @shift()
-
-        for reader, index in message.readers by -1
-          reader.toNextMessage()
-        
-        message.destroy()
+        @pop().destroy()
 
     newChannel.destroy = ->
       for message in @
@@ -701,11 +692,11 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
     super
 
   step: ->
-    for agent in @agents
-      if u.randomInt(3) == 1
+    for agent in @agents by -1
+      if u.randomInt(20) == 1
         @newMessage(agent)
-      else
-        agent.toNextMessage()
+      
+      agent.toNextMessage()
 
     @drawAll()
 
@@ -721,15 +712,9 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
 
     channelStep = Math.floor(@world.max.x / (@channels.length + 1))
 
-    avg_add = 0
-    avg_div = 0
     x_offset = channelStep
     for channel, i in @channels
       for message, j in channel
-        if j == 1
-          avg_add += message.readers.length
-          avg_div += 1
-
         for agent, k in message.readers
           agent.moveTo x: x_offset - k, y: j
 
@@ -737,8 +722,6 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
         @colorPatch(patch, message)
 
       x_offset += channelStep
-    
-    console.log avg_add / avg_div
 
 class MM.MediumNone extends MM.Medium
   setup: ->
@@ -753,8 +736,8 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
     super
 
   step: ->
-    for agent in @agents
-      if u.randomInt(3) == 1
+    for agent in @agents by -1
+      if u.randomInt(20) == 1
         @newMessage(agent)
       
       agent.toNextMessage()
@@ -808,7 +791,7 @@ class MM.MediumWebsite extends MM.Medium
       @read(@model.sites.sample())
 
   step: ->
-    for agent in @agents
+    for agent in @agents by -1
       if u.randomInt(20) == 1
         @newPage(agent)
 
@@ -1079,8 +1062,6 @@ class MM.Views
 
     @views[MM.VIEWS.none] = new MM.ViewNone(@model.config.viewModelOptions)
     @views[MM.VIEWS.follow] = new MM.ViewFollow(@model.config.viewModelOptions)
-
-    console.log @views
 
     @updateOld()
 

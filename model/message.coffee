@@ -13,5 +13,5 @@ class MM.Message
       @activism = @from.original.activism
   
   destroy: ->
-    for reader in @readers
+    for reader in @readers by -1
       reader.toNextMessage()

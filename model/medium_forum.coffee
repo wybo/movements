@@ -14,20 +14,19 @@ class MM.MediumForum extends MM.Medium
     agent = @createAgent(original)
 
     agent.toNextMessage = (agent) ->
-      if !@reading
-        @read(@model.threads[0][0])
-      else if @reading.next?
+      if @reading && @reading.next?
         @read(@reading.next)
-      else if @reading.thread.next?
-        @read(@reading.thread.next.first())
+      else if @reading && @reading.thread.next?
+          @read(@reading.thread.next.first())
+      else
+        @read(@model.threads[0][0])
 
   step: ->
-    for agent in @agents
-      if agent # might have died already TODO check this, should not!
-        if u.randomInt(20) == 1
-          @newPost(agent)
+    for agent in @agents by -1
+      if u.randomInt(20) == 1
+        @newPost(agent)
 
-        agent.toNextMessage()
+      agent.toNextMessage()
 
     @drawAll()
 
@@ -68,7 +67,8 @@ class MM.MediumForum extends MM.Medium
       thread.destroy()
 
   newComment: (agent) ->
-    agent.reading.thread.post new MM.Message agent
+    if agent.reading
+      agent.reading.thread.post new MM.Message agent
 
   drawAll: ->
     @copyOriginalColors()

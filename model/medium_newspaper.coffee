@@ -3,11 +3,11 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
     super
 
   step: ->
-    for agent in @agents
-      if u.randomInt(3) == 1
+    for agent in @agents by -1
+      if u.randomInt(20) == 1
         @newMessage(agent)
-      else
-        agent.toNextMessage()
+      
+      agent.toNextMessage()
 
     @drawAll()
 
@@ -23,15 +23,9 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
 
     channelStep = Math.floor(@world.max.x / (@channels.length + 1))
 
-    avg_add = 0
-    avg_div = 0
     x_offset = channelStep
     for channel, i in @channels
       for message, j in channel
-        if j == 1
-          avg_add += message.readers.length
-          avg_div += 1
-
         for agent, k in message.readers
           agent.moveTo x: x_offset - k, y: j
 
@@ -39,5 +33,3 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
         @colorPatch(patch, message)
 
       x_offset += channelStep
-    
-    console.log avg_add / avg_div

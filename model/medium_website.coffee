@@ -14,7 +14,7 @@ class MM.MediumWebsite extends MM.Medium
       @read(@model.sites.sample())
 
   step: ->
-    for agent in @agents
+    for agent in @agents by -1
       if u.randomInt(20) == 1
         @newPage(agent)
 

@@ -3,8 +3,8 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
     super
 
   step: ->
-    for agent in @agents
-      if u.randomInt(3) == 1
+    for agent in @agents by -1
+      if u.randomInt(20) == 1
         @newMessage(agent)
       
       agent.toNextMessage()

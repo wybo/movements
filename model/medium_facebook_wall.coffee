@@ -3,7 +3,7 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
     super
 
   step: ->
-    for agent in @agents
+    for agent in @agents by -1
       if u.randomInt(3) == 1
         @newPost(agent)
 

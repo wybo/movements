@@ -21,21 +21,12 @@ class MM.MediumGenericBroadcast extends MM.Medium
     newChannel.number = number
 
     newChannel.message = (message) ->
-      message.previous = @last()
-      if message.previous?
-        message.previous.next = message
-  
       message.channel = @
   
-      @push(message)
+      @unshift(message)
 
       if @length > message.from.model.world.max.y + 1
-        message = @shift()
-
-        for reader, index in message.readers by -1
-          reader.toNextMessage()
-        
-        message.destroy()
+        @pop().destroy()
 
     newChannel.destroy = ->
       for message in @

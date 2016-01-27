@@ -12,8 +12,6 @@ class MM.Views
     @views[MM.VIEWS.none] = new MM.ViewNone(@model.config.viewModelOptions)
     @views[MM.VIEWS.follow] = new MM.ViewFollow(@model.config.viewModelOptions)
 
-    console.log @views
-
     @updateOld()
 
   current: ->
