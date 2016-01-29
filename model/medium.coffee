@@ -21,8 +21,7 @@ class MM.Medium extends ABM.Model
 
   createAgent: (original) ->
     if !original.mediumMirror()
-      @agents.create 1
-      agent = @agents.last()
+      agent = @agents.create(1).last()
       agent.config = @config
       agent.original = original
       original.mediumMirrors[@config.medium] = agent
@@ -56,7 +55,7 @@ class MM.Medium extends ABM.Model
         @reading = message
 
       agent.closeMessage = ->
-        if @reading?
+        if @reading
           @reading.readers.remove(@)
 
         @reading = null

@@ -23,7 +23,7 @@ indexHash = (array) ->
 MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
-MM.MEDIA = indexHash(["none", "tv", "newspaper", "email", "website", "forum", "facebook_wall"])
+MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebook_wall"])
 MM.MEDIUM_TYPES = indexHash(["normal", "micro", "uncensored"])
 MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "regime_legitimacy", "arrest_probability", "net_risk", "follow"])
 # turn back to numbers once dat.gui fixed
@@ -33,7 +33,7 @@ class MM.Config
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
-    @medium = MM.MEDIA.tv
+    @medium = MM.MEDIA.telephone
     @mediumType = MM.MEDIUM_TYPES.normal
     @view = MM.VIEWS.arrest_probability
     
@@ -99,6 +99,11 @@ class MM.Config
       max: {x: 39, y: 39}
     }
 
+    @mediaMirrorModelOptions = u.merge(sharedModelOptions, {
+      div: "medium"
+      # config is added
+    })
+
     @config = @
 
   makeHeadless: ->
@@ -145,8 +150,7 @@ class MM.Medium extends ABM.Model
 
   createAgent: (original) ->
     if !original.mediumMirror()
-      @agents.create 1
-      agent = @agents.last()
+      agent = @agents.create(1).last()
       agent.config = @config
       agent.original = original
       original.mediumMirrors[@config.medium] = agent
@@ -180,7 +184,7 @@ class MM.Medium extends ABM.Model
         @reading = message
 
       agent.closeMessage = ->
-        if @reading?
+        if @reading
           @reading.readers.remove(@)
 
         @reading = null
@@ -474,9 +478,12 @@ class MM.Media
     @media = new ABM.Array
 
     options = u.merge(@model.config.mediaModelOptions, {config: @model.config})
+    mirrorOptions = u.merge(@model.config.mediaMirrorModelOptions, {config: @model.config})
+
     @media[MM.MEDIA.none] = new MM.MediumNone(options)
     @media[MM.MEDIA.tv] = new MM.MediumTV(options)
     @media[MM.MEDIA.newspaper] = new MM.MediumNewspaper(options)
+    @media[MM.MEDIA.telephone] = new MM.MediumTelephone(mirrorOptions)
     @media[MM.MEDIA.email] = new MM.MediumEMail(options)
     @media[MM.MEDIA.website] = new MM.MediumWebsite(options)
     @media[MM.MEDIA.forum] = new MM.MediumForum(options)
@@ -730,6 +737,57 @@ class MM.MediumNone extends MM.Medium
   use: (original) ->
 
   step: ->
+
+class MM.MediumTelephone extends MM.Medium
+  setup: ->
+    super
+
+  use: (original) ->
+    agent = @createAgent(original)
+
+    agent.call = ->
+      if @links.length == 0
+        id = @id # taken into closure
+        agent = @model.agents.sample(condition: (a) ->
+          id != a.id)
+        agent.hangUp()
+
+        @model.links.create(@, agent).last()
+        agent.timer = u.randomInt(3)
+
+        agent.read(new MM.Message @, agent)
+
+    agent.hangUp = ->
+      for link in @links
+        link.to.closeMessage()
+        link.to.timer = null
+        link.die()
+
+    agent.toNextMessage = ->
+      # No need to always call
+
+  step: ->
+    for agent in @agents by -1
+      if u.randomInt(3) == 1
+        agent.call()
+
+      if agent.reading
+        if agent.timer < 0
+          agent.hangUp()
+        agent.timer -= 1
+      
+    @drawAll()
+
+  drawAll: ->
+    @copyOriginalColors()
+    @resetPatches()
+
+    for agent in @agents
+      if agent.original.position # Not jailed
+        agent.moveTo(agent.original.position)
+        if agent.reading
+          patch = @patches.patch(agent.position)
+          @colorPatch(patch, agent.reading)
 
 class MM.MediumTV extends MM.MediumGenericBroadcast
   setup: ->
