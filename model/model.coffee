@@ -63,6 +63,9 @@ class MM.Model extends ABM.Model
             else
               @moveToRandomEmptyNeighbor(@config.walk)
 
+          if MM.FRIENDS.local == @config.friends
+            @makeLocalFriends(@config.friendsNumber)
+
           @activate()
 
       citizen.grievance = ->
@@ -130,9 +133,7 @@ class MM.Model extends ABM.Model
           else
             @setColor "green"
 
-    if @config.friends
-      for citizen in @citizens
-        citizen.makeRandomFriends(@config.friends)
+    @resetAllFriends()
 
     for cop in @cops.create @config.copDensity * space
       cop.config = @config
@@ -195,6 +196,19 @@ class MM.Model extends ABM.Model
       @views.current().once()
 
     @recordData()
+
+  resetAllFriends: ->
+    if MM.FRIENDS.none != @config.friends 
+      for citizen in @citizens
+        citizen.resetFriends()
+
+      for citizen in @citizens
+        if MM.FRIENDS.random == @config.friends
+          citizen.makeRandomFriends(@config.friendsNumber)
+        else if MM.FRIENDS.cliques == @config.friends
+          citizen.makeCliqueFriends(@config.friendsNumber)
+        else if MM.FRIENDS.local == @config.friends
+          citizen.makeLocalFriends(@config.friendsNumber)
 
   actives: ->
     actives = []

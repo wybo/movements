@@ -5,8 +5,7 @@ class MM.Agent extends ABM.Agent
     @mediumMirrors = new ABM.Array # TODO move to model
     @viewMirrors = new ABM.Array # TODO move to model
 
-    @friends_hash = {}
-    @friends = []
+    @resetFriends()
 
   mediumMirror: ->
     @mediumMirrors[@config.medium]
@@ -198,25 +197,74 @@ class MM.Agent extends ABM.Agent
 
   #### Misc
 
+  resetFriends: ->
+    @friendsHash = {}
+    @friends = new ABM.Array
+
   isFriendsWith: (citizen) ->
-    @friends_hash[citizen.id]
+    @friendsHash[citizen.id]
 
   makeRandomFriends: (number) ->
+    list = @selectFiends(@model.citizens, number)
+    @beFriendList(list)
+
+  makeCliqueFriends: (number) ->
+    list = @selectFiends(@model.citizens, number)
+    @makeClique(list)
+
+  makeLocalFriends: (number) ->
+    neighbors = @neighbors(range: @config.friendsLocalRange)
+    oldFriends = @friends
+    oldFriendsHash = @friendsHash
+    @resetFriends()
+    for neighbor in neighbors
+      if oldFriendsHash[neighbor.id]
+        @friendsHash[neighbor.id] = true
+        @friends.push(neighbor)
+        number -= 1
+
+    if number > 0
+      list = @selectFiends(neighbors, number)
+      @beFriendList(list)
+
+    for oldFriend in oldFriends
+      if !@friendsHash[oldFriend.id]
+        oldFriend.oneSidedUnFriend(@)
+
+  selectFiends: (list, number) ->
     needed = number - @friends.length # friends already made by others
     id = @id # taken into closure
+    friendsHash = @friendsHash
     if @config.friendsHardshipHomophilous
       hardship = @hardship
-      friends = @model.citizens.sample(size: needed, condition: (o) ->
-        o.friends.length < number and id != o.id and (hardship >= 0.5 and o.hardship >= 0.5 or hardship < 0.5 and o.hardship < 0.5)
+      friends = list.sample(size: needed, condition: (o) ->
+        o.friends.length < number and !friendsHash[o.id] and id != o.id and (hardship >= 0.5 and o.hardship >= 0.5 or hardship < 0.5 and o.hardship < 0.5)
       )
     else
-      friends = @model.citizens.sample(size: needed, condition: (o) ->
-        o.friends.length < number and id != o.id
+      friends = list.sample(size: needed, condition: (o) ->
+        o.friends.length < number and !friendsHash[o.id] and id != o.id
       )
+    return friends
 
-    if friends # TODO FIX!
-      for friend in friends
-        @friends.push friend
-        friend.friends.push @
-        @friends_hash[friend.id] = true
-        friend.friends_hash[@id] = true
+  beFriend: (agent) ->
+    if agent != @ and !@friendsHash[agent.id]
+      @friends.push agent
+      agent.friends.push @
+      @friendsHash[agent.id] = true
+      agent.friendsHash[@id] = true
+
+  oneSidedUnFriend: (agent) ->
+    if agent != @ and @friendsHash[agent.id]
+      @friends.remove(agent)
+      @friendsHash[agent.id] = null
+
+  beFriendList: (list) ->
+    if list # TODO FIX!
+      for agent in list
+        @beFriend(agent)
+
+  makeClique: (list) ->
+    if list # TODO FIX!
+      list.push(@) # self included in clique
+      for agent in list
+        agent.beFriendList(list)

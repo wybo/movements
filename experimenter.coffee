@@ -14,16 +14,19 @@ generations = 300
 #generations = 150 # 15 days
 
 mediaSets = [
-  {label: "None normal", medium: MM.MEDIA.none}
-  {label: "Facebook normal", medium: MM.MEDIA.facebook_wall, medium_type: MM.MEDIUM_TYPES.normal}
-  {label: "Facebook micro", medium: MM.MEDIA.facebook_wall, medium_type: MM.MEDIUM_TYPES.micro}
-  {label: "Facebook uncensored", medium: MM.MEDIA.facebook_wall, medium_type: MM.MEDIUM_TYPES.uncensored}
+  {label: "None", medium: MM.MEDIA.none}
+  {label: "Facebook", medium: MM.MEDIA.facebook_wall}
+  {label: "Forum", medium: MM.MEDIA.forum}
+#  {label: "Facebook micro", medium: MM.MEDIA.facebook_wall, medium_type: MM.MEDIUM_TYPES.micro}
+#  {label: "Facebook uncensored", medium: MM.MEDIA.facebook_wall, medium_type: MM.MEDIUM_TYPES.uncensored}
 #  {label: "Forum enclave", medium: MM.MEDIA.forum, type: MM.TYPES.enclave}
 ]
 
 sets = [
-  {friendsHardshipHomophilous: false, label: "not homophilous"}
-  {friendsHardshipHomophilous: true, label: "homophilous"}
+  {friends: MM.FRIENDS.random, friendsHardshipHomophilous: false, label: "friends random, not homophilous"}
+  {friends: MM.FRIENDS.random, friendsHardshipHomophilous: true, label: "friends random, homophilous"}
+  {friends: MM.FRIENDS.local, friendsHardshipHomophilous: false, label: "friends local, not homophilous"}
+  {friends: MM.FRIENDS.local, friendsHardshipHomophilous: true, label: "friends local, homophilous"}
 ]
 #sets = [
 #  {mediumCountsFor: 0.05, label: "medium counts for little"}

@@ -23,6 +23,7 @@ indexHash = (array) ->
 MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
+MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebook_wall"])
 MM.MEDIUM_TYPES = indexHash(["normal", "micro", "uncensored"])
 MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "regime_legitimacy", "arrest_probability", "net_risk", "follow"])
@@ -33,15 +34,17 @@ class MM.Config
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
-    @medium = MM.MEDIA.telephone
+    @friends = MM.FRIENDS.local
+    @medium = MM.MEDIA.facebook_wall
     @mediumType = MM.MEDIUM_TYPES.normal
     @view = MM.VIEWS.arrest_probability
     
     @copsRetreat = false
     @activesAdvance = false
-    @friends = 50 # also used for Fb
-    @friendsMultiplier = 1 # 1 actively cancels out friends
+    @friendsNumber = 50 # also used for Fb
+    @friendsMultiplier = 2 # 1 actively cancels out friends
     @friendsHardshipHomophilous = true
+    @friendsLocalRange = 5
     @mediumCountsFor = 0.20
     #@mediumCountsFor = 0.25
 

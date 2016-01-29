@@ -23,6 +23,7 @@ indexHash = (array) ->
 MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
+MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebook_wall"])
 MM.MEDIUM_TYPES = indexHash(["normal", "micro", "uncensored"])
 MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "regime_legitimacy", "arrest_probability", "net_risk", "follow"])
@@ -33,15 +34,17 @@ class MM.Config
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
-    @medium = MM.MEDIA.telephone
+    @friends = MM.FRIENDS.local
+    @medium = MM.MEDIA.facebook_wall
     @mediumType = MM.MEDIUM_TYPES.normal
     @view = MM.VIEWS.arrest_probability
     
     @copsRetreat = false
     @activesAdvance = false
-    @friends = 50 # also used for Fb
-    @friendsMultiplier = 1 # 1 actively cancels out friends
+    @friendsNumber = 50 # also used for Fb
+    @friendsMultiplier = 2 # 1 actively cancels out friends
     @friendsHardshipHomophilous = true
+    @friendsLocalRange = 5
     @mediumCountsFor = 0.20
     #@mediumCountsFor = 0.25
 
@@ -255,8 +258,7 @@ class MM.Agent extends ABM.Agent
     @mediumMirrors = new ABM.Array # TODO move to model
     @viewMirrors = new ABM.Array # TODO move to model
 
-    @friends_hash = {}
-    @friends = []
+    @resetFriends()
 
   mediumMirror: ->
     @mediumMirrors[@config.medium]
@@ -448,28 +450,77 @@ class MM.Agent extends ABM.Agent
 
   #### Misc
 
+  resetFriends: ->
+    @friendsHash = {}
+    @friends = new ABM.Array
+
   isFriendsWith: (citizen) ->
-    @friends_hash[citizen.id]
+    @friendsHash[citizen.id]
 
   makeRandomFriends: (number) ->
+    list = @selectFiends(@model.citizens, number)
+    @beFriendList(list)
+
+  makeCliqueFriends: (number) ->
+    list = @selectFiends(@model.citizens, number)
+    @makeClique(list)
+
+  makeLocalFriends: (number) ->
+    neighbors = @neighbors(range: @config.friendsLocalRange)
+    oldFriends = @friends
+    oldFriendsHash = @friendsHash
+    @resetFriends()
+    for neighbor in neighbors
+      if oldFriendsHash[neighbor.id]
+        @friendsHash[neighbor.id] = true
+        @friends.push(neighbor)
+        number -= 1
+
+    if number > 0
+      list = @selectFiends(neighbors, number)
+      @beFriendList(list)
+
+    for oldFriend in oldFriends
+      if !@friendsHash[oldFriend.id]
+        oldFriend.oneSidedUnFriend(@)
+
+  selectFiends: (list, number) ->
     needed = number - @friends.length # friends already made by others
     id = @id # taken into closure
+    friendsHash = @friendsHash
     if @config.friendsHardshipHomophilous
       hardship = @hardship
-      friends = @model.citizens.sample(size: needed, condition: (o) ->
-        o.friends.length < number and id != o.id and (hardship >= 0.5 and o.hardship >= 0.5 or hardship < 0.5 and o.hardship < 0.5)
+      friends = list.sample(size: needed, condition: (o) ->
+        o.friends.length < number and !friendsHash[o.id] and id != o.id and (hardship >= 0.5 and o.hardship >= 0.5 or hardship < 0.5 and o.hardship < 0.5)
       )
     else
-      friends = @model.citizens.sample(size: needed, condition: (o) ->
-        o.friends.length < number and id != o.id
+      friends = list.sample(size: needed, condition: (o) ->
+        o.friends.length < number and !friendsHash[o.id] and id != o.id
       )
+    return friends
 
-    if friends # TODO FIX!
-      for friend in friends
-        @friends.push friend
-        friend.friends.push @
-        @friends_hash[friend.id] = true
-        friend.friends_hash[@id] = true
+  beFriend: (agent) ->
+    if agent != @ and !@friendsHash[agent.id]
+      @friends.push agent
+      agent.friends.push @
+      @friendsHash[agent.id] = true
+      agent.friendsHash[@id] = true
+
+  oneSidedUnFriend: (agent) ->
+    if agent != @ and @friendsHash[agent.id]
+      @friends.remove(agent)
+      @friendsHash[agent.id] = null
+
+  beFriendList: (list) ->
+    if list # TODO FIX!
+      for agent in list
+        @beFriend(agent)
+
+  makeClique: (list) ->
+    if list # TODO FIX!
+      list.push(@) # self included in clique
+      for agent in list
+        agent.beFriendList(list)
 
 class MM.Media
   constructor: (model, options = {}) ->
@@ -900,6 +951,7 @@ class MM.UI
       type: [MM.TYPES]
       calculation: [MM.CALCULATIONS]
       legitimacyCalculation: [MM.LEGITIMACY_CALCULATIONS]
+      friends: [MM.FRIENDS]
       medium: [MM.MEDIA]
       mediumType: [MM.MEDIUM_TYPES]
       view: [MM.VIEWS]
@@ -912,9 +964,10 @@ class MM.UI
       thresholdMicro: {min: -1, max: 1}
       copsRetreat: null
       activesAdvance: null
-      friends: null
+      friendsNumber: null
       friendsMultiplier: {min: 0, max: 5}
       friendsHardshipHomophilous: null
+      friendsLocalRange: 5
 
     buttons =
       step: ->
@@ -933,6 +986,11 @@ class MM.UI
           @model.views.current().populate(@model)
           @model.views.current().start()
           @model.views.updateOld()
+        )
+      else if key == "friends"
+        adder = @gui.add(@model.config, key, value...)
+        adder.onChange((newFriends) =>
+          @model.resetAllFriends()
         )
       else if key == "medium"
         adder = @gui.add(@model.config, key, value...)
@@ -1197,6 +1255,9 @@ class MM.Model extends ABM.Model
             else
               @moveToRandomEmptyNeighbor(@config.walk)
 
+          if MM.FRIENDS.local == @config.friends
+            @makeLocalFriends(@config.friendsNumber)
+
           @activate()
 
       citizen.grievance = ->
@@ -1264,9 +1325,7 @@ class MM.Model extends ABM.Model
           else
             @setColor "green"
 
-    if @config.friends
-      for citizen in @citizens
-        citizen.makeRandomFriends(@config.friends)
+    @resetAllFriends()
 
     for cop in @cops.create @config.copDensity * space
       cop.config = @config
@@ -1329,6 +1388,19 @@ class MM.Model extends ABM.Model
       @views.current().once()
 
     @recordData()
+
+  resetAllFriends: ->
+    if MM.FRIENDS.none != @config.friends 
+      for citizen in @citizens
+        citizen.resetFriends()
+
+      for citizen in @citizens
+        if MM.FRIENDS.random == @config.friends
+          citizen.makeRandomFriends(@config.friendsNumber)
+        else if MM.FRIENDS.cliques == @config.friends
+          citizen.makeCliqueFriends(@config.friendsNumber)
+        else if MM.FRIENDS.local == @config.friends
+          citizen.makeLocalFriends(@config.friendsNumber)
 
   actives: ->
     actives = []

@@ -21,6 +21,7 @@ class MM.UI
       type: [MM.TYPES]
       calculation: [MM.CALCULATIONS]
       legitimacyCalculation: [MM.LEGITIMACY_CALCULATIONS]
+      friends: [MM.FRIENDS]
       medium: [MM.MEDIA]
       mediumType: [MM.MEDIUM_TYPES]
       view: [MM.VIEWS]
@@ -33,9 +34,10 @@ class MM.UI
       thresholdMicro: {min: -1, max: 1}
       copsRetreat: null
       activesAdvance: null
-      friends: null
+      friendsNumber: null
       friendsMultiplier: {min: 0, max: 5}
       friendsHardshipHomophilous: null
+      friendsLocalRange: 5
 
     buttons =
       step: ->
@@ -54,6 +56,11 @@ class MM.UI
           @model.views.current().populate(@model)
           @model.views.current().start()
           @model.views.updateOld()
+        )
+      else if key == "friends"
+        adder = @gui.add(@model.config, key, value...)
+        adder.onChange((newFriends) =>
+          @model.resetAllFriends()
         )
       else if key == "medium"
         adder = @gui.add(@model.config, key, value...)
