@@ -41,10 +41,10 @@ class MM.Config
     
     @copsRetreat = false
     @activesAdvance = false
-    @friendsNumber = 50 # also used for Fb
+    @friendsNumber = 30 # also used for Fb
     @friendsMultiplier = 2 # 1 actively cancels out friends
     @friendsHardshipHomophilous = true
-    @friendsLocalRange = 5
+    @friendsLocalRange = 6
     @mediumCountsFor = 0.20
     #@mediumCountsFor = 0.25
 
@@ -110,7 +110,10 @@ class MM.Config
     @config = @
 
   makeHeadless: ->
-    @modelOptions.isHeadless = @mediaModelOptions.isHeadless = true
+    @modelOptions.isHeadless = true
+    @viewModelOptions.isHeadless = true
+    @mediaModelOptions.isHeadless = true
+    @mediaMirrorModelOptions.isHeadless = true
 
 class MM.Message
   constructor: (from, to) ->
@@ -470,19 +473,23 @@ class MM.Agent extends ABM.Agent
     oldFriends = @friends
     oldFriendsHash = @friendsHash
     @resetFriends()
+    potentialFriends = new ABM.Array
     for neighbor in neighbors
       if oldFriendsHash[neighbor.id]
         @friendsHash[neighbor.id] = true
         @friends.push(neighbor)
-        number -= 1
+      else
+        potentialFriends.push(neighbor)
 
-    if number > 0
-      list = @selectFiends(neighbors, number)
+    if @friends.length < number
+      list = @selectFiends(potentialFriends, number)
       @beFriendList(list)
 
     for oldFriend in oldFriends
       if !@friendsHash[oldFriend.id]
         oldFriend.oneSidedUnFriend(@)
+
+    console.log @friends.length
 
   selectFiends: (list, number) ->
     needed = number - @friends.length # friends already made by others

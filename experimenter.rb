@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 
-#experiment = `./coffee experimenter.coffee` # TODO fix coffeescript ABM
-experiment = `coffee experimenter.coffee` # TODO fix coffeescript ABM
+experiment = `./coffee experimenter.coffee` # TODO fix coffeescript ABM
+#experiment = `coffee experimenter.coffee` # TODO fix coffeescript ABM
 
 puts experiment
 

@@ -41,10 +41,10 @@ class MM.Config
     
     @copsRetreat = false
     @activesAdvance = false
-    @friendsNumber = 50 # also used for Fb
+    @friendsNumber = 30 # also used for Fb
     @friendsMultiplier = 2 # 1 actively cancels out friends
     @friendsHardshipHomophilous = true
-    @friendsLocalRange = 5
+    @friendsLocalRange = 6
     @mediumCountsFor = 0.20
     #@mediumCountsFor = 0.25
 
@@ -110,4 +110,7 @@ class MM.Config
     @config = @
 
   makeHeadless: ->
-    @modelOptions.isHeadless = @mediaModelOptions.isHeadless = true
+    @modelOptions.isHeadless = true
+    @viewModelOptions.isHeadless = true
+    @mediaModelOptions.isHeadless = true
+    @mediaMirrorModelOptions.isHeadless = true

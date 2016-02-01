@@ -4,7 +4,7 @@ abmcode = require "./lib/agentbase.coffee"
 ABM = abmcode.ABM
 u = ABM.util
 
-#reruns = 2
+#reruns = 1
 reruns = 30
 #reruns = 25 # To average it out
 

@@ -217,19 +217,23 @@ class MM.Agent extends ABM.Agent
     oldFriends = @friends
     oldFriendsHash = @friendsHash
     @resetFriends()
+    potentialFriends = new ABM.Array
     for neighbor in neighbors
       if oldFriendsHash[neighbor.id]
         @friendsHash[neighbor.id] = true
         @friends.push(neighbor)
-        number -= 1
+      else
+        potentialFriends.push(neighbor)
 
-    if number > 0
-      list = @selectFiends(neighbors, number)
+    if @friends.length < number
+      list = @selectFiends(potentialFriends, number)
       @beFriendList(list)
 
     for oldFriend in oldFriends
       if !@friendsHash[oldFriend.id]
         oldFriend.oneSidedUnFriend(@)
+
+    console.log @friends.length
 
   selectFiends: (list, number) ->
     needed = number - @friends.length # friends already made by others
