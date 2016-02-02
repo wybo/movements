@@ -10,6 +10,7 @@ class MM.Message
       @activism = status.activism
     else
       @active = @from.original.active
+      console.log @active
       @activism = @from.original.activism
   
   destroy: ->

@@ -78,7 +78,18 @@ class MM.Model extends ABM.Model
           if @imprisoned()
             return @config.baseRegimeLegitimacy
           else
-            count = @countNeighbors(vision: @config.vision)
+            if MM.MEDIA.none != @config.medium and @mediumMirror()
+              count = @mediumMirror().count
+
+              if MM.MEDIUM_TYPES.micro == @config.mediumType or MM.MEDIUM_TYPES.uncensored == @config.mediumType
+                # TODO look into uncensored
+                count.actives += count.activism
+
+              count.citizens = count.reads # TODO fix/simplify
+
+              @mediumMirror().resetCount()
+            else
+              count = @countNeighbors(vision: @config.vision)
 
             @lastLegitimacyDrop = (@lastLegitimacyDrop + @calculateLegitimacyDrop(count)) / 2
 

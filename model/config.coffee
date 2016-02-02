@@ -45,8 +45,6 @@ class MM.Config
     @friendsMultiplier = 2 # 1 actively cancels out friends
     @friendsHardshipHomophilous = true # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
-    @mediumCountsFor = 0.20
-    #@mediumCountsFor = 0.25
 
     @citizenDensity = 0.7
     #@copDensity = 0.04
@@ -54,7 +52,7 @@ class MM.Config
     @copDensity = 0.03
     @arrestDuration = 2
     @maxPrisonSentence = 30 # J
-    @baseRegimeLegitimacy = 0.75 # L
+    @baseRegimeLegitimacy = 0.70 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0

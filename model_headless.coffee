@@ -45,8 +45,6 @@ class MM.Config
     @friendsMultiplier = 2 # 1 actively cancels out friends
     @friendsHardshipHomophilous = true # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
-    @mediumCountsFor = 0.20
-    #@mediumCountsFor = 0.25
 
     @citizenDensity = 0.7
     #@copDensity = 0.04
@@ -54,7 +52,7 @@ class MM.Config
     @copDensity = 0.03
     @arrestDuration = 2
     @maxPrisonSentence = 30 # J
-    @baseRegimeLegitimacy = 0.75 # L
+    @baseRegimeLegitimacy = 0.70 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
@@ -127,6 +125,7 @@ class MM.Message
       @activism = status.activism
     else
       @active = @from.original.active
+      console.log @active
       @activism = @from.original.activism
   
   destroy: ->
@@ -165,17 +164,6 @@ class MM.Medium extends ABM.Model
       agent.heading = u.degreesToRadians(270)
       agent.color = original.color
       agent.count = {reads: 0, actives: 0, activism: 0}
-      agent.countFor = (countFor) ->
-        if @count.reads != 0
-          fraction = countFor / @count.reads
-        else
-          fraction = 0
-
-        return {
-          reads: countFor
-          actives: fraction * @count.actives
-          activism: fraction * @count.activism
-        }
 
       agent.read = (message) ->
         @closeMessage()
@@ -1275,7 +1263,18 @@ class MM.Model extends ABM.Model
           if @imprisoned()
             return @config.baseRegimeLegitimacy
           else
-            count = @countNeighbors(vision: @config.vision)
+            if MM.MEDIA.none != @config.medium and @mediumMirror()
+              count = @mediumMirror().count
+
+              if MM.MEDIUM_TYPES.micro == @config.mediumType or MM.MEDIUM_TYPES.uncensored == @config.mediumType
+                # TODO look into uncensored
+                count.actives += count.activism
+
+              count.citizens = count.reads # TODO fix/simplify
+
+              @mediumMirror().resetCount()
+            else
+              count = @countNeighbors(vision: @config.vision)
 
             @lastLegitimacyDrop = (@lastLegitimacyDrop + @calculateLegitimacyDrop(count)) / 2
 

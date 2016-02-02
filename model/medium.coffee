@@ -30,17 +30,6 @@ class MM.Medium extends ABM.Model
       agent.heading = u.degreesToRadians(270)
       agent.color = original.color
       agent.count = {reads: 0, actives: 0, activism: 0}
-      agent.countFor = (countFor) ->
-        if @count.reads != 0
-          fraction = countFor / @count.reads
-        else
-          fraction = 0
-
-        return {
-          reads: countFor
-          actives: fraction * @count.actives
-          activism: fraction * @count.activism
-        }
 
       agent.read = (message) ->
         @closeMessage()
