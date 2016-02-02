@@ -8,6 +8,11 @@
     <script src="lib/experimenter.coffee" type="text/coffeescript"></script>
     <script src="runs/experiments.js"></script> 
     <script src="model_headless.coffee" type="text/coffeescript"></script>
+    <style>
+      p.title {
+        font-size: 2em;
+      }
+    </style>
     <script type="text/coffeescript">
       window.setupDropdown('#experiment_select', experiments, experiments.length - 1)
       window.fetchAndPlotExperiment(experiments.length - 1)

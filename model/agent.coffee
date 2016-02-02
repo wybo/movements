@@ -233,8 +233,6 @@ class MM.Agent extends ABM.Agent
       if !@friendsHash[oldFriend.id]
         oldFriend.oneSidedUnFriend(@)
 
-    console.log @friends.length
-
   selectFiends: (list, number) ->
     needed = number - @friends.length # friends already made by others
     id = @id # taken into closure

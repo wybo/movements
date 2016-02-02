@@ -20,13 +20,13 @@ indexHash = (array) ->
 
   return hash
 
-MM.TYPES = indexHash(["normal", "enclave", "focal_point", "micro"])
+MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
-MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebook_wall"])
+MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
 MM.MEDIUM_TYPES = indexHash(["normal", "micro", "uncensored"])
-MM.VIEWS = indexHash(["none", "risk_aversion", "hardship", "grievance", "regime_legitimacy", "arrest_probability", "net_risk", "follow"])
+MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"])
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -35,15 +35,15 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.facebook_wall
+    @medium = MM.MEDIA.facebookWall
     @mediumType = MM.MEDIUM_TYPES.normal
-    @view = MM.VIEWS.arrest_probability
+    @view = MM.VIEWS.arrestProbability
     
     @copsRetreat = false
     @activesAdvance = false
     @friendsNumber = 30 # also used for Fb
     @friendsMultiplier = 2 # 1 actively cancels out friends
-    @friendsHardshipHomophilous = true
+    @friendsHardshipHomophilous = true # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
     @mediumCountsFor = 0.20
     #@mediumCountsFor = 0.25
@@ -243,16 +243,16 @@ class MM.MediumGenericDelivery extends MM.Medium
     @copyOriginalColors()
     @resetPatches()
 
-    x_offset = y_offset = 0
+    xOffset = yOffset = 0
     for agent, i in @agents
       x = i % (@world.max.x + 1)
-      y_offset = Math.floor(i / (@world.max.x + 1)) * 5
+      yOffset = Math.floor(i / (@world.max.x + 1)) * 5
 
       for message, j in agent.inbox
-        patch = @patches.patch(x: x, y: y_offset + j)
+        patch = @patches.patch(x: x, y: yOffset + j)
         @colorPatch(patch, message)
 
-      agent.moveTo x: x, y: y_offset
+      agent.moveTo x: x, y: yOffset
 
 class MM.Agent extends ABM.Agent
   constructor: ->
@@ -489,8 +489,6 @@ class MM.Agent extends ABM.Agent
       if !@friendsHash[oldFriend.id]
         oldFriend.oneSidedUnFriend(@)
 
-    console.log @friends.length
-
   selectFiends: (list, number) ->
     needed = number - @friends.length # friends already made by others
     id = @id # taken into closure
@@ -545,7 +543,7 @@ class MM.Media
     @media[MM.MEDIA.email] = new MM.MediumEMail(options)
     @media[MM.MEDIA.website] = new MM.MediumWebsite(options)
     @media[MM.MEDIA.forum] = new MM.MediumForum(options)
-    @media[MM.MEDIA.facebook_wall] = new MM.MediumFacebookWall(options)
+    @media[MM.MEDIA.facebookWall] = new MM.MediumFacebookWall(options)
 
     @updateOld()
 
@@ -777,16 +775,16 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
 
     channelStep = Math.floor(@world.max.x / (@channels.length + 1))
 
-    x_offset = channelStep
+    xOffset = channelStep
     for channel, i in @channels
       for message, j in channel
         for agent, k in message.readers
-          agent.moveTo x: x_offset - k, y: j
+          agent.moveTo x: xOffset - k, y: j
 
-        patch = @patches.patch(x: x_offset, y: j)
+        patch = @patches.patch(x: xOffset, y: j)
         @colorPatch(patch, message)
 
-      x_offset += channelStep
+      xOffset += channelStep
 
 class MM.MediumNone extends MM.Medium
   setup: ->
@@ -872,7 +870,7 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
 
     channelStep = Math.floor(@world.max.x / (@channels.length + 1))
 
-    x_offset = channelStep
+    xOffset = channelStep
     for channel, i in @channels
       message = channel[0]
       if message
@@ -880,16 +878,16 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
           k = j - 1
 
           if j == 0
-            agent.moveTo x: x_offset, y: 0
+            agent.moveTo x: xOffset, y: 0
           else
             column_nr = Math.floor(k / (@world.max.y + 1))
-            agent.moveTo x: x_offset - column_nr - 1, y: k % (@world.max.y + 1)
+            agent.moveTo x: xOffset - column_nr - 1, y: k % (@world.max.y + 1)
 
       for message, j in channel
-        patch = @patches.patch(x: x_offset, y: j)
+        patch = @patches.patch(x: xOffset, y: j)
         @colorPatch(patch, message)
 
-      x_offset += channelStep
+      xOffset += channelStep
 
 class MM.MediumWebsite extends MM.Medium
   setup: ->
@@ -1142,7 +1140,7 @@ class MM.ViewGeneric extends MM.View
     for citizen in @citizens
       if MM.VIEWS.hardship == @config.view
         citizen.color = u.color.red.fraction(citizen.original.hardship)
-      else if MM.VIEWS.risk_aversion == @config.view
+      else if MM.VIEWS.riskAversion == @config.view
         citizen.color = u.color.red.fraction(citizen.original.riskAversion)
 
     for cop in @cops
@@ -1151,13 +1149,13 @@ class MM.ViewGeneric extends MM.View
   step: ->
     super
 
-    if MM.VIEWS.arrest_probability == @config.view
+    if MM.VIEWS.arrestProbability == @config.view
       for citizen in @citizens
         citizen.color = u.color.red.fraction(citizen.original.arrestProbability())
-    else if MM.VIEWS.net_risk == @config.view
+    else if MM.VIEWS.netRisk == @config.view
       for citizen in @citizens
         citizen.color = u.color.red.fraction(citizen.original.netRisk())
-    else if MM.VIEWS.regime_legitimacy == @config.view
+    else if MM.VIEWS.regimeLegitimacy == @config.view
       for citizen in @citizens
         citizen.color = u.color.red.fraction(citizen.original.regimeLegitimacy())
     else if MM.VIEWS.grievance == @config.view
@@ -1251,7 +1249,7 @@ class MM.Model extends ABM.Model
               @moveToRandomUpperHalf(@config.walk)
             else
               @moveToRandomBottomHalf(@config.walk)
-          else if MM.TYPES.focal_point == @config.type
+          else if MM.TYPES.focalPoint == @config.type
             if @riskAversion < 0.5
               @moveTowardsPoint(@config.walk, {x: 0, y: 0})
             else
@@ -1382,8 +1380,7 @@ class MM.Model extends ABM.Model
     @agents.shuffle()
     for agent in @agents
       agent.act()
-      if u.randomInt(100) == 1
-        if agent.breed.name is "citizens"
+      if agent.breed.name is "citizens" and u.randomInt(100) == 1
           @media.current().use(agent)
 
     unless @isHeadless

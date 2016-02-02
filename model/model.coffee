@@ -52,7 +52,7 @@ class MM.Model extends ABM.Model
               @moveToRandomUpperHalf(@config.walk)
             else
               @moveToRandomBottomHalf(@config.walk)
-          else if MM.TYPES.focal_point == @config.type
+          else if MM.TYPES.focalPoint == @config.type
             if @riskAversion < 0.5
               @moveTowardsPoint(@config.walk, {x: 0, y: 0})
             else
@@ -183,8 +183,7 @@ class MM.Model extends ABM.Model
     @agents.shuffle()
     for agent in @agents
       agent.act()
-      if u.randomInt(100) == 1
-        if agent.breed.name is "citizens"
+      if agent.breed.name is "citizens" and u.randomInt(100) == 1
           @media.current().use(agent)
 
     unless @isHeadless

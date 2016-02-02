@@ -25,13 +25,13 @@ class MM.MediumGenericDelivery extends MM.Medium
     @copyOriginalColors()
     @resetPatches()
 
-    x_offset = y_offset = 0
+    xOffset = yOffset = 0
     for agent, i in @agents
       x = i % (@world.max.x + 1)
-      y_offset = Math.floor(i / (@world.max.x + 1)) * 5
+      yOffset = Math.floor(i / (@world.max.x + 1)) * 5
 
       for message, j in agent.inbox
-        patch = @patches.patch(x: x, y: y_offset + j)
+        patch = @patches.patch(x: x, y: yOffset + j)
         @colorPatch(patch, message)
 
-      agent.moveTo x: x, y: y_offset
+      agent.moveTo x: x, y: yOffset

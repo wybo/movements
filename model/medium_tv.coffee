@@ -23,7 +23,7 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
 
     channelStep = Math.floor(@world.max.x / (@channels.length + 1))
 
-    x_offset = channelStep
+    xOffset = channelStep
     for channel, i in @channels
       message = channel[0]
       if message
@@ -31,13 +31,13 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
           k = j - 1
 
           if j == 0
-            agent.moveTo x: x_offset, y: 0
+            agent.moveTo x: xOffset, y: 0
           else
             column_nr = Math.floor(k / (@world.max.y + 1))
-            agent.moveTo x: x_offset - column_nr - 1, y: k % (@world.max.y + 1)
+            agent.moveTo x: xOffset - column_nr - 1, y: k % (@world.max.y + 1)
 
       for message, j in channel
-        patch = @patches.patch(x: x_offset, y: j)
+        patch = @patches.patch(x: xOffset, y: j)
         @colorPatch(patch, message)
 
-      x_offset += channelStep
+      xOffset += channelStep

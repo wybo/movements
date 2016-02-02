@@ -23,13 +23,13 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
 
     channelStep = Math.floor(@world.max.x / (@channels.length + 1))
 
-    x_offset = channelStep
+    xOffset = channelStep
     for channel, i in @channels
       for message, j in channel
         for agent, k in message.readers
-          agent.moveTo x: x_offset - k, y: j
+          agent.moveTo x: xOffset - k, y: j
 
-        patch = @patches.patch(x: x_offset, y: j)
+        patch = @patches.patch(x: xOffset, y: j)
         @colorPatch(patch, message)
 
-      x_offset += channelStep
+      xOffset += channelStep

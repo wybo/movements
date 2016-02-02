@@ -14,7 +14,7 @@ class MM.Media
     @media[MM.MEDIA.email] = new MM.MediumEMail(options)
     @media[MM.MEDIA.website] = new MM.MediumWebsite(options)
     @media[MM.MEDIA.forum] = new MM.MediumForum(options)
-    @media[MM.MEDIA.facebook_wall] = new MM.MediumFacebookWall(options)
+    @media[MM.MEDIA.facebookWall] = new MM.MediumFacebookWall(options)
 
     @updateOld()
 

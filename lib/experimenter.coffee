@@ -31,7 +31,13 @@ window.plotTest = (test, index, config) ->
   div2 = $('<div>').css({ float: 'left', clear: 'left' })
   div.append(div2)
   label = test.setup.label || ''
-  div2.append('<p>Experiment run: ' + label + '</p>')
+  div2.append('<p class="title">Experiment run: <b>' + label + '</b></p>')
+
+  ignoreKeys = {label: true, config: true, modelOptions: true, viewModelOptions: true, mediaModelOptions: true, mediaMirrorModelOptions: true, ui: true}
+  ignoreKeys = window.appendSettings(div2, test.setup, ignoreKeys, '<b>', '</b>')
+  div2.append('<br />')
+  window.appendSettings(div2, test.setup.config, ignoreKeys)
+
   div2 = $('<div>').css({ float: 'left', clear: 'left' })
   div.append(div2)
   data = []
@@ -49,6 +55,36 @@ window.plotTest = (test, index, config) ->
   div2.append(space)
 
   $.plot(space, data, options)
+
+
+window.appendSettings = (div, hash, ignoreKeys, open, close) ->
+  for k, v of hash
+    if !ignoreKeys[k]
+      window.appendSetting(div, k, v, open, close)
+      ignoreKeys[k] = true
+
+  return ignoreKeys
+
+window.appendSetting = (div, key, value, open, close) ->
+  open = open || ''
+  close = close || ''
+  matchedConfig = false
+  configH = {type: MM.TYPES, calculation: MM.CALCULATIONS, legitimacyCalculation: MM.LEGITIMACY_CALCULATIONS, friends: MM.FRIENDS, medium: MM.MEDIA, mediumType: MM.MEDIUM_TYPES, view: MM.VIEWS}
+  for kC, vC of configH
+    if kC == key
+      div.append(open + key + ': ' + window.decodeHash(vC, value) + close + ', ')
+      matchedConfig = true
+  
+  if !matchedConfig
+    if key == 'vision' or key == 'walk'
+      div.append(open + key + ': ' + JSON.stringify(value) + close + ', ')
+    else
+      div.append(open + key + ': ' + value.toString() + close + ', ')
+
+window.decodeHash = (hash, vId) ->
+  for k, v of hash
+    if v == vId
+      return k
 
 window.setupDropdown = (optionSelect, options, defaultOption) ->
   for option, i in options

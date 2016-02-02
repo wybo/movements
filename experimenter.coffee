@@ -5,10 +5,12 @@ ABM = abmcode.ABM
 u = ABM.util
 
 #reruns = 1
-reruns = 30
+reruns = 10
+#reruns = 30
 #reruns = 25 # To average it out
 
 #generations = 2
+#generations = 150
 generations = 300
 #generations = 1500
 #generations = 150 # 15 days
