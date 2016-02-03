@@ -38,6 +38,7 @@ class MM.Model extends ABM.Model
       citizen.activism = 0.0
       citizen.arrestDuration = 0
       citizen.prisonSentence = 0
+      citizen.sawArrest = false
 
       citizen.act = ->
         if @imprisoned()
@@ -78,12 +79,8 @@ class MM.Model extends ABM.Model
           if @imprisoned()
             return @config.baseRegimeLegitimacy
           else
-            if MM.MEDIA.none != @config.medium and @mediumMirror()
+            if @mediumMirror() and @mediumMirror().online()
               count = @mediumMirror().count
-
-              if MM.MEDIUM_TYPES.micro == @config.mediumType or MM.MEDIUM_TYPES.uncensored == @config.mediumType
-                # TODO look into uncensored
-                count.actives += count.activism
 
               count.citizens = count.reads # TODO fix/simplify
 
@@ -98,11 +95,15 @@ class MM.Model extends ABM.Model
       citizen.arrestProbability = ->
         count = @countNeighbors(vision: @config.vision)
 
-        if MM.TYPES.micro == @config.type
-          count.actives = count.activism
-
+        count.activism += 1
         count.actives += 1
         count.citizens += 1
+
+        # TODO cleanup
+        if count.arrests > 0
+          @sawArrest = true
+        else
+          @sawArrest = false
 
         @calculatePerceivedArrestProbability(count)
 
@@ -132,14 +133,14 @@ class MM.Model extends ABM.Model
       citizen.activate = ->
         activation = @grievance() - @netRisk()
 
-        status = @calculateActiveStatus(activation)
+        status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
         @active = status.active
         @activism = status.activism
 
         if @active
           @setColor "red"
         else
-          if @activism > 0 and MM.TYPES.micro == @config.type
+          if @activism > 0
             @setColor "orange"
           else
             @setColor "green"
@@ -194,7 +195,7 @@ class MM.Model extends ABM.Model
     @agents.shuffle()
     for agent in @agents
       agent.act()
-      if agent.breed.name is "citizens" and u.randomInt(100) == 1
+      if agent.breed.name is "citizens" and u.randomInt(20) == 1
           @media.current().use(agent)
 
     unless @isHeadless
@@ -208,7 +209,7 @@ class MM.Model extends ABM.Model
     @recordData()
 
   resetAllFriends: ->
-    if MM.FRIENDS.none != @config.friends 
+    if MM.FRIENDS.none != @config.friends
       for citizen in @citizens
         citizen.resetFriends()
 
@@ -299,9 +300,9 @@ class MM.Model extends ABM.Model
     console.log '  Arrest Probability:'
 
     for count in [
-        {cops: 0, actives: 1},
-        {cops: 1, actives: 1}, {cops: 2, actives: 1}, {cops: 3, actives: 1},
-        {cops: 1, actives: 4}, {cops: 2, actives: 4}, {cops: 3, actives: 4}
+        {cops: 0, activism: 1},
+        {cops: 1, activism: 1}, {cops: 2, activism: 1}, {cops: 3, activism: 1},
+        {cops: 1, activism: 4}, {cops: 2, activism: 4}, {cops: 3, activism: 4}
       ]
       console.log @citizens[0].calculatePerceivedArrestProbability(count)
 

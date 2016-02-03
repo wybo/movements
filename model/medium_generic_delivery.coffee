@@ -4,8 +4,8 @@ class MM.MediumGenericDelivery extends MM.Medium
 
     @inboxes = new ABM.Array
 
-  createAgent: (original) ->
-    agent = super
+  use: (original) ->
+    agent = super(original)
 
     if !agent.inbox # TODO really needed?
       agent.inbox = @inboxes[agent.original.id] = new ABM.Array

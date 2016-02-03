@@ -3,40 +3,38 @@ class MM.MediumTelephone extends MM.Medium
     super
 
   use: (original) ->
-    agent = @createAgent(original)
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(3) == 1
+        @call()
+
+      if @reading
+        if @timer < 0
+          @disconnect()
+        @timer -= 1
 
     agent.call = ->
       if @links.length == 0
         id = @id # taken into closure
         agent = @model.agents.sample(condition: (a) ->
           id != a.id)
-        agent.hangUp()
+        agent.disconnect()
 
         @model.links.create(@, agent).last()
         agent.timer = u.randomInt(3)
 
         agent.read(new MM.Message @, agent)
 
-    agent.hangUp = ->
+    agent.disconnect = ->
       for link in @links
         link.to.closeMessage()
         link.to.timer = null
         link.die()
+      @timer = 0 # for disconnect due to offline
 
     agent.toNextMessage = ->
       # No need to always call
-
-  step: ->
-    for agent in @agents by -1
-      if u.randomInt(3) == 1
-        agent.call()
-
-      if agent.reading
-        if agent.timer < 0
-          agent.hangUp()
-        agent.timer -= 1
-      
-    @drawAll()
 
   drawAll: ->
     @copyOriginalColors()

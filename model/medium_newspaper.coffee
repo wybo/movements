@@ -2,17 +2,14 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
   setup: ->
     super
 
-  step: ->
-    for agent in @agents by -1
-      if u.randomInt(20) == 1
-        @newMessage(agent)
-      
-      agent.toNextMessage()
-
-    @drawAll()
-
   use: (original) ->
-    agent = @createAgent(original)
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(20) == 1
+        @model.newMessage(@)
+      
+      @toNextMessage()
 
     agent.toNextMessage = ->
       @read(@channel.sample()) # TODO not self!

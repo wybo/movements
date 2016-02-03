@@ -25,7 +25,7 @@ MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
-MM.MEDIUM_TYPES = indexHash(["normal", "micro", "uncensored"])
+MM.MEDIUM_TYPES = indexHash(["normal", "uncensored"]) # TODO micro, from original agent
 MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"])
 # turn back to numbers once dat.gui fixed
 
@@ -35,8 +35,8 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.facebookWall
-    @mediumType = MM.MEDIUM_TYPES.normal
+    @medium = MM.MEDIA.none
+    @mediumType = MM.MEDIUM_TYPES.uncensored
     @view = MM.VIEWS.arrestProbability
     
     @copsRetreat = false
@@ -52,7 +52,8 @@ class MM.Config
     @copDensity = 0.03
     @arrestDuration = 2
     @maxPrisonSentence = 30 # J
-    @baseRegimeLegitimacy = 0.70 # L
+    #@baseRegimeLegitimacy = 0.85 # L
+    @baseRegimeLegitimacy = 0.82 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
@@ -120,13 +121,14 @@ class MM.Message
     @readers = new ABM.Array
 
     if MM.MEDIUM_TYPES.uncensored == @from.original.config.mediumType
-      status = @from.original.calculateActiveStatus(@from.original.grievance())
+      status = @from.original.calculateActiveStatus(@from.original.grievance(), true)
       @active = status.active
       @activism = status.activism
     else
       @active = @from.original.active
-      console.log @active
       @activism = @from.original.activism
+
+    @arrest = @from.original.sawArrest
   
   destroy: ->
     for reader in @readers by -1
@@ -145,7 +147,7 @@ class MM.Medium extends ABM.Model
     @size = 0.6
 
     @dummyAgent = {
-      original: {active: false, activism: 0.0, config: @config}
+      original: {active: false, activism: 0.0, grievance: (->), calculateActiveStatus: (-> @), config: @config}
       read: (->)
       dummy: true
     }
@@ -153,8 +155,19 @@ class MM.Medium extends ABM.Model
     for patch in @patches.create()
       patch.color = u.color.white
 
-  createAgent: (original) ->
-    if !original.mediumMirror()
+  step: ->
+    for agent in @agents by -1
+      if agent.online()
+        agent.step()
+
+      agent.onlineTimer -= 1
+
+    @drawAll()
+
+  use: (original) ->
+    agent = original.mediumMirror()
+
+    if !agent
       agent = @agents.create(1).last()
       agent.config = @config
       agent.original = original
@@ -163,7 +176,10 @@ class MM.Medium extends ABM.Model
       agent.size = @size
       agent.heading = u.degreesToRadians(270)
       agent.color = original.color
-      agent.count = {reads: 0, actives: 0, activism: 0}
+      # agent.count below
+
+      agent.online = ->
+        @onlineTimer > 0
 
       agent.read = (message) ->
         @closeMessage()
@@ -174,6 +190,8 @@ class MM.Medium extends ABM.Model
           if message.active
             @count.actives += 1
           @count.activism += message.activism
+          if message.arrest
+            @count.arrests += 1
 
         @reading = message
 
@@ -184,14 +202,20 @@ class MM.Medium extends ABM.Model
         @reading = null
 
       agent.resetCount = ->
-        @count = {reads: 0, actives: 0, activism: 0}
+        @count = {reads: 0, actives: 0, activism: 0, arrests: 0}
 
-    return original.mediumMirror()
+      agent.resetCount()
+
+    agent.onlineTimer = 5 # activates medium
+
+    return agent
 
   colorPatch: (patch, message) ->
-    if message.activism == 1.0
+    if message.arrest
+      patch.color = u.color.mediumpurple
+    else if message.activism == 1.0
       patch.color = u.color.salmon
-    else if message.activism > 0 and (MM.MEDIUM_TYPES.micro == @config.mediumType or MM.MEDIUM_TYPES.uncensored == @config.mediumType)
+    else if message.activism > 0
       patch.color = u.color.pink
     else
       patch.color = u.color.lightgray
@@ -210,8 +234,8 @@ class MM.MediumGenericDelivery extends MM.Medium
 
     @inboxes = new ABM.Array
 
-  createAgent: (original) ->
-    agent = super
+  use: (original) ->
+    agent = super(original)
 
     if !agent.inbox # TODO really needed?
       agent.inbox = @inboxes[agent.original.id] = new ABM.Array
@@ -246,8 +270,12 @@ class MM.Agent extends ABM.Agent
   constructor: ->
     super
 
-    @mediumMirrors = new ABM.Array # TODO move to model
-    @viewMirrors = new ABM.Array # TODO move to model
+    # TODO try with MM.Agent only for model
+
+    @mediumMirrors = new ABM.Array
+    @mediumMirrors[MM.MEDIA.none] = false
+    @viewMirrors = new ABM.Array
+    @viewMirrors[MM.VIEWS.none] = false
 
     @resetFriends()
 
@@ -263,17 +291,17 @@ class MM.Agent extends ABM.Agent
 
   #### Calculations and counting
 
-  calculateActiveStatus: (activation, threshold, thresholdMicro) ->
+  calculateActiveStatus: (activation, withMicro) ->
     if activation > @config.threshold
       return {activism: 1.0, active: true}
-    else if activation > @config.thresholdMicro
+    else if withMicro and activation > @config.thresholdMicro
       return {activism: 0.4, active: false}
     else
       return {activism: 0.0, active: false}
 
   calculateLegitimacyDrop: (count) ->
-    return count.arrests / (count.citizens - count.actives)
-    # could consider taking min of cops + actives, police-violence
+    return count.arrests / (count.citizens - count.activism)
+    # could consider taking min of cops + activism, police-violence
     # or arrests
     # Make active agents share photos of fights
     # Two things expressed. Grievance/active and photos 
@@ -284,23 +312,23 @@ class MM.Agent extends ABM.Agent
 
   calculateSpecificCitizenArrestProbability: (count) ->
     if MM.CALCULATIONS.epstein == @config.calculation or MM.CALCULATIONS.overpowered == @config.calculation
-      return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.actives)
+      return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.activism)
     else if MM.CALCULATIONS.wilensky == @config.calculation
-      return 1 - Math.exp(-1 * @config.kConstant * Math.floor(count.cops / count.actives))
+      return 1 - Math.exp(-1 * @config.kConstant * Math.floor(count.cops / count.activism))
     else # real
-      if count.cops > count.actives
+      if count.cops > count.activism
         return 1
       else
-        return count.cops / count.actives
+        return count.cops / count.activism
 
   calculateCopWillMakeArrestProbability: (count) ->
     if MM.CALCULATIONS.overpowered == @config.calculation
-      if count.cops * 5 > count.actives
+      if count.cops * 5 > count.activism
         return 1
       else
         return 0
     else if MM.CALCULATIONS.real == @config.calculation
-      overwhelm = count.cops * 7 / count.actives
+      overwhelm = count.cops * 7 / count.activism
       if overwhelm > 1
         return 1
       else
@@ -347,7 +375,7 @@ class MM.Agent extends ABM.Agent
       count.activism = count.activism * fraction
     return count
 
-  removeNeighbors: (count, remove) ->
+  removeNeighbors: (count, remove) -> # TODO eval whether to keep
     if remove and remove > 0
       newCitizens = count.citizens - remove
       if newCitizens > 0
@@ -548,33 +576,27 @@ class MM.MediumEMail extends MM.MediumGenericDelivery
   setup: ->
     super
 
-  step: ->
-    for agent in @agents by -1
-      if u.randomInt(3) == 1
-        @newMessage(agent, @agents.sample())
-        
-      agent.toNextMessage()
-
-    @drawAll()
-
   use: (original) ->
-    agent = @createAgent(original)
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(3) == 1
+        @newMessage(@, @model.agents.sample())
+        
+      @toNextMessage()
 
 class MM.MediumFacebookWall extends MM.MediumGenericDelivery
   setup: ->
     super
 
-  step: ->
-    for agent in @agents by -1
-      if u.randomInt(3) == 1
-        @newPost(agent)
-
-      agent.readPosts()
-
-    @drawAll()
-
   use: (original) ->
-    agent = @createAgent(original)
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(10) == 1
+        @model.newPost(@) # TODO move newPost to agent
+
+      @readPosts()
 
     agent.readPosts = ->
       while true
@@ -602,8 +624,14 @@ class MM.MediumForum extends MM.Medium
     while @threads.length <= @world.max.x
       @newPost(@dummyAgent)
 
-  use: (original) -> # TODO make super
-    agent = @createAgent(original)
+  use: (original) ->
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(20) == 1
+        @model.newPost(@)
+
+      @toNextMessage()
 
     agent.toNextMessage = (agent) ->
       if @reading && @reading.next?
@@ -612,15 +640,6 @@ class MM.MediumForum extends MM.Medium
           @read(@reading.thread.next.first())
       else
         @read(@model.threads[0][0])
-
-  step: ->
-    for agent in @agents by -1
-      if u.randomInt(20) == 1
-        @newPost(agent)
-
-      agent.toNextMessage()
-
-    @drawAll()
 
   newPost: (agent) ->
     if u.randomInt(7) == 1
@@ -687,8 +706,8 @@ class MM.MediumGenericBroadcast extends MM.Medium
     for n in [0..7]
       @newChannel(n)
 
-  createAgent: (original) ->
-    agent = super
+  use: (original) ->
+    agent = super(original)
 
     if !agent.channel
       agent.channel = @channels[u.randomInt(@channels.length)]
@@ -742,17 +761,14 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
   setup: ->
     super
 
-  step: ->
-    for agent in @agents by -1
-      if u.randomInt(20) == 1
-        @newMessage(agent)
-      
-      agent.toNextMessage()
-
-    @drawAll()
-
   use: (original) ->
-    agent = @createAgent(original)
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(20) == 1
+        @model.newMessage(@)
+      
+      @toNextMessage()
 
     agent.toNextMessage = ->
       @read(@channel.sample()) # TODO not self!
@@ -787,40 +803,38 @@ class MM.MediumTelephone extends MM.Medium
     super
 
   use: (original) ->
-    agent = @createAgent(original)
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(3) == 1
+        @call()
+
+      if @reading
+        if @timer < 0
+          @disconnect()
+        @timer -= 1
 
     agent.call = ->
       if @links.length == 0
         id = @id # taken into closure
         agent = @model.agents.sample(condition: (a) ->
           id != a.id)
-        agent.hangUp()
+        agent.disconnect()
 
         @model.links.create(@, agent).last()
         agent.timer = u.randomInt(3)
 
         agent.read(new MM.Message @, agent)
 
-    agent.hangUp = ->
+    agent.disconnect = ->
       for link in @links
         link.to.closeMessage()
         link.to.timer = null
         link.die()
+      @timer = 0 # for disconnect due to offline
 
     agent.toNextMessage = ->
       # No need to always call
-
-  step: ->
-    for agent in @agents by -1
-      if u.randomInt(3) == 1
-        agent.call()
-
-      if agent.reading
-        if agent.timer < 0
-          agent.hangUp()
-        agent.timer -= 1
-      
-    @drawAll()
 
   drawAll: ->
     @copyOriginalColors()
@@ -837,17 +851,14 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
   setup: ->
     super
 
-  step: ->
-    for agent in @agents by -1
-      if u.randomInt(20) == 1
-        @newMessage(agent)
-      
-      agent.toNextMessage()
-
-    @drawAll()
-
   use: (original) ->
-    agent = @createAgent(original)
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(20) == 1
+        @model.newMessage(@)
+      
+      @toNextMessage()
 
     agent.toNextMessage = ->
       @read(@channel[0])
@@ -887,19 +898,16 @@ class MM.MediumWebsite extends MM.Medium
       @newPage(@dummyAgent)
 
   use: (original) ->
-    agent = @createAgent(original)
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(20) == 1
+        @model.newPage(@)
+
+      @toNextMessage()
 
     agent.toNextMessage = ->
       @read(@model.sites.sample())
-
-  step: ->
-    for agent in @agents by -1
-      if u.randomInt(20) == 1
-        @newPage(agent)
-
-      agent.toNextMessage()
-
-    @drawAll()
 
   newPage: (agent) ->
     @sites.unshift new MM.Message agent
@@ -1223,6 +1231,7 @@ class MM.Model extends ABM.Model
       citizen.activism = 0.0
       citizen.arrestDuration = 0
       citizen.prisonSentence = 0
+      citizen.sawArrest = false
 
       citizen.act = ->
         if @imprisoned()
@@ -1263,12 +1272,8 @@ class MM.Model extends ABM.Model
           if @imprisoned()
             return @config.baseRegimeLegitimacy
           else
-            if MM.MEDIA.none != @config.medium and @mediumMirror()
+            if @mediumMirror() and @mediumMirror().online()
               count = @mediumMirror().count
-
-              if MM.MEDIUM_TYPES.micro == @config.mediumType or MM.MEDIUM_TYPES.uncensored == @config.mediumType
-                # TODO look into uncensored
-                count.actives += count.activism
 
               count.citizens = count.reads # TODO fix/simplify
 
@@ -1283,11 +1288,15 @@ class MM.Model extends ABM.Model
       citizen.arrestProbability = ->
         count = @countNeighbors(vision: @config.vision)
 
-        if MM.TYPES.micro == @config.type
-          count.actives = count.activism
-
+        count.activism += 1
         count.actives += 1
         count.citizens += 1
+
+        # TODO cleanup
+        if count.arrests > 0
+          @sawArrest = true
+        else
+          @sawArrest = false
 
         @calculatePerceivedArrestProbability(count)
 
@@ -1317,14 +1326,14 @@ class MM.Model extends ABM.Model
       citizen.activate = ->
         activation = @grievance() - @netRisk()
 
-        status = @calculateActiveStatus(activation)
+        status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
         @active = status.active
         @activism = status.activism
 
         if @active
           @setColor "red"
         else
-          if @activism > 0 and MM.TYPES.micro == @config.type
+          if @activism > 0
             @setColor "orange"
           else
             @setColor "green"
@@ -1379,7 +1388,7 @@ class MM.Model extends ABM.Model
     @agents.shuffle()
     for agent in @agents
       agent.act()
-      if agent.breed.name is "citizens" and u.randomInt(100) == 1
+      if agent.breed.name is "citizens" and u.randomInt(20) == 1
           @media.current().use(agent)
 
     unless @isHeadless
@@ -1393,7 +1402,7 @@ class MM.Model extends ABM.Model
     @recordData()
 
   resetAllFriends: ->
-    if MM.FRIENDS.none != @config.friends 
+    if MM.FRIENDS.none != @config.friends
       for citizen in @citizens
         citizen.resetFriends()
 
@@ -1484,9 +1493,9 @@ class MM.Model extends ABM.Model
     console.log '  Arrest Probability:'
 
     for count in [
-        {cops: 0, actives: 1},
-        {cops: 1, actives: 1}, {cops: 2, actives: 1}, {cops: 3, actives: 1},
-        {cops: 1, actives: 4}, {cops: 2, actives: 4}, {cops: 3, actives: 4}
+        {cops: 0, activism: 1},
+        {cops: 1, activism: 1}, {cops: 2, activism: 1}, {cops: 3, activism: 1},
+        {cops: 1, activism: 4}, {cops: 2, activism: 4}, {cops: 3, activism: 4}
       ]
       console.log @citizens[0].calculatePerceivedArrestProbability(count)
 
@@ -1496,6 +1505,8 @@ class MM.Model extends ABM.Model
     console.log @cops
 
 class MM.ModelSimple extends ABM.Model
+  # TODO actives
+
   restart: ->
     @media.current().restart()
 

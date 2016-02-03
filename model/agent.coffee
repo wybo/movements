@@ -2,8 +2,12 @@ class MM.Agent extends ABM.Agent
   constructor: ->
     super
 
-    @mediumMirrors = new ABM.Array # TODO move to model
-    @viewMirrors = new ABM.Array # TODO move to model
+    # TODO try with MM.Agent only for model
+
+    @mediumMirrors = new ABM.Array
+    @mediumMirrors[MM.MEDIA.none] = false
+    @viewMirrors = new ABM.Array
+    @viewMirrors[MM.VIEWS.none] = false
 
     @resetFriends()
 
@@ -19,17 +23,17 @@ class MM.Agent extends ABM.Agent
 
   #### Calculations and counting
 
-  calculateActiveStatus: (activation, threshold, thresholdMicro) ->
+  calculateActiveStatus: (activation, withMicro) ->
     if activation > @config.threshold
       return {activism: 1.0, active: true}
-    else if activation > @config.thresholdMicro
+    else if withMicro and activation > @config.thresholdMicro
       return {activism: 0.4, active: false}
     else
       return {activism: 0.0, active: false}
 
   calculateLegitimacyDrop: (count) ->
-    return count.arrests / (count.citizens - count.actives)
-    # could consider taking min of cops + actives, police-violence
+    return count.arrests / (count.citizens - count.activism)
+    # could consider taking min of cops + activism, police-violence
     # or arrests
     # Make active agents share photos of fights
     # Two things expressed. Grievance/active and photos 
@@ -40,23 +44,23 @@ class MM.Agent extends ABM.Agent
 
   calculateSpecificCitizenArrestProbability: (count) ->
     if MM.CALCULATIONS.epstein == @config.calculation or MM.CALCULATIONS.overpowered == @config.calculation
-      return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.actives)
+      return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.activism)
     else if MM.CALCULATIONS.wilensky == @config.calculation
-      return 1 - Math.exp(-1 * @config.kConstant * Math.floor(count.cops / count.actives))
+      return 1 - Math.exp(-1 * @config.kConstant * Math.floor(count.cops / count.activism))
     else # real
-      if count.cops > count.actives
+      if count.cops > count.activism
         return 1
       else
-        return count.cops / count.actives
+        return count.cops / count.activism
 
   calculateCopWillMakeArrestProbability: (count) ->
     if MM.CALCULATIONS.overpowered == @config.calculation
-      if count.cops * 5 > count.actives
+      if count.cops * 5 > count.activism
         return 1
       else
         return 0
     else if MM.CALCULATIONS.real == @config.calculation
-      overwhelm = count.cops * 7 / count.actives
+      overwhelm = count.cops * 7 / count.activism
       if overwhelm > 1
         return 1
       else
@@ -103,7 +107,7 @@ class MM.Agent extends ABM.Agent
       count.activism = count.activism * fraction
     return count
 
-  removeNeighbors: (count, remove) ->
+  removeNeighbors: (count, remove) -> # TODO eval whether to keep
     if remove and remove > 0
       newCitizens = count.citizens - remove
       if newCitizens > 0

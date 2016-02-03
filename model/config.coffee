@@ -25,7 +25,7 @@ MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
-MM.MEDIUM_TYPES = indexHash(["normal", "micro", "uncensored"])
+MM.MEDIUM_TYPES = indexHash(["normal", "uncensored"]) # TODO micro, from original agent
 MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"])
 # turn back to numbers once dat.gui fixed
 
@@ -35,8 +35,8 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.facebookWall
-    @mediumType = MM.MEDIUM_TYPES.normal
+    @medium = MM.MEDIA.none
+    @mediumType = MM.MEDIUM_TYPES.uncensored
     @view = MM.VIEWS.arrestProbability
     
     @copsRetreat = false
@@ -52,7 +52,8 @@ class MM.Config
     @copDensity = 0.03
     @arrestDuration = 2
     @maxPrisonSentence = 30 # J
-    @baseRegimeLegitimacy = 0.70 # L
+    #@baseRegimeLegitimacy = 0.85 # L
+    @baseRegimeLegitimacy = 0.82 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0

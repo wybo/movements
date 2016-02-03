@@ -8,19 +8,16 @@ class MM.MediumWebsite extends MM.Medium
       @newPage(@dummyAgent)
 
   use: (original) ->
-    agent = @createAgent(original)
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(20) == 1
+        @model.newPage(@)
+
+      @toNextMessage()
 
     agent.toNextMessage = ->
       @read(@model.sites.sample())
-
-  step: ->
-    for agent in @agents by -1
-      if u.randomInt(20) == 1
-        @newPage(agent)
-
-      agent.toNextMessage()
-
-    @drawAll()
 
   newPage: (agent) ->
     @sites.unshift new MM.Message agent

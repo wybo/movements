@@ -10,8 +10,14 @@ class MM.MediumForum extends MM.Medium
     while @threads.length <= @world.max.x
       @newPost(@dummyAgent)
 
-  use: (original) -> # TODO make super
-    agent = @createAgent(original)
+  use: (original) ->
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(20) == 1
+        @model.newPost(@)
+
+      @toNextMessage()
 
     agent.toNextMessage = (agent) ->
       if @reading && @reading.next?
@@ -20,15 +26,6 @@ class MM.MediumForum extends MM.Medium
           @read(@reading.thread.next.first())
       else
         @read(@model.threads[0][0])
-
-  step: ->
-    for agent in @agents by -1
-      if u.randomInt(20) == 1
-        @newPost(agent)
-
-      agent.toNextMessage()
-
-    @drawAll()
 
   newPost: (agent) ->
     if u.randomInt(7) == 1

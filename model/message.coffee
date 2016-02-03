@@ -5,13 +5,14 @@ class MM.Message
     @readers = new ABM.Array
 
     if MM.MEDIUM_TYPES.uncensored == @from.original.config.mediumType
-      status = @from.original.calculateActiveStatus(@from.original.grievance())
+      status = @from.original.calculateActiveStatus(@from.original.grievance(), true)
       @active = status.active
       @activism = status.activism
     else
       @active = @from.original.active
-      console.log @active
       @activism = @from.original.activism
+
+    @arrest = @from.original.sawArrest
   
   destroy: ->
     for reader in @readers by -1

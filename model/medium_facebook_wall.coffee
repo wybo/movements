@@ -2,17 +2,14 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
   setup: ->
     super
 
-  step: ->
-    for agent in @agents by -1
-      if u.randomInt(3) == 1
-        @newPost(agent)
-
-      agent.readPosts()
-
-    @drawAll()
-
   use: (original) ->
-    agent = @createAgent(original)
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(10) == 1
+        @model.newPost(@) # TODO move newPost to agent
+
+      @readPosts()
 
     agent.readPosts = ->
       while true

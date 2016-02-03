@@ -11,7 +11,7 @@ class MM.Medium extends ABM.Model
     @size = 0.6
 
     @dummyAgent = {
-      original: {active: false, activism: 0.0, config: @config}
+      original: {active: false, activism: 0.0, grievance: (->), calculateActiveStatus: (-> @), config: @config}
       read: (->)
       dummy: true
     }
@@ -19,8 +19,19 @@ class MM.Medium extends ABM.Model
     for patch in @patches.create()
       patch.color = u.color.white
 
-  createAgent: (original) ->
-    if !original.mediumMirror()
+  step: ->
+    for agent in @agents by -1
+      if agent.online()
+        agent.step()
+
+      agent.onlineTimer -= 1
+
+    @drawAll()
+
+  use: (original) ->
+    agent = original.mediumMirror()
+
+    if !agent
       agent = @agents.create(1).last()
       agent.config = @config
       agent.original = original
@@ -29,7 +40,10 @@ class MM.Medium extends ABM.Model
       agent.size = @size
       agent.heading = u.degreesToRadians(270)
       agent.color = original.color
-      agent.count = {reads: 0, actives: 0, activism: 0}
+      # agent.count below
+
+      agent.online = ->
+        @onlineTimer > 0
 
       agent.read = (message) ->
         @closeMessage()
@@ -40,6 +54,8 @@ class MM.Medium extends ABM.Model
           if message.active
             @count.actives += 1
           @count.activism += message.activism
+          if message.arrest
+            @count.arrests += 1
 
         @reading = message
 
@@ -50,14 +66,20 @@ class MM.Medium extends ABM.Model
         @reading = null
 
       agent.resetCount = ->
-        @count = {reads: 0, actives: 0, activism: 0}
+        @count = {reads: 0, actives: 0, activism: 0, arrests: 0}
 
-    return original.mediumMirror()
+      agent.resetCount()
+
+    agent.onlineTimer = 5 # activates medium
+
+    return agent
 
   colorPatch: (patch, message) ->
-    if message.activism == 1.0
+    if message.arrest
+      patch.color = u.color.mediumpurple
+    else if message.activism == 1.0
       patch.color = u.color.salmon
-    else if message.activism > 0 and (MM.MEDIUM_TYPES.micro == @config.mediumType or MM.MEDIUM_TYPES.uncensored == @config.mediumType)
+    else if message.activism > 0
       patch.color = u.color.pink
     else
       patch.color = u.color.lightgray

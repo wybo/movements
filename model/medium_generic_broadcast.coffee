@@ -7,8 +7,8 @@ class MM.MediumGenericBroadcast extends MM.Medium
     for n in [0..7]
       @newChannel(n)
 
-  createAgent: (original) ->
-    agent = super
+  use: (original) ->
+    agent = super(original)
 
     if !agent.channel
       agent.channel = @channels[u.randomInt(@channels.length)]
