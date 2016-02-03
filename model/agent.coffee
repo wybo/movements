@@ -2,8 +2,6 @@ class MM.Agent extends ABM.Agent
   constructor: ->
     super
 
-    # TODO try with MM.Agent only for model
-
     @mediumMirrors = new ABM.Array
     @mediumMirrors[MM.MEDIA.none] = false
     @viewMirrors = new ABM.Array

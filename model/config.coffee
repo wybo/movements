@@ -35,7 +35,7 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.none
+    @medium = MM.MEDIA.forum
     @mediumType = MM.MEDIUM_TYPES.uncensored
     @view = MM.VIEWS.arrestProbability
     
@@ -75,7 +75,6 @@ class MM.Config
     # ### Do not modify below unless you know what you're doing.
 
     sharedModelOptions = {
-      Agent: MM.Agent
       patchSize: 20
       #mapSize: 15
       mapSize: 20
@@ -84,6 +83,7 @@ class MM.Config
     }
 
     @modelOptions = u.merge(sharedModelOptions, {
+      Agent: MM.Agent
       div: "world"
       # config is added
     })
@@ -93,7 +93,6 @@ class MM.Config
     })
 
     @mediaModelOptions = {
-      Agent: MM.Agent
       div: "medium"
       #patchSize: 15
       patchSize: 10
