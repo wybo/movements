@@ -98,26 +98,6 @@ class MM.Agent extends ABM.Agent
 
     return {cops: cops, citizens: citizens, actives: actives, activism: activism, arrests: arrests}
 
-  scaleDownNeighbors: (count, fraction) ->
-    if fraction and fraction < 1
-      count.actives = count.actives * fraction
-      count.citizens = count.citizens * fraction
-      count.activism = count.activism * fraction
-    return count
-
-  removeNeighbors: (count, remove) -> # TODO eval whether to keep
-    if remove and remove > 0
-      newCitizens = count.citizens - remove
-      if newCitizens > 0
-        factor = newCitizens / count.citizens
-        count.actives = count.actives * factor
-        count.citizens = newCitizens
-        count.activism = count.activism * factor
-      else
-        count.citizens = count.actives = count.activism = 0
-  
-    return count
-
   #### Movement
 
   moveTowardsPoint: (walk, point, towards = true) ->
