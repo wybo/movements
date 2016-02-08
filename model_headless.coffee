@@ -16,7 +16,7 @@ indexHash = (array) ->
   hash = {}
   i = 0
   for key in array
-    hash[key] = "#{i++}"
+    hash[key] = i++
 
   return hash
 
@@ -31,11 +31,12 @@ MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLe
 
 class MM.Config
   constructor: ->
+    @testRun = true
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.forum
+    @medium = MM.MEDIA.email
     @mediumType = MM.MEDIUM_TYPES.uncensored
     @view = MM.VIEWS.arrestProbability
     
@@ -68,8 +69,7 @@ class MM.Config
       micros: {label: "Micros", color: "orange"},
       arrests: {label: "Arrests", color: "purple"},
       prisoners: {label: "Prisoners", color: "black"},
-      cops: {label: "Cops", color: "blue"},
-      media: {label: "Media", color: "black"}
+      cops: {label: "Cops", color: "blue"}
     }
 
     # ### Do not modify below unless you know what you're doing.
@@ -549,6 +549,13 @@ class MM.Media
   updateOld: ->
     @model.config.oldMedium = @model.config.medium
 
+  changed: ->
+    @old().reset()
+    @current().restart() # TODO eval
+    @updateOld()
+    @model.recordMediaChange()
+
+
 class MM.MediumEMail extends MM.MediumGenericDelivery
   setup: ->
     super
@@ -558,7 +565,7 @@ class MM.MediumEMail extends MM.MediumGenericDelivery
 
     agent.step = ->
       if u.randomInt(3) == 1
-        @newMessage(@, @model.agents.sample())
+        @model.newMessage(@, @model.agents.sample())
         
       @toNextMessage()
 
@@ -958,28 +965,15 @@ class MM.UI
     for key, value of settings
       if key == "view"
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange((newView) =>
-          @model.views.old().reset()
-          @model.views.current().reset()
-          @model.views.current().populate(@model)
-          @model.views.current().start()
-          @model.views.updateOld()
-        )
+        adder.onChange(=> @model.views.changed())
       else if key == "friends"
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange((newFriends) =>
-          @model.resetAllFriends()
-        )
+        adder.onChange(=> @model.resetAllFriends())
       else if key == "medium"
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange((newMedium) =>
-          @model.media.old().reset()
-          @model.media.current().restart()
-          @model.media.updateOld()
-          @addMediaMarker()
-        )
+        adder.onChange(=> @model.media.changed())
       else if u.isArray(value)
-          @gui.add(@model.config, key, value...)
+        @gui.add(@model.config, key, value...)
       else
         adder = @gui.add(@model.config, key)
         for setting, argument of value
@@ -987,7 +981,6 @@ class MM.UI
 
     for key, bull of buttons
       @gui.add(buttons, key)
-
 
   resetPlot: ->
     options = {
@@ -998,9 +991,7 @@ class MM.UI
         min: 0
       }
       grid: {
-        markings: [
-          { color: "#000", lineWidth: 1, xaxis: { from: 2, to: 2 } }
-        ]
+        markings: []
       }
     }
 
@@ -1019,10 +1010,6 @@ class MM.UI
     @plotter.setData(@plotRioters)
     @plotter.setupGrid()
     @plotter.draw()
-
-  addMediaMarker: ->
-    ticks = @model.animator.ticks
-    @plotOptions.grid.markings.push { color: "#000", lineWidth: 1, xaxis: { from: ticks, to: ticks } }
 
 # Copyright 2014, Wybo Wiersma, available under the GPL v3
 # This model builds upon Epsteins model of protest, and illustrates
@@ -1167,6 +1154,13 @@ class MM.Views
 
   updateOld: ->
     @model.config.oldView = @model.config.view
+
+  changed: ->
+    @old().reset()
+    @current().reset()
+    @current().populate(@model)
+    @current().start()
+    @updateOld()
 
 class MM.Model extends ABM.Model
   restart: ->
@@ -1377,6 +1371,9 @@ class MM.Model extends ABM.Model
       @views.current().once()
 
     @recordData()
+    
+    if @config.testRun
+      @testStep()
 
   resetAllFriends: ->
     if MM.FRIENDS.none != @config.friends
@@ -1461,7 +1458,11 @@ class MM.Model extends ABM.Model
     @data.cops.push [ticks, tickData.cops]
 
   recordMediaChange: ->
-    @data.media.push [ticks, 0], [ticks, @citizens.length], null
+    ticks = @animator.ticks
+    @data.media.push {ticks: ticks, medium: @config.oldMedium, state: false}
+    @data.media.push {ticks: ticks, medium: @config.medium, state: true}
+    unless @isHeadless
+      window.modelUI.plotOptions.grid.markings.push { color: "#000", lineWidth: 1, xaxis: { from: ticks, to: ticks } }
 
   consoleLog: ->
     console.log 'Config:'
@@ -1480,6 +1481,36 @@ class MM.Model extends ABM.Model
     console.log @citizens
     console.log 'Cops:'
     console.log @cops
+
+  testAdvance: (key, hash) ->
+    if @config[key] < Object.keys(hash).length - 1
+      @config[key] += 1
+    else
+      @config[key] = 0
+
+  testStep: ->
+    if @animator.ticks % 2 == 0
+      @testAdvance("calculation", MM.CALCULATIONS)
+      if @config.calculation == 0
+        @testAdvance("legitimacyCalculation", MM.LEGITIMACY_CALCULATIONS)
+
+    if @animator.ticks % 7 == 0
+      @testAdvance("view", MM.VIEWS)
+      @views.changed()
+
+#    if @animator.ticks % 12 == 0 TODO, errors out
+#      @testAdvance("friends", MM.FRIENDS)
+#      @resetAllFriends()
+
+    if @animator.ticks % 20 == 0
+      @testAdvance("medium", MM.MEDIA)
+      if @config.medium == 0
+        @testAdvance("mediumType", MM.MEDIUM_TYPES)
+      @media.changed()
+
+    if @animator.ticks > 20 * Object.keys(MM.MEDIA).length * Object.keys(MM.MEDIUM_TYPES).length
+      console.log 'Test completed!'
+      @stop()
 
 class MM.ModelSimple extends ABM.Model
   # TODO actives

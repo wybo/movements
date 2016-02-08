@@ -22,3 +22,10 @@ class MM.Views
 
   updateOld: ->
     @model.config.oldView = @model.config.view
+
+  changed: ->
+    @old().reset()
+    @current().reset()
+    @current().populate(@model)
+    @current().start()
+    @updateOld()

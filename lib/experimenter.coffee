@@ -26,6 +26,7 @@ window.plotTest = (test, index, config) ->
   options = {
     series: { shadowSize: 0 }, # drawing is faster without shadows
     xaxis: { show: false }
+    grid: { markings: [] }
   }
   div = $("#content")
   div2 = $('<div>').css({ float: 'left', clear: 'left' })
@@ -43,7 +44,10 @@ window.plotTest = (test, index, config) ->
   data = []
 
   for key, variable of config.ui
-    if key != 'media' and key != 'micros'
+    if key == 'media'
+      for marking in test.data[key]
+        options.grid.markings.push { color: "#000", lineWidth: 1, xaxis: { from: markings.ticks, to: markings.ticks } }
+    else
       if (test.data[key])
         data.push({label: variable.label, color: variable.color, data: test.data[key]})
 
@@ -55,7 +59,6 @@ window.plotTest = (test, index, config) ->
   div2.append(space)
 
   $.plot(space, data, options)
-
 
 window.appendSettings = (div, hash, ignoreKeys, open, close) ->
   for k, v of hash

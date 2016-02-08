@@ -26,3 +26,10 @@ class MM.Media
 
   updateOld: ->
     @model.config.oldMedium = @model.config.medium
+
+  changed: ->
+    @old().reset()
+    @current().restart() # TODO eval
+    @updateOld()
+    @model.recordMediaChange()
+

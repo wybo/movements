@@ -16,7 +16,7 @@ indexHash = (array) ->
   hash = {}
   i = 0
   for key in array
-    hash[key] = "#{i++}"
+    hash[key] = i++
 
   return hash
 
@@ -31,11 +31,12 @@ MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLe
 
 class MM.Config
   constructor: ->
+    @testRun = true
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.forum
+    @medium = MM.MEDIA.email
     @mediumType = MM.MEDIUM_TYPES.uncensored
     @view = MM.VIEWS.arrestProbability
     
@@ -68,8 +69,7 @@ class MM.Config
       micros: {label: "Micros", color: "orange"},
       arrests: {label: "Arrests", color: "purple"},
       prisoners: {label: "Prisoners", color: "black"},
-      cops: {label: "Cops", color: "blue"},
-      media: {label: "Media", color: "black"}
+      cops: {label: "Cops", color: "blue"}
     }
 
     # ### Do not modify below unless you know what you're doing.

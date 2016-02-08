@@ -207,6 +207,9 @@ class MM.Model extends ABM.Model
       @views.current().once()
 
     @recordData()
+    
+    if @config.testRun
+      @testStep()
 
   resetAllFriends: ->
     if MM.FRIENDS.none != @config.friends
@@ -291,7 +294,11 @@ class MM.Model extends ABM.Model
     @data.cops.push [ticks, tickData.cops]
 
   recordMediaChange: ->
-    @data.media.push [ticks, 0], [ticks, @citizens.length], null
+    ticks = @animator.ticks
+    @data.media.push {ticks: ticks, medium: @config.oldMedium, state: false}
+    @data.media.push {ticks: ticks, medium: @config.medium, state: true}
+    unless @isHeadless
+      window.modelUI.plotOptions.grid.markings.push { color: "#000", lineWidth: 1, xaxis: { from: ticks, to: ticks } }
 
   consoleLog: ->
     console.log 'Config:'
@@ -310,3 +317,33 @@ class MM.Model extends ABM.Model
     console.log @citizens
     console.log 'Cops:'
     console.log @cops
+
+  testAdvance: (key, hash) ->
+    if @config[key] < Object.keys(hash).length - 1
+      @config[key] += 1
+    else
+      @config[key] = 0
+
+  testStep: ->
+    if @animator.ticks % 2 == 0
+      @testAdvance("calculation", MM.CALCULATIONS)
+      if @config.calculation == 0
+        @testAdvance("legitimacyCalculation", MM.LEGITIMACY_CALCULATIONS)
+
+    if @animator.ticks % 7 == 0
+      @testAdvance("view", MM.VIEWS)
+      @views.changed()
+
+#    if @animator.ticks % 12 == 0 TODO, errors out
+#      @testAdvance("friends", MM.FRIENDS)
+#      @resetAllFriends()
+
+    if @animator.ticks % 20 == 0
+      @testAdvance("medium", MM.MEDIA)
+      if @config.medium == 0
+        @testAdvance("mediumType", MM.MEDIUM_TYPES)
+      @media.changed()
+
+    if @animator.ticks > 20 * Object.keys(MM.MEDIA).length * Object.keys(MM.MEDIUM_TYPES).length
+      console.log 'Test completed!'
+      @stop()

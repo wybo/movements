@@ -7,6 +7,6 @@ class MM.MediumEMail extends MM.MediumGenericDelivery
 
     agent.step = ->
       if u.randomInt(3) == 1
-        @newMessage(@, @model.agents.sample())
+        @model.newMessage(@, @model.agents.sample())
         
       @toNextMessage()

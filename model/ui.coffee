@@ -50,28 +50,15 @@ class MM.UI
     for key, value of settings
       if key == "view"
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange((newView) =>
-          @model.views.old().reset()
-          @model.views.current().reset()
-          @model.views.current().populate(@model)
-          @model.views.current().start()
-          @model.views.updateOld()
-        )
+        adder.onChange(=> @model.views.changed())
       else if key == "friends"
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange((newFriends) =>
-          @model.resetAllFriends()
-        )
+        adder.onChange(=> @model.resetAllFriends())
       else if key == "medium"
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange((newMedium) =>
-          @model.media.old().reset()
-          @model.media.current().restart()
-          @model.media.updateOld()
-          @addMediaMarker()
-        )
+        adder.onChange(=> @model.media.changed())
       else if u.isArray(value)
-          @gui.add(@model.config, key, value...)
+        @gui.add(@model.config, key, value...)
       else
         adder = @gui.add(@model.config, key)
         for setting, argument of value
@@ -79,7 +66,6 @@ class MM.UI
 
     for key, bull of buttons
       @gui.add(buttons, key)
-
 
   resetPlot: ->
     options = {
@@ -90,9 +76,7 @@ class MM.UI
         min: 0
       }
       grid: {
-        markings: [
-          { color: "#000", lineWidth: 1, xaxis: { from: 2, to: 2 } }
-        ]
+        markings: []
       }
     }
 
@@ -111,7 +95,3 @@ class MM.UI
     @plotter.setData(@plotRioters)
     @plotter.setupGrid()
     @plotter.draw()
-
-  addMediaMarker: ->
-    ticks = @model.animator.ticks
-    @plotOptions.grid.markings.push { color: "#000", lineWidth: 1, xaxis: { from: ticks, to: ticks } }
