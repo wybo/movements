@@ -30,6 +30,6 @@ class MM.Media
   changed: ->
     @old().reset()
     @current().restart() # TODO eval
-    @updateOld()
     @model.recordMediaChange()
+    @updateOld()
 

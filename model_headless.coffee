@@ -31,7 +31,7 @@ MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLe
 
 class MM.Config
   constructor: ->
-    @testRun = true
+    @testRun = false
     @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
@@ -552,8 +552,8 @@ class MM.Media
   changed: ->
     @old().reset()
     @current().restart() # TODO eval
-    @updateOld()
     @model.recordMediaChange()
+    @updateOld()
 
 
 class MM.MediumEMail extends MM.MediumGenericDelivery

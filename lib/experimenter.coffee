@@ -12,7 +12,7 @@ window.fetchAndPlotExperiment = (key) ->
   script.id = 'uploadScript'
   script.type = 'text/javascript'
   script.onload = window.plotExperiment
-  script.src = 'runs/' + experiments[key]
+  script.src = 'experiments/' + experiments[key]
   head.appendChild(script)
 
 window.plotExperiment = ->
@@ -25,7 +25,6 @@ window.plotExperiment = ->
 window.plotTest = (test, index, config) ->
   options = {
     series: { shadowSize: 0 }, # drawing is faster without shadows
-    xaxis: { show: false }
     grid: { markings: [] }
   }
   div = $("#content")
@@ -44,12 +43,12 @@ window.plotTest = (test, index, config) ->
   data = []
 
   for key, variable of config.ui
-    if key == 'media'
-      for marking in test.data[key]
-        options.grid.markings.push { color: "#000", lineWidth: 1, xaxis: { from: markings.ticks, to: markings.ticks } }
-    else
-      if (test.data[key])
-        data.push({label: variable.label, color: variable.color, data: test.data[key]})
+    if (test.data[key])
+      data.push({label: variable.label, color: variable.color, data: test.data[key]})
+
+  for marking in test.data["media"]
+    console.log marking
+    options.grid.markings.push { color: "#000", lineWidth: 1, xaxis: { from: marking.ticks, to: marking.ticks } }
 
   space = $('<div>').css({
     'width' : '2096px', 'height' : '1048px', 'float' : 'left', 'margin-right' : '0.7em',
