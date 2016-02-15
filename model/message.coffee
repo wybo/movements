@@ -12,7 +12,10 @@ class MM.Message
       @active = @from.original.active
       @activism = @from.original.activism
 
-    @arrest = @from.original.sawArrest
+    #@arrest = @from.original.sawArrest TODO
+    if @from.original.sawArrest
+      @active = true
+      @activism = 1
   
   destroy: ->
     for reader in @readers by -1

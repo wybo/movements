@@ -36,9 +36,9 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.email
+    @medium = MM.MEDIA.forum
     @mediumType = MM.MEDIUM_TYPES.uncensored
-    @view = MM.VIEWS.arrestProbability
+    @view = MM.VIEWS.regimeLegitimacy
     
     @copsRetreat = false
     @activesAdvance = false
@@ -46,6 +46,8 @@ class MM.Config
     @friendsMultiplier = 2 # 1 actively cancels out friends
     @friendsHardshipHomophilous = true # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
+
+    @mediaChannels = 7
 
     @citizenDensity = 0.7
     #@copDensity = 0.04
@@ -71,7 +73,6 @@ class MM.Config
       prisoners: {label: "Prisoners", color: "black"},
       cops: {label: "Cops", color: "blue"}
     }
-
     # ### Do not modify below unless you know what you're doing.
 
     sharedModelOptions = {
@@ -107,11 +108,28 @@ class MM.Config
 
     @config = @
 
+    @check()
+
   makeHeadless: ->
     @modelOptions.isHeadless = true
     @viewModelOptions.isHeadless = true
     @mediaModelOptions.isHeadless = true
     @mediaMirrorModelOptions.isHeadless = true
+
+    @check()
+
+  check: ->
+    if @testRun && @modelOptions.isHeadless
+      throw "Cannot be a testRun if headless"
+
+    if @friendsMultiplier < 1
+      throw "friendsMultiplier should be 1 (cancels) or over"
+
+    if @arrestDuration < 1 and MM.LEGITIMACY_CALCULATIONS.arrests == @legitimacyCalculation
+      throw "arrests need to be visible for legitimacyCalculation"
+
+    if @mediaChannels > @mediaModelOptions.max.x + 1
+      throw "Too many channels for world size"
 
 class MM.Message
   constructor: (from, to) ->
@@ -127,7 +145,10 @@ class MM.Message
       @active = @from.original.active
       @activism = @from.original.activism
 
-    @arrest = @from.original.sawArrest
+    #@arrest = @from.original.sawArrest TODO
+    if @from.original.sawArrest
+      @active = true
+      @activism = 1
   
   destroy: ->
     for reader in @readers by -1
@@ -297,11 +318,15 @@ class MM.Agent extends ABM.Agent
       return {activism: 0.0, active: false}
 
   calculateLegitimacyDrop: (count) ->
-    return count.arrests / (count.citizens - count.activism)
+    #return count.arrests / (count.citizens - count.activism)
     # could consider taking min of cops + activism, police-violence
     # or arrests
     # Make active agents share photos of fights
     # Two things expressed. Grievance/active and photos 
+    if count.citizens == 0
+      return 0
+    else
+      return count.activism / count.citizens
 
   calculatePerceivedArrestProbability: (count) ->
     return @calculateCopWillMakeArrestProbability(count) *
@@ -349,7 +374,7 @@ class MM.Agent extends ABM.Agent
       if agent.breed.name is "cops"
         cops += 1
       else
-        if @config.friends and @config.friendsMultiplier != 1 and @isFriendsWith(agent)
+        if @config.friends and @isFriendsWith(agent)
           friendsMultiplier = @config.friendsMultiplier
         else
           friendsMultiplier = 1
@@ -617,9 +642,12 @@ class MM.MediumForum extends MM.Medium
 
       @toNextMessage()
 
-    agent.toNextMessage = (agent) ->
+    agent.toNextMessage = ->
       if @reading && @reading.next?
-        @read(@reading.next)
+        if @reading.thread[0] == @reading && @reading.thread.next? && @reading.active != @original.active # first post
+          @read(@reading.thread.next.first())
+        else
+          @read(@reading.next)
       else if @reading && @reading.thread.next?
           @read(@reading.thread.next.first())
       else
@@ -687,7 +715,7 @@ class MM.MediumGenericBroadcast extends MM.Medium
 
     @channels = new ABM.Array
 
-    for n in [0..7]
+    for n in [0..@config.mediaChannels]
       @newChannel(n)
 
   use: (original) ->
@@ -716,9 +744,6 @@ class MM.MediumGenericBroadcast extends MM.Medium
         message.destroy() # takes readers as well
 
     @channels.unshift newChannel
-
-    if @channels.length > @world.max.x + 1
-      throw "Too many channels for world size"
 
   newMessage: (from) ->
     @route new MM.Message from
@@ -965,13 +990,22 @@ class MM.UI
     for key, value of settings
       if key == "view"
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange(=> @model.views.changed())
+        adder.onChange(=>
+          @model.config.check()
+          @model.views.changed()
+        )
       else if key == "friends"
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange(=> @model.resetAllFriends())
+        adder.onChange(=>
+          @model.config.check()
+          @model.resetAllFriends()
+        )
       else if key == "medium"
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange(=> @model.media.changed())
+        adder.onChange(=>
+          @model.config.check()
+          @model.media.changed()
+        )
       else if u.isArray(value)
         @gui.add(@model.config, key, value...)
       else
@@ -1237,24 +1271,21 @@ class MM.Model extends ABM.Model
         @hardship * (1 - @regimeLegitimacy())
 
       citizen.regimeLegitimacy = ->
-        if MM.LEGITIMACY_CALCULATIONS.base == @config.legitimacyCalculation
+        if MM.LEGITIMACY_CALCULATIONS.base == @config.legitimacyCalculation or @imprisoned()
           return @config.baseRegimeLegitimacy
         else
-          if @imprisoned()
-            return @config.baseRegimeLegitimacy
+          if @mediumMirror() and @mediumMirror().online()
+            count = @mediumMirror().count
+
+            count.citizens = count.reads # TODO fix/simplify
+
+            @mediumMirror().resetCount()
           else
-            if @mediumMirror() and @mediumMirror().online()
-              count = @mediumMirror().count
+            count = @countNeighbors(vision: @config.vision)
 
-              count.citizens = count.reads # TODO fix/simplify
+          @lastLegitimacyDrop = (@lastLegitimacyDrop + @calculateLegitimacyDrop(count)) / 2
 
-              @mediumMirror().resetCount()
-            else
-              count = @countNeighbors(vision: @config.vision)
-
-            @lastLegitimacyDrop = (@lastLegitimacyDrop + @calculateLegitimacyDrop(count)) / 2
-
-            return @config.baseRegimeLegitimacy - @lastLegitimacyDrop
+          return @config.baseRegimeLegitimacy - @lastLegitimacyDrop * 0.1
 
       citizen.arrestProbability = ->
         count = @countNeighbors(vision: @config.vision)
@@ -1263,7 +1294,6 @@ class MM.Model extends ABM.Model
         count.actives += 1
         count.citizens += 1
 
-        # TODO cleanup
         if count.arrests > 0
           @sawArrest = true
         else

@@ -19,9 +19,12 @@ class MM.MediumForum extends MM.Medium
 
       @toNextMessage()
 
-    agent.toNextMessage = (agent) ->
+    agent.toNextMessage = ->
       if @reading && @reading.next?
-        @read(@reading.next)
+        if @reading.thread[0] == @reading && @reading.thread.next? && @reading.active != @original.active # first post
+          @read(@reading.thread.next.first())
+        else
+          @read(@reading.next)
       else if @reading && @reading.thread.next?
           @read(@reading.thread.next.first())
       else

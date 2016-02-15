@@ -69,9 +69,6 @@ runModel = (model) ->
 
 getConfig = (testSetup) ->
   config = new MM.Config
-
-  if config.testRun
-    throw "Cannot be a testRun if headless."
   config.makeHeadless()
 
   for own key, value of testSetup

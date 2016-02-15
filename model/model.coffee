@@ -73,24 +73,21 @@ class MM.Model extends ABM.Model
         @hardship * (1 - @regimeLegitimacy())
 
       citizen.regimeLegitimacy = ->
-        if MM.LEGITIMACY_CALCULATIONS.base == @config.legitimacyCalculation
+        if MM.LEGITIMACY_CALCULATIONS.base == @config.legitimacyCalculation or @imprisoned()
           return @config.baseRegimeLegitimacy
         else
-          if @imprisoned()
-            return @config.baseRegimeLegitimacy
+          if @mediumMirror() and @mediumMirror().online()
+            count = @mediumMirror().count
+
+            count.citizens = count.reads # TODO fix/simplify
+
+            @mediumMirror().resetCount()
           else
-            if @mediumMirror() and @mediumMirror().online()
-              count = @mediumMirror().count
+            count = @countNeighbors(vision: @config.vision)
 
-              count.citizens = count.reads # TODO fix/simplify
+          @lastLegitimacyDrop = (@lastLegitimacyDrop + @calculateLegitimacyDrop(count)) / 2
 
-              @mediumMirror().resetCount()
-            else
-              count = @countNeighbors(vision: @config.vision)
-
-            @lastLegitimacyDrop = (@lastLegitimacyDrop + @calculateLegitimacyDrop(count)) / 2
-
-            return @config.baseRegimeLegitimacy - @lastLegitimacyDrop
+          return @config.baseRegimeLegitimacy - @lastLegitimacyDrop * 0.1
 
       citizen.arrestProbability = ->
         count = @countNeighbors(vision: @config.vision)
@@ -99,7 +96,6 @@ class MM.Model extends ABM.Model
         count.actives += 1
         count.citizens += 1
 
-        # TODO cleanup
         if count.arrests > 0
           @sawArrest = true
         else

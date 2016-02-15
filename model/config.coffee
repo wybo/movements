@@ -36,9 +36,9 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.email
+    @medium = MM.MEDIA.forum
     @mediumType = MM.MEDIUM_TYPES.uncensored
-    @view = MM.VIEWS.arrestProbability
+    @view = MM.VIEWS.regimeLegitimacy
     
     @copsRetreat = false
     @activesAdvance = false
@@ -46,6 +46,8 @@ class MM.Config
     @friendsMultiplier = 2 # 1 actively cancels out friends
     @friendsHardshipHomophilous = true # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
+
+    @mediaChannels = 7
 
     @citizenDensity = 0.7
     #@copDensity = 0.04
@@ -71,7 +73,6 @@ class MM.Config
       prisoners: {label: "Prisoners", color: "black"},
       cops: {label: "Cops", color: "blue"}
     }
-
     # ### Do not modify below unless you know what you're doing.
 
     sharedModelOptions = {
@@ -107,8 +108,25 @@ class MM.Config
 
     @config = @
 
+    @check()
+
   makeHeadless: ->
     @modelOptions.isHeadless = true
     @viewModelOptions.isHeadless = true
     @mediaModelOptions.isHeadless = true
     @mediaMirrorModelOptions.isHeadless = true
+
+    @check()
+
+  check: ->
+    if @testRun && @modelOptions.isHeadless
+      throw "Cannot be a testRun if headless"
+
+    if @friendsMultiplier < 1
+      throw "friendsMultiplier should be 1 (cancels) or over"
+
+    if @arrestDuration < 1 and MM.LEGITIMACY_CALCULATIONS.arrests == @legitimacyCalculation
+      throw "arrests need to be visible for legitimacyCalculation"
+
+    if @mediaChannels > @mediaModelOptions.max.x + 1
+      throw "Too many channels for world size"

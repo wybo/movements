@@ -30,11 +30,15 @@ class MM.Agent extends ABM.Agent
       return {activism: 0.0, active: false}
 
   calculateLegitimacyDrop: (count) ->
-    return count.arrests / (count.citizens - count.activism)
+    #return count.arrests / (count.citizens - count.activism)
     # could consider taking min of cops + activism, police-violence
     # or arrests
     # Make active agents share photos of fights
     # Two things expressed. Grievance/active and photos 
+    if count.citizens == 0
+      return 0
+    else
+      return count.activism / count.citizens
 
   calculatePerceivedArrestProbability: (count) ->
     return @calculateCopWillMakeArrestProbability(count) *
@@ -82,7 +86,7 @@ class MM.Agent extends ABM.Agent
       if agent.breed.name is "cops"
         cops += 1
       else
-        if @config.friends and @config.friendsMultiplier != 1 and @isFriendsWith(agent)
+        if @config.friends and @isFriendsWith(agent)
           friendsMultiplier = @config.friendsMultiplier
         else
           friendsMultiplier = 1

@@ -4,7 +4,7 @@ class MM.MediumGenericBroadcast extends MM.Medium
 
     @channels = new ABM.Array
 
-    for n in [0..7]
+    for n in [0..@config.mediaChannels]
       @newChannel(n)
 
   use: (original) ->
@@ -33,9 +33,6 @@ class MM.MediumGenericBroadcast extends MM.Medium
         message.destroy() # takes readers as well
 
     @channels.unshift newChannel
-
-    if @channels.length > @world.max.x + 1
-      throw "Too many channels for world size"
 
   newMessage: (from) ->
     @route new MM.Message from

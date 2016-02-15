@@ -50,13 +50,22 @@ class MM.UI
     for key, value of settings
       if key == "view"
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange(=> @model.views.changed())
+        adder.onChange(=>
+          @model.config.check()
+          @model.views.changed()
+        )
       else if key == "friends"
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange(=> @model.resetAllFriends())
+        adder.onChange(=>
+          @model.config.check()
+          @model.resetAllFriends()
+        )
       else if key == "medium"
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange(=> @model.media.changed())
+        adder.onChange(=>
+          @model.config.check()
+          @model.media.changed()
+        )
       else if u.isArray(value)
         @gui.add(@model.config, key, value...)
       else
