@@ -56,7 +56,7 @@ class MM.Config
     @arrestDuration = 2
     @maxPrisonSentence = 30 # J
     #@baseRegimeLegitimacy = 0.85 # L
-    @baseRegimeLegitimacy = 0.82 # L
+    @baseRegimeLegitimacy = 0.80 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
@@ -149,7 +149,7 @@ class MM.Message
     if @from.original.sawArrest
       @active = true
       @activism = 1
-  
+
   destroy: ->
     for reader in @readers by -1
       reader.toNextMessage()

@@ -16,7 +16,7 @@ class MM.Message
     if @from.original.sawArrest
       @active = true
       @activism = 1
-  
+
   destroy: ->
     for reader in @readers by -1
       reader.toNextMessage()
