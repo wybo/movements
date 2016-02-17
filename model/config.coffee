@@ -20,7 +20,7 @@ indexHash = (array) ->
 
   return hash
 
-MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro"])
+MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "hold"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
@@ -38,7 +38,8 @@ class MM.Config
     @friends = MM.FRIENDS.local
     @medium = MM.MEDIA.forum
     @mediumType = MM.MEDIUM_TYPES.uncensored
-    @view = MM.VIEWS.regimeLegitimacy
+    #@view = MM.VIEWS.regimeLegitimacy
+    @view = MM.VIEWS.riskAversion
     
     @copsRetreat = false
     @activesAdvance = false
@@ -47,7 +48,10 @@ class MM.Config
     @friendsHardshipHomophilous = true # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
 
-    @mediaChannels = 7
+    @mediaChannels = 7 # for media TV and radio
+
+    @holdInterval = 100 # for hold type
+    @holdReleaseDuration = 25
 
     @citizenDensity = 0.7
     #@copDensity = 0.04
@@ -56,7 +60,8 @@ class MM.Config
     @arrestDuration = 2
     @maxPrisonSentence = 30 # J
     #@baseRegimeLegitimacy = 0.85 # L
-    @baseRegimeLegitimacy = 0.80 # L
+    #@baseRegimeLegitimacy = 0.80 # L
+    @baseRegimeLegitimacy = 0.75 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
@@ -130,3 +135,7 @@ class MM.Config
 
     if @mediaChannels > @mediaModelOptions.max.x + 1
       throw "Too many channels for world size"
+
+    for index in [@type, @calculation, @legitimacyCalculation, @friends, @medium, @mediumType, @view]
+      if !u.isInteger(index)
+        throw "Config index not integer!"

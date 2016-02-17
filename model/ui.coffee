@@ -48,26 +48,9 @@ class MM.UI
         window.model.restart()
 
     for key, value of settings
-      if key == "view"
+      if u.isArray(value)
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange(=>
-          @model.config.check()
-          @model.views.changed()
-        )
-      else if key == "friends"
-        adder = @gui.add(@model.config, key, value...)
-        adder.onChange(=>
-          @model.config.check()
-          @model.resetAllFriends()
-        )
-      else if key == "medium"
-        adder = @gui.add(@model.config, key, value...)
-        adder.onChange(=>
-          @model.config.check()
-          @model.media.changed()
-        )
-      else if u.isArray(value)
-        @gui.add(@model.config, key, value...)
+        adder.onChange(@setDropdown(key, @))
       else
         adder = @gui.add(@model.config, key)
         for setting, argument of value
@@ -75,6 +58,16 @@ class MM.UI
 
     for key, bull of buttons
       @gui.add(buttons, key)
+
+  setDropdown: (key, ui) -> return (value) -> # closure-fu to keep key
+    ui.model.config[key] = parseInt(value)
+    ui.model.config.check()
+    if key == "view"
+      ui.model.views.changed()
+    else if key == "friends"
+      ui.model.resetAllFriends()
+    else if key == "medium"
+      ui.model.media.changed()
 
   resetPlot: ->
     options = {

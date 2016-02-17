@@ -20,7 +20,7 @@ indexHash = (array) ->
 
   return hash
 
-MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro"])
+MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "hold"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
@@ -38,7 +38,8 @@ class MM.Config
     @friends = MM.FRIENDS.local
     @medium = MM.MEDIA.forum
     @mediumType = MM.MEDIUM_TYPES.uncensored
-    @view = MM.VIEWS.regimeLegitimacy
+    #@view = MM.VIEWS.regimeLegitimacy
+    @view = MM.VIEWS.riskAversion
     
     @copsRetreat = false
     @activesAdvance = false
@@ -47,7 +48,10 @@ class MM.Config
     @friendsHardshipHomophilous = true # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
 
-    @mediaChannels = 7
+    @mediaChannels = 7 # for media TV and radio
+
+    @holdInterval = 100 # for hold type
+    @holdReleaseDuration = 25
 
     @citizenDensity = 0.7
     #@copDensity = 0.04
@@ -56,7 +60,8 @@ class MM.Config
     @arrestDuration = 2
     @maxPrisonSentence = 30 # J
     #@baseRegimeLegitimacy = 0.85 # L
-    @baseRegimeLegitimacy = 0.80 # L
+    #@baseRegimeLegitimacy = 0.80 # L
+    @baseRegimeLegitimacy = 0.75 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
@@ -130,6 +135,10 @@ class MM.Config
 
     if @mediaChannels > @mediaModelOptions.max.x + 1
       throw "Too many channels for world size"
+
+    for index in [@type, @calculation, @legitimacyCalculation, @friends, @medium, @mediumType, @view]
+      if !u.isInteger(index)
+        throw "Config index not integer!"
 
 class MM.Message
   constructor: (from, to) ->
@@ -988,26 +997,9 @@ class MM.UI
         window.model.restart()
 
     for key, value of settings
-      if key == "view"
+      if u.isArray(value)
         adder = @gui.add(@model.config, key, value...)
-        adder.onChange(=>
-          @model.config.check()
-          @model.views.changed()
-        )
-      else if key == "friends"
-        adder = @gui.add(@model.config, key, value...)
-        adder.onChange(=>
-          @model.config.check()
-          @model.resetAllFriends()
-        )
-      else if key == "medium"
-        adder = @gui.add(@model.config, key, value...)
-        adder.onChange(=>
-          @model.config.check()
-          @model.media.changed()
-        )
-      else if u.isArray(value)
-        @gui.add(@model.config, key, value...)
+        adder.onChange(@setDropdown(key, @))
       else
         adder = @gui.add(@model.config, key)
         for setting, argument of value
@@ -1015,6 +1007,16 @@ class MM.UI
 
     for key, bull of buttons
       @gui.add(buttons, key)
+
+  setDropdown: (key, ui) -> return (value) -> # closure-fu to keep key
+    ui.model.config[key] = parseInt(value)
+    ui.model.config.check()
+    if key == "view"
+      ui.model.views.changed()
+    else if key == "friends"
+      ui.model.resetAllFriends()
+    else if key == "medium"
+      ui.model.media.changed()
 
   resetPlot: ->
     options = {
@@ -1327,9 +1329,15 @@ class MM.Model extends ABM.Model
       citizen.activate = ->
         activation = @grievance() - @netRisk()
 
-        status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
-        @active = status.active
-        @activism = status.activism
+        if MM.TYPES.hold == @config.type
+          if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration
+            status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
+            @active = status.active
+            @activism = status.activism
+        else
+          status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
+          @active = status.active
+          @activism = status.activism
 
         if @active
           @setColor "red"

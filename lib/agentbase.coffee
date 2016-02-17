@@ -65,6 +65,9 @@ ABM.util =
   isNumber: (object) ->
     !!(typeof object is "number")
 
+  isInteger: (object) ->
+    !!(@isNumber(object) and object % 1 == 0)
+
   isBoolean: (object) ->
     !!(typeof object is "boolean")
 
@@ -1137,8 +1140,8 @@ ABM.util.array.extender =
       eval("""
         #{className}.prototype.#{method} = function() {
           var options, _ref, _ret;
-          options = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-          _ret = (_ref = u.array).#{method}.apply(_ref, [this].concat(__slice.call(options)));
+          options = 1 <= arguments.length ? Array.prototype.slice.call(arguments, 0) : [];
+          _ret = (_ref = u.array).#{method}.apply(_ref, [this].concat(Array.prototype.slice.call(options)));
           if (ABM.util.isArray(_ret)) {
             return this.constructor.from(_ret);
           } else {

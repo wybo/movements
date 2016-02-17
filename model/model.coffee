@@ -129,9 +129,15 @@ class MM.Model extends ABM.Model
       citizen.activate = ->
         activation = @grievance() - @netRisk()
 
-        status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
-        @active = status.active
-        @activism = status.activism
+        if MM.TYPES.hold == @config.type
+          if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration
+            status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
+            @active = status.active
+            @activism = status.activism
+        else
+          status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
+          @active = status.active
+          @activism = status.activism
 
         if @active
           @setColor "red"
