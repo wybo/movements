@@ -20,7 +20,7 @@ indexHash = (array) ->
 
   return hash
 
-MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "hold"])
+MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "hold", "square"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
@@ -32,7 +32,7 @@ MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLe
 class MM.Config
   constructor: ->
     @testRun = false
-    @type = MM.TYPES.normal
+    @type = MM.TYPES.square
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local

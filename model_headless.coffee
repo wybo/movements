@@ -20,7 +20,7 @@ indexHash = (array) ->
 
   return hash
 
-MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "hold"])
+MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "hold", "square"])
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
@@ -32,7 +32,7 @@ MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLe
 class MM.Config
   constructor: ->
     @testRun = false
-    @type = MM.TYPES.normal
+    @type = MM.TYPES.square
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
@@ -416,6 +416,17 @@ class MM.Agent extends ABM.Agent
 
   moveAwayFromPoint: (walk, point) ->
     @moveTowardsPoint(walk, point, false)
+
+  swapToActiveSquare: (point, options) ->
+    center = @model.patches.patch point
+    inactive = center.neighborAgents(options).sample(condition: (o) -> o.breed.name is "citizens" and !o.active)
+    if inactive
+      former_patch = @patch
+      to_patch = inactive.patch
+      if former_patch and to_patch # TODO fix vague patchless agents
+        inactive.moveOff()
+        @moveTo(to_patch.position)
+        inactive.moveTo(former_patch.position)
 
   # Assumes a world with an y-axis that runs from -X to X
   moveToRandomUpperHalf: (walk, upper = true) ->
@@ -1258,6 +1269,10 @@ class MM.Model extends ABM.Model
               @moveTowardsPoint(@config.walk, {x: 0, y: 0})
             else
               @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
+          else if MM.TYPES.square == @config.type
+            @moveToRandomEmptyLocation()
+            if @active
+              @swapToActiveSquare({x: 0, y: 0}, range: 5)
           else
             if @config.activesAdvance and @active
               @advance()
@@ -1268,6 +1283,7 @@ class MM.Model extends ABM.Model
             @makeLocalFriends(@config.friendsNumber)
 
           @activate()
+          @updateColor()
 
       citizen.grievance = ->
         @hardship * (1 - @regimeLegitimacy())
@@ -1339,6 +1355,7 @@ class MM.Model extends ABM.Model
           @active = status.active
           @activism = status.activism
 
+      citizen.updateColor = ->
         if @active
           @setColor "red"
         else

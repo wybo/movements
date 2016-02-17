@@ -58,6 +58,10 @@ class MM.Model extends ABM.Model
               @moveTowardsPoint(@config.walk, {x: 0, y: 0})
             else
               @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
+          else if MM.TYPES.square == @config.type
+            @moveToRandomEmptyLocation()
+            if @active
+              @swapToActiveSquare({x: 0, y: 0}, range: 5)
           else
             if @config.activesAdvance and @active
               @advance()
@@ -68,6 +72,7 @@ class MM.Model extends ABM.Model
             @makeLocalFriends(@config.friendsNumber)
 
           @activate()
+          @updateColor()
 
       citizen.grievance = ->
         @hardship * (1 - @regimeLegitimacy())
@@ -139,6 +144,7 @@ class MM.Model extends ABM.Model
           @active = status.active
           @activism = status.activism
 
+      citizen.updateColor = ->
         if @active
           @setColor "red"
         else

@@ -120,6 +120,17 @@ class MM.Agent extends ABM.Agent
   moveAwayFromPoint: (walk, point) ->
     @moveTowardsPoint(walk, point, false)
 
+  swapToActiveSquare: (point, options) ->
+    center = @model.patches.patch point
+    inactive = center.neighborAgents(options).sample(condition: (o) -> o.breed.name is "citizens" and !o.active)
+    if inactive
+      former_patch = @patch
+      to_patch = inactive.patch
+      if former_patch and to_patch # TODO fix vague patchless agents
+        inactive.moveOff()
+        @moveTo(to_patch.position)
+        inactive.moveTo(former_patch.position)
+
   # Assumes a world with an y-axis that runs from -X to X
   moveToRandomUpperHalf: (walk, upper = true) ->
     empties = @randomEmptyNeighbors(walk)
