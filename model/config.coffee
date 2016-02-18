@@ -61,7 +61,7 @@ class MM.Config
     @maxPrisonSentence = 30 # J
     #@baseRegimeLegitimacy = 0.85 # L
     #@baseRegimeLegitimacy = 0.80 # L
-    @baseRegimeLegitimacy = 0.75 # L
+    @baseRegimeLegitimacy = 0.80 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
