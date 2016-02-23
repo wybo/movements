@@ -43,6 +43,10 @@ class MM.Config
     
     @copsRetreat = false
     @activesAdvance = false
+    @copsDefect = true
+    #@prisonCapacity = 0.20
+    @prisonCapacity = 1.00
+
     @friendsNumber = 30 # also used for Fb
     @friendsMultiplier = 2 # 1 actively cancels out friends
     @friendsHardshipHomophilous = true # If true range has to be 6 min, and friends max 30 or will have fewer
@@ -992,8 +996,10 @@ class MM.UI
       baseRegimeLegitimacy: {min: 0, max: 1}
       threshold: {min: -1, max: 1}
       thresholdMicro: {min: -1, max: 1}
+      prisonCapacity: {min: 0, max: 1}
       copsRetreat: null
       activesAdvance: null
+      copsDefect: null
       friendsNumber: null
       friendsMultiplier: {min: 0, max: 5}
       friendsHardshipHomophilous: null
@@ -1236,179 +1242,191 @@ class MM.Model extends ABM.Model
     space = @patches.length
 
     for citizen in @citizens.create @config.citizenDensity * space
-      citizen.config = @config
-      citizen.size = @size
-      citizen.shape = "person"
-      citizen.setColor "green"
-      citizen.moveToRandomEmptyLocation()
-
-      citizen.hardship = u.randomFloat() # H
-      citizen.riskAversion = u.randomFloat() # R
-      citizen.lastLegitimacyDrop = 0
-      citizen.active = false
-      citizen.activism = 0.0
-      citizen.arrestDuration = 0
-      citizen.prisonSentence = 0
-      citizen.sawArrest = false
-
-      citizen.act = ->
-        if @imprisoned()
-          @prisonSentence -= 1
-
-          if !@imprisoned() # just released
-            @moveToRandomEmptyLocation()
-
-        if !@fighting() and !@imprisoned() # including just released
-          if MM.TYPES.enclave == @config.type
-            if @riskAversion < 0.5
-              @moveToRandomUpperHalf(@config.walk)
-            else
-              @moveToRandomBottomHalf(@config.walk)
-          else if MM.TYPES.focalPoint == @config.type
-            if @riskAversion < 0.5
-              @moveTowardsPoint(@config.walk, {x: 0, y: 0})
-            else
-              @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
-          else if MM.TYPES.square == @config.type
-            @moveToRandomEmptyLocation()
-            if @active
-              @swapToActiveSquare({x: 0, y: 0}, range: 5)
-          else
-            if @config.activesAdvance and @active
-              @advance()
-            else
-              @moveToRandomEmptyNeighbor(@config.walk)
-
-          if MM.FRIENDS.local == @config.friends
-            @makeLocalFriends(@config.friendsNumber)
-
-          @activate()
-          @updateColor()
-
-      citizen.grievance = ->
-        @hardship * (1 - @regimeLegitimacy())
-
-      citizen.regimeLegitimacy = ->
-        if MM.LEGITIMACY_CALCULATIONS.base == @config.legitimacyCalculation or @imprisoned()
-          return @config.baseRegimeLegitimacy
-        else
-          if @mediumMirror() and @mediumMirror().online()
-            count = @mediumMirror().count
-
-            count.citizens = count.reads # TODO fix/simplify
-
-            @mediumMirror().resetCount()
-          else
-            count = @countNeighbors(vision: @config.vision)
-
-          @lastLegitimacyDrop = (@lastLegitimacyDrop + @calculateLegitimacyDrop(count)) / 2
-
-          return @config.baseRegimeLegitimacy - @lastLegitimacyDrop * 0.1
-
-      citizen.arrestProbability = ->
-        count = @countNeighbors(vision: @config.vision)
-
-        count.activism += 1
-        count.actives += 1
-        count.citizens += 1
-
-        if count.arrests > 0
-          @sawArrest = true
-        else
-          @sawArrest = false
-
-        @calculatePerceivedArrestProbability(count)
-
-      citizen.netRisk = ->
-        @arrestProbability() * @riskAversion
-
-      citizen.imprison = ->
-        @prisonSentence = 1 + u.randomInt(@config.maxPrisonSentence)
-        @moveOff()
-
-      citizen.arrest = ->
-        @arrestDuration = @config.arrestDuration
-        @setColor "purple"
-
-      citizen.beatUp = ->
-        @arrestDuration -= 1
-
-      citizen.fighting = ->
-        @arrestDuration > 0
-
-      citizen.imprisoned = ->
-        @prisonSentence > 0
-
-      citizen.advance = ->
-        @moveAwayFromArrestProbability(@config.walk, @config.vision)
-
-      citizen.activate = ->
-        activation = @grievance() - @netRisk()
-
-        if MM.TYPES.hold == @config.type
-          if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration
-            status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
-            @active = status.active
-            @activism = status.activism
-        else
-          status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
-          @active = status.active
-          @activism = status.activism
-
-      citizen.updateColor = ->
-        if @active
-          @setColor "red"
-        else
-          if @activism > 0
-            @setColor "orange"
-          else
-            @setColor "green"
+      @setupCitizen(citizen)
 
     @resetAllFriends()
 
     for cop in @cops.create @config.copDensity * space
-      cop.config = @config
-      cop.size = @size
-      cop.shape = "person"
-      cop.arresting = null
-      cop.setColor "blue"
-      cop.moveToRandomEmptyLocation()
-
-      cop.act = ->
-        if @fighting()
-          @arresting.beatUp()
-          if !@arresting.fighting()
-            @arresting.imprison()
-            @arresting = null
-        if !@fighting()
-          count = @countNeighbors(vision: @config.vision)
-          count.cops += 1
-
-          if @config.copsRetreat and @calculateCopWillMakeArrestProbability(count) < u.randomFloat()
-            @retreat()
-          else
-            @initiateArrest()
-            @moveToRandomEmptyNeighbor()
-
-      cop.retreat = ->
-        @moveTowardsArrestProbability(@config.walk, @config.vision, true)
-
-      cop.initiateArrest = ->
-          protester = @neighbors(@config.vision).sample(condition: (agent) ->
-            agent.breed.name is "citizens" and
-              agent.active and !agent.fighting())
-
-          if protester
-            @arresting = protester
-            @arresting.arrest()
-
-      cop.fighting = ->
-        return (@arresting != null)
+      @setupCop(cop)
 
     unless @isHeadless
       window.modelUI.resetPlot()
       @views.current().populate(@)
       @consoleLog()
+
+  setupCitizen: (citizen) ->
+    citizen.config = @config
+    citizen.size = @size
+    citizen.shape = "person"
+    citizen.setColor "green"
+    citizen.moveToRandomEmptyLocation()
+
+    citizen.hardship = u.randomFloat() # H
+    citizen.riskAversion = u.randomFloat() # R
+    citizen.lastLegitimacyDrop = 0
+    citizen.active = false
+    citizen.activism = 0.0
+    citizen.arrestDuration = 0
+    citizen.prisonSentence = 0
+    citizen.sawArrest = false
+
+    citizen.act = ->
+      if @imprisoned()
+        @prisonSentence -= 1
+
+        if !@imprisoned() # just released
+          @moveToRandomEmptyLocation()
+
+      if !@fighting() and !@imprisoned() # including just released
+        if MM.TYPES.enclave == @config.type
+          if @riskAversion < 0.5
+            @moveToRandomUpperHalf(@config.walk)
+          else
+            @moveToRandomBottomHalf(@config.walk)
+        else if MM.TYPES.focalPoint == @config.type
+          if @riskAversion < 0.5
+            @moveTowardsPoint(@config.walk, {x: 0, y: 0})
+          else
+            @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
+        else if MM.TYPES.square == @config.type
+          @moveToRandomEmptyLocation()
+          if @active
+            @swapToActiveSquare({x: 0, y: 0}, range: 5)
+        else
+          if @config.activesAdvance and @active
+            @advance()
+          else
+            @moveToRandomEmptyNeighbor(@config.walk)
+
+        if MM.FRIENDS.local == @config.friends
+          @makeLocalFriends(@config.friendsNumber)
+
+        @activate()
+        @updateColor()
+
+    citizen.grievance = ->
+      @hardship * (1 - @regimeLegitimacy())
+
+    citizen.regimeLegitimacy = ->
+      if MM.LEGITIMACY_CALCULATIONS.base == @config.legitimacyCalculation or @imprisoned()
+        return @config.baseRegimeLegitimacy
+      else
+        if @mediumMirror() and @mediumMirror().online()
+          count = @mediumMirror().count
+
+          count.citizens = count.reads # TODO fix/simplify
+
+          @mediumMirror().resetCount()
+        else
+          count = @countNeighbors(vision: @config.vision)
+
+        @lastLegitimacyDrop = (@lastLegitimacyDrop + @calculateLegitimacyDrop(count)) / 2
+
+        return @config.baseRegimeLegitimacy - @lastLegitimacyDrop * 0.1
+
+    citizen.arrestProbability = ->
+      count = @countNeighbors(vision: @config.vision)
+
+      count.activism += 1
+      count.actives += 1
+      count.citizens += 1
+
+      if count.arrests > 0
+        @sawArrest = true
+      else
+        @sawArrest = false
+
+      @calculatePerceivedArrestProbability(count)
+
+    citizen.netRisk = ->
+      @arrestProbability() * @riskAversion
+
+    citizen.imprison = ->
+      @prisonSentence = 1 + u.randomInt(@config.maxPrisonSentence)
+      @moveOff()
+
+    citizen.arrest = ->
+      @arrestDuration = @config.arrestDuration
+      @setColor "purple"
+
+    citizen.beatUp = ->
+      @arrestDuration -= 1
+
+    citizen.fighting = ->
+      @arrestDuration > 0
+
+    citizen.imprisoned = ->
+      @prisonSentence > 0
+
+    citizen.advance = ->
+      @moveAwayFromArrestProbability(@config.walk, @config.vision)
+
+    citizen.activate = ->
+      activation = @grievance() - @netRisk()
+
+      if MM.TYPES.hold == @config.type
+        if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration
+          status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
+          @active = status.active
+          @activism = status.activism
+      else
+        status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
+        @active = status.active
+        @activism = status.activism
+
+    citizen.updateColor = ->
+      if @active
+        @setColor "red"
+      else
+        if @activism > 0
+          @setColor "orange"
+        else
+          @setColor "green"
+
+  setupCop: (cop) ->
+    cop.config = @config
+    cop.size = @size
+    cop.shape = "person"
+    cop.arresting = null
+    cop.setColor "blue"
+    cop.moveToRandomEmptyLocation()
+
+    cop.act = ->
+      if @fighting()
+        @arresting.beatUp()
+        if !@arresting.fighting()
+          @arresting.imprison()
+          @arresting = null
+      if !@fighting()
+        count = @countNeighbors(vision: @config.vision)
+        count.cops += 1
+
+        if @config.copsDefect and count.activism * 2 > count.citizens and count.cops < count.citizens * 10 and @animator.ticks > 50
+          patch = @patch
+          @die()
+          citizen = @model.citizens.create 1, (citizen) =>
+            @model.setupCitizen(citizen)
+            citizen.moveTo(patch.position)
+        else if @config.copsRetreat and @calculateCopWillMakeArrestProbability(count) < u.randomFloat()
+          @retreat()
+        else if @model.prisoners().length < @config.prisonCapacity * @model.agents.length
+          @initiateArrest()
+          @moveToRandomEmptyNeighbor()
+
+    cop.retreat = ->
+      @moveTowardsArrestProbability(@config.walk, @config.vision, true)
+
+    cop.initiateArrest = ->
+        protester = @neighbors(@config.vision).sample(condition: (agent) ->
+          agent.breed.name is "citizens" and
+            agent.active and !agent.fighting())
+
+        if protester
+          @arresting = protester
+          @arresting.arrest()
+
+    cop.fighting = ->
+      return (@arresting != null)
 
   step: -> # called by MM.Model.animate
     @agents.shuffle()
@@ -1466,19 +1484,20 @@ class MM.Model extends ABM.Model
         arrests.push citizen
     return arrests
 
-  prisoners: ->
-    prisoners = []
-    for citizen in @citizens
-      if citizen.imprisoned()
-        prisoners.push citizen
-    return prisoners
+  prisoners: (reset = false) ->
+    if !@prisoners_cache or reset
+      @prisoners_cache = []
+      for citizen in @citizens
+        if citizen.imprisoned()
+          @prisoners_cache.push citizen
+    return @prisoners_cache
 
   tickData: ->
     citizens = @citizens.length
     actives = @actives().length
     micros = @micros().length
     arrests = @arrests().length
-    prisoners = @prisoners().length
+    prisoners = @prisoners(true).length
 
     return {
       citizens: citizens

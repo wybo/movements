@@ -32,8 +32,10 @@ class MM.UI
       baseRegimeLegitimacy: {min: 0, max: 1}
       threshold: {min: -1, max: 1}
       thresholdMicro: {min: -1, max: 1}
+      prisonCapacity: {min: 0, max: 1}
       copsRetreat: null
       activesAdvance: null
+      copsDefect: null
       friendsNumber: null
       friendsMultiplier: {min: 0, max: 5}
       friendsHardshipHomophilous: null

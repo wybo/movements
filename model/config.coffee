@@ -43,6 +43,10 @@ class MM.Config
     
     @copsRetreat = false
     @activesAdvance = false
+    @copsDefect = true
+    #@prisonCapacity = 0.20
+    @prisonCapacity = 1.00
+
     @friendsNumber = 30 # also used for Fb
     @friendsMultiplier = 2 # 1 actively cancels out friends
     @friendsHardshipHomophilous = true # If true range has to be 6 min, and friends max 30 or will have fewer
