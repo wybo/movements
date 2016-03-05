@@ -45,10 +45,10 @@ class MM.Medium extends ABM.Model
       agent.online = ->
         @onlineTimer > 0
 
-      agent.read = (message) ->
+      agent.read = (message, countIt = true) ->
         @closeMessage()
 
-        if message
+        if message and countIt
           message.readers.push(@)
           @count.reads += 1
           if message.active

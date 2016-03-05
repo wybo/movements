@@ -9,10 +9,10 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
       if u.randomInt(20) == 1
         @model.newMessage(@)
       
-      @toNextMessage()
+      @toNextReading()
 
-    agent.toNextMessage = ->
-      @read(@channel[0])
+    agent.toNextReading = (countIt) ->
+      @read(@channel[0], countIt)
 
   drawAll: ->
     @copyOriginalColors()

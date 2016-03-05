@@ -10,7 +10,7 @@ experiment = experiment.gsub(/],$/,"]")
 
 list = Dir.glob("experiments/*")
 
-list.reject! {|f| f =~ /experiments/}
+list.reject! {|f| f =~ /experiments.js/}
 list.each {|f| f.gsub!(/experiments\//, "")}
 list.sort!
 

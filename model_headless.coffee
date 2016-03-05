@@ -40,10 +40,15 @@ class MM.Config
     @mediumType = MM.MEDIUM_TYPES.uncensored
     #@view = MM.VIEWS.regimeLegitimacy
     @view = MM.VIEWS.riskAversion
+    @smartPhones = false
     
-    @copsRetreat = false
+    @holdInterval = 100 # for hold type
+    @holdReleaseDuration = 25
+    @holdOnlyIfNotified = true
     @activesAdvance = false
-    @copsDefect = true
+
+    @copsRetreat = false
+    @copsDefect = false
     #@prisonCapacity = 0.20
     @prisonCapacity = 1.00
 
@@ -54,9 +59,6 @@ class MM.Config
 
     @mediaChannels = 7 # for media TV and radio
 
-    @holdInterval = 100 # for hold type
-    @holdReleaseDuration = 25
-
     @citizenDensity = 0.7
     #@copDensity = 0.04
     #@copDensity = 0.012
@@ -65,7 +67,7 @@ class MM.Config
     @maxPrisonSentence = 30 # J
     #@baseRegimeLegitimacy = 0.85 # L
     #@baseRegimeLegitimacy = 0.80 # L
-    @baseRegimeLegitimacy = 0.80 # L
+    @baseRegimeLegitimacy = 0.79 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
@@ -81,8 +83,20 @@ class MM.Config
       arrests: {label: "Arrests", color: "purple"},
       prisoners: {label: "Prisoners", color: "black"},
       cops: {label: "Cops", color: "blue"}
+      onlines: {label: "Onlines", color: "cyan"}
     }
+
     # ### Do not modify below unless you know what you're doing.
+
+    @hashes = {
+      type: MM.TYPES,
+      calculation: MM.CALCULATIONS,
+      legitimacyCalculation: MM.LEGITIMACY_CALCULATIONS,
+      friends: MM.FRIENDS,
+      medium: MM.MEDIA,
+      mediumType: MM.MEDIUM_TYPES,
+      view: MM.VIEWS
+    }
 
     sharedModelOptions = {
       patchSize: 20
@@ -165,7 +179,7 @@ class MM.Message
 
   destroy: ->
     for reader in @readers by -1
-      reader.toNextMessage()
+      reader.toNextReading(false)
 
 # Copyright 2014, Wybo Wiersma, available under the GPL v3
 # This model builds upon Epsteins model of protest, and illustrates
@@ -214,10 +228,10 @@ class MM.Medium extends ABM.Model
       agent.online = ->
         @onlineTimer > 0
 
-      agent.read = (message) ->
+      agent.read = (message, countIt = true) ->
         @closeMessage()
 
-        if message
+        if message and countIt
           message.readers.push(@)
           @count.reads += 1
           if message.active
@@ -273,8 +287,11 @@ class MM.MediumGenericDelivery extends MM.Medium
     if !agent.inbox # TODO really needed?
       agent.inbox = @inboxes[agent.original.id] = new ABM.Array
 
-    agent.toNextMessage = ->
-      @read(@inbox.pop())
+    agent.toNextReading = (countIt) ->
+      for message in @inbox
+        @read(message, countIt)
+
+      @inbox.clear()
 
     return agent
 
@@ -422,15 +439,16 @@ class MM.Agent extends ABM.Agent
     @moveTowardsPoint(walk, point, false)
 
   swapToActiveSquare: (point, options) ->
-    center = @model.patches.patch point
-    options.meToo = true
-    inactive = center.neighborAgents(options).sample(condition: (o) -> o.breed.name is "citizens" and !o.active)
-    if inactive
-      former_patch = @patch
-      to_patch = inactive.patch
-      inactive.moveOff()
-      @moveTo(to_patch.position)
-      inactive.moveTo(former_patch.position)
+    if @patch.distance(point, dimension: true) > options.range
+      center = @model.patches.patch point
+      options.meToo = true
+      inactive = center.neighborAgents(options).sample(condition: (o) -> o.breed.name is "citizens" and !o.active)
+      if inactive
+        former_patch = @patch
+        to_patch = inactive.patch
+        inactive.moveOff()
+        @moveTo(to_patch.position)
+        inactive.moveTo(former_patch.position)
 
   # Assumes a world with an y-axis that runs from -X to X
   moveToRandomUpperHalf: (walk, upper = true) ->
@@ -493,7 +511,7 @@ class MM.Agent extends ABM.Agent
   randomEmptyNeighbors: (walk) ->
     @patch.neighbors(walk).select((patch) -> patch.empty()).shuffle()
 
-  #### Misc
+  #### Friends & befriending
 
   resetFriends: ->
     @friendsHash = {}
@@ -569,6 +587,12 @@ class MM.Agent extends ABM.Agent
       for agent in list
         agent.beFriendList(list)
 
+
+  #### Notices
+
+  leaveNotice: ->
+    @patch.noticeCounter = 10
+
 class MM.Media
   constructor: (model, options = {}) ->
     @model = model
@@ -616,7 +640,7 @@ class MM.MediumEMail extends MM.MediumGenericDelivery
       if u.randomInt(3) == 1
         @model.newMessage(@, @model.agents.sample())
         
-      @toNextMessage()
+      @toNextReading()
 
 class MM.MediumFacebookWall extends MM.MediumGenericDelivery
   setup: ->
@@ -629,13 +653,7 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
       if u.randomInt(10) == 1
         @model.newPost(@) # TODO move newPost to agent
 
-      @readPosts()
-
-    agent.readPosts = ->
-      while true
-        break unless agent.toNextMessage()
-
-      @inbox.clear()
+      @toNextReading()
 
   newPost: (agent) ->
     friends = @agents.sample(size: 30, condition: (o) ->
@@ -664,18 +682,24 @@ class MM.MediumForum extends MM.Medium
       if u.randomInt(20) == 1
         @model.newPost(@)
 
-      @toNextMessage()
+      @toNextReading()
 
-    agent.toNextMessage = ->
-      if @reading && @reading.next?
-        if @reading.thread[0] == @reading && @reading.thread.next? && @reading.active != @original.active # first post
-          @read(@reading.thread.next.first())
-        else
-          @read(@reading.next)
-      else if @reading && @reading.thread.next?
-          @read(@reading.thread.next.first())
+    agent.toNextReading = (countIt) ->
+      if @reading and @reading.thread.next?
+        @read(@reading.thread.next.first(), countIt)
       else
-        @read(@model.threads[0][0])
+        @read(@model.threads[0][0], countIt)
+
+      tries = 0
+      while @reading.active != @original.active and tries < 10
+        if @reading.thread.next?
+          @read(@reading.thread.next.first(), false)
+        else
+          @read(@model.threads[0][0], false)
+        tries += 1
+
+      while @reading.next?
+        @read(@reading.next, countIt)
 
   newPost: (agent) ->
     if u.randomInt(7) == 1
@@ -801,10 +825,14 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
       if u.randomInt(20) == 1
         @model.newMessage(@)
       
-      @toNextMessage()
+      @toNextReading()
 
-    agent.toNextMessage = ->
-      @read(@channel.sample()) # TODO not self!
+    agent.toNextReading = (countIt) ->
+      reading = @reading
+      if @channel.length == 1
+        @read(@channel[0])
+      else
+        @read(@channel.sample(condition: (o) -> o != reading), countIt)
 
   drawAll: ->
     @copyOriginalColors()
@@ -891,10 +919,10 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
       if u.randomInt(20) == 1
         @model.newMessage(@)
       
-      @toNextMessage()
+      @toNextReading()
 
-    agent.toNextMessage = ->
-      @read(@channel[0])
+    agent.toNextReading = (countIt) ->
+      @read(@channel[0], countIt)
 
   drawAll: ->
     @copyOriginalColors()
@@ -937,10 +965,10 @@ class MM.MediumWebsite extends MM.Medium
       if u.randomInt(20) == 1
         @model.newPage(@)
 
-      @toNextMessage()
+      @toNextReading()
 
-    agent.toNextMessage = ->
-      @read(@model.sites.sample())
+    agent.toNextReading = (countIt) ->
+      @read(@model.sites.sample(), countIt)
 
   newPage: (agent) ->
     @sites.unshift new MM.Message agent
@@ -981,14 +1009,12 @@ class MM.UI
     @setupControls()
 
   setupControls: () ->
-    settings =
-      type: [MM.TYPES]
-      calculation: [MM.CALCULATIONS]
-      legitimacyCalculation: [MM.LEGITIMACY_CALCULATIONS]
-      friends: [MM.FRIENDS]
-      medium: [MM.MEDIA]
-      mediumType: [MM.MEDIUM_TYPES]
-      view: [MM.VIEWS]
+    dropdownHashes = {}
+    for key, value of @model.config.hashes
+      dropdownHashes[key] = [value]
+
+    settings = u.merge dropdownHashes, {
+      smartPhones: null
       #medium: [MM.MEDIA], {onChange: 55}
       citizenDensity: {min: 0, max: 1}
       copDensity: {min: 0, max: 0.10}
@@ -1004,6 +1030,7 @@ class MM.UI
       friendsMultiplier: {min: 0, max: 5}
       friendsHardshipHomophilous: null
       friendsLocalRange: 5
+    }
 
     buttons =
       step: ->
@@ -1026,14 +1053,7 @@ class MM.UI
       @gui.add(buttons, key)
 
   setDropdown: (key, ui) -> return (value) -> # closure-fu to keep key
-    ui.model.config[key] = parseInt(value)
-    ui.model.config.check()
-    if key == "view"
-      ui.model.views.changed()
-    else if key == "friends"
-      ui.model.resetAllFriends()
-    else if key == "medium"
-      ui.model.media.changed()
+    ui.model.set(key, parseInt(value))
 
   resetPlot: ->
     options = {
@@ -1271,38 +1291,51 @@ class MM.Model extends ABM.Model
     citizen.sawArrest = false
 
     citizen.act = ->
-      if @imprisoned()
-        @prisonSentence -= 1
+      if !@fighting()
+        if @imprisoned()
+          @prisonSentence -= 1
 
-        if !@imprisoned() # just released
-          @moveToRandomEmptyLocation()
+          if !@imprisoned()
+            @moveToRandomEmptyLocation()
 
-      if !@fighting() and !@imprisoned() # including just released
-        if MM.TYPES.enclave == @config.type
-          if @riskAversion < 0.5
-            @moveToRandomUpperHalf(@config.walk)
-          else
-            @moveToRandomBottomHalf(@config.walk)
-        else if MM.TYPES.focalPoint == @config.type
-          if @riskAversion < 0.5
-            @moveTowardsPoint(@config.walk, {x: 0, y: 0})
-          else
-            @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
-        else if MM.TYPES.square == @config.type
-          @moveToRandomEmptyLocation()
-          if @active
-            @swapToActiveSquare({x: 0, y: 0}, range: 5)
-        else
-          if @config.activesAdvance and @active
-            @advance()
-          else
+        if @mediumMirror()
+          @mediumMirror().resetCount()
+          
+          if !@imprisoned()
+            if !@config.smartPhones and @mediumMirror().online() and @position
+              @moveOff()
+            else if !@position
+              @moveToRandomEmptyLocation()
+        
+        if @position? # free, just released, and not behind PC
+          if MM.TYPES.enclave == @config.type
+            if @riskAversion < 0.5
+              @moveToRandomUpperHalf(@config.walk)
+            else
+              @moveToRandomBottomHalf(@config.walk)
+          else if MM.TYPES.focalPoint == @config.type
+            if @riskAversion < 0.5
+              @moveTowardsPoint(@config.walk, {x: 0, y: 0})
+            else
+              @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
+          else if MM.TYPES.square == @config.type
             @moveToRandomEmptyNeighbor(@config.walk)
+            if @active
+              @swapToActiveSquare({x: 0, y: 0}, range: 5)
+          else
+            if @config.activesAdvance and @active
+              @advance()
+            else
+              @moveToRandomEmptyNeighbor(@config.walk)
 
-        if MM.FRIENDS.local == @config.friends
-          @makeLocalFriends(@config.friendsNumber)
+          if MM.FRIENDS.local == @config.friends
+            @makeLocalFriends(@config.friendsNumber)
 
-        @activate()
-        @updateColor()
+          if @config.holdOnlyIfNotified and @active and u.randomInt(20) == 1
+            @leaveNotice()
+
+          @activate()
+          @updateColor()
 
     citizen.grievance = ->
       @hardship * (1 - @regimeLegitimacy())
@@ -1315,12 +1348,10 @@ class MM.Model extends ABM.Model
           count = @mediumMirror().count
 
           count.citizens = count.reads # TODO fix/simplify
-
-          @mediumMirror().resetCount()
         else
           count = @countNeighbors(vision: @config.vision)
 
-        @lastLegitimacyDrop = (@lastLegitimacyDrop + @calculateLegitimacyDrop(count)) / 2
+        @lastLegitimacyDrop = (@lastLegitimacyDrop * 2 + @calculateLegitimacyDrop(count)) / 3
 
         return @config.baseRegimeLegitimacy - @lastLegitimacyDrop * 0.1
 
@@ -1365,10 +1396,12 @@ class MM.Model extends ABM.Model
       activation = @grievance() - @netRisk()
 
       if MM.TYPES.hold == @config.type
-        if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration
+        if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration and !@config.holdOnlyIfNotified or @notified
           status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
           @active = status.active
           @activism = status.activism
+          @notified = false
+
       else
         status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
         @active = status.active
@@ -1397,6 +1430,7 @@ class MM.Model extends ABM.Model
         if !@arresting.fighting()
           @arresting.imprison()
           @arresting = null
+
       if !@fighting()
         count = @countNeighbors(vision: @config.vision)
         count.cops += 1
@@ -1417,13 +1451,13 @@ class MM.Model extends ABM.Model
       @moveTowardsArrestProbability(@config.walk, @config.vision, true)
 
     cop.initiateArrest = ->
-        protester = @neighbors(@config.vision).sample(condition: (agent) ->
-          agent.breed.name is "citizens" and
-            agent.active and !agent.fighting())
+      protester = @neighbors(@config.vision).sample(condition: (agent) ->
+        agent.breed.name is "citizens" and
+          agent.active and !agent.fighting())
 
-        if protester
-          @arresting = protester
-          @arresting.arrest()
+      if protester
+        @arresting = protester
+        @arresting.arrest()
 
     cop.fighting = ->
       return (@arresting != null)
@@ -1461,6 +1495,17 @@ class MM.Model extends ABM.Model
         else if MM.FRIENDS.local == @config.friends
           citizen.makeLocalFriends(@config.friendsNumber)
 
+  set: (key, value) ->
+    if key == "view"
+      @views.changed()
+    else if key == "friends"
+      @resetAllFriends()
+    else if key == "medium"
+      @media.changed()
+    else
+      @config[key] = value
+      @config.check()
+
   actives: ->
     actives = []
     for citizen in @citizens
@@ -1485,12 +1530,20 @@ class MM.Model extends ABM.Model
     return arrests
 
   prisoners: (reset = false) ->
-    if !@prisoners_cache or reset
-      @prisoners_cache = []
+    if !@prisonersCache or reset
+      @prisonersCache = []
       for citizen in @citizens
         if citizen.imprisoned()
-          @prisoners_cache.push citizen
-    return @prisoners_cache
+          @prisonersCache.push citizen
+    return @prisonersCache
+
+  onlines: (reset = false) ->
+    if !@onlinesCache or reset
+      @onlinesCache = []
+      for citizen in @citizens
+        if citizen.mediumMirror() and citizen.mediumMirror().online()
+          @onlinesCache.push citizen
+    return @onlinesCache
 
   tickData: ->
     citizens = @citizens.length
@@ -1507,6 +1560,7 @@ class MM.Model extends ABM.Model
       arrests: arrests
       prisoners: prisoners
       cops: @cops.length
+      onlines: @onlines(true).length
     }
 
   resetData: ->
@@ -1517,6 +1571,7 @@ class MM.Model extends ABM.Model
       arrests: [],
       prisoners: [],
       cops: [],
+      onlines: [],
       media: []
     }
     
@@ -1530,6 +1585,7 @@ class MM.Model extends ABM.Model
     @data.arrests.push [ticks, tickData.arrests]
     @data.prisoners.push [ticks, tickData.prisoners]
     @data.cops.push [ticks, tickData.cops]
+    @data.onlines.push [ticks, tickData.onlines]
 
   recordMediaChange: ->
     ticks = @animator.ticks

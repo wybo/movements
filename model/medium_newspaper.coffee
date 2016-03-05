@@ -9,10 +9,14 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
       if u.randomInt(20) == 1
         @model.newMessage(@)
       
-      @toNextMessage()
+      @toNextReading()
 
-    agent.toNextMessage = ->
-      @read(@channel.sample()) # TODO not self!
+    agent.toNextReading = (countIt) ->
+      reading = @reading
+      if @channel.length == 1
+        @read(@channel[0])
+      else
+        @read(@channel.sample(condition: (o) -> o != reading), countIt)
 
   drawAll: ->
     @copyOriginalColors()

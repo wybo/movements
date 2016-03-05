@@ -33,10 +33,11 @@ window.plotTest = (test, index, config) ->
   label = test.setup.label || ''
   div2.append('<p class="title">Experiment run: <b>' + label + '</b></p>')
 
-  ignoreKeys = {label: true, config: true, modelOptions: true, viewModelOptions: true, mediaModelOptions: true, mediaMirrorModelOptions: true, ui: true}
-  ignoreKeys = window.appendSettings(div2, test.setup, ignoreKeys, '<b>', '</b>')
+  ignoreKeys = {label: true, config: true, modelOptions: true, viewModelOptions: true, mediaModelOptions: true, mediaMirrorModelOptions: true, ui: true, hashes: true}
+  console.log test.setup
+  div2.append(window.stringifySettings(test.setup, ignoreKeys, test.setup.config, '<b>', '</b>'))
   div2.append('<br />')
-  window.appendSettings(div2, test.setup.config, ignoreKeys)
+  div2.append(window.stringifySettings(test.setup.config, ignoreKeys, test.setup.config, '', ''))
 
   div2 = $('<div>').css({ float: 'left', clear: 'left' })
   div.append(div2)
@@ -59,29 +60,34 @@ window.plotTest = (test, index, config) ->
 
   $.plot(space, data, options)
 
-window.appendSettings = (div, hash, ignoreKeys, open, close) ->
-  for k, v of hash
-    if !ignoreKeys[k]
-      window.appendSetting(div, k, v, open, close)
-      ignoreKeys[k] = true
+# modifies ignoreKeys
+window.stringifySettings = (hash, ignoreKeys, config, open = '', close = '') ->
+  settings = []
+  for key, value of hash
+    if !ignoreKeys[key]
+      if ABM.util.isArray(value)
+        settings.push open + key + ': [' + window.stringifySettings(value, {"_sort": true}, config) + ']' + close
+      else if ABM.util.isObject(value)
+        settings.push open + key + ': {' + window.stringifySettings(value, {"_sort": true}, config) + '}' + close
+      else
+        settings.push window.stringifySetting(key, value, config, open, close)
+      ignoreKeys[key] = true
 
-  return ignoreKeys
+  return settings.join(', ')
 
-window.appendSetting = (div, key, value, open, close) ->
-  open = open || ''
-  close = close || ''
-  matchedConfig = false
-  configH = {type: MM.TYPES, calculation: MM.CALCULATIONS, legitimacyCalculation: MM.LEGITIMACY_CALCULATIONS, friends: MM.FRIENDS, medium: MM.MEDIA, mediumType: MM.MEDIUM_TYPES, view: MM.VIEWS}
-  for kC, vC of configH
-    if kC == key
-      div.append(open + key + ': ' + window.decodeHash(vC, value) + close + ', ')
-      matchedConfig = true
+window.stringifySetting = (key, value, config, open, close) ->
+  stringified = window.stringifyHashSetting(key, value, open, close, config)
   
-  if !matchedConfig
-    if key == 'vision' or key == 'walk'
-      div.append(open + key + ': ' + JSON.stringify(value) + close + ', ')
-    else
-      div.append(open + key + ': ' + value.toString() + close + ', ')
+  if stringified
+    return stringified
+  else
+    return open + key + ': ' + value.toString() + close
+
+window.stringifyHashSetting = (key, value, open, close, config) ->
+  for keyConfig, valueConfig of config.hashes
+    if keyConfig == key
+      return open + key + ': ' + window.decodeHash(valueConfig, value) + close
+  return null
 
 window.decodeHash = (hash, vId) ->
   for k, v of hash

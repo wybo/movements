@@ -19,4 +19,4 @@ class MM.Message
 
   destroy: ->
     for reader in @readers by -1
-      reader.toNextMessage()
+      reader.toNextReading(false)

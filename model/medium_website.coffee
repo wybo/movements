@@ -14,10 +14,10 @@ class MM.MediumWebsite extends MM.Medium
       if u.randomInt(20) == 1
         @model.newPage(@)
 
-      @toNextMessage()
+      @toNextReading()
 
-    agent.toNextMessage = ->
-      @read(@model.sites.sample())
+    agent.toNextReading = (countIt) ->
+      @read(@model.sites.sample(), countIt)
 
   newPage: (agent) ->
     @sites.unshift new MM.Message agent

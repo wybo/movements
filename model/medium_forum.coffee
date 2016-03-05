@@ -17,18 +17,24 @@ class MM.MediumForum extends MM.Medium
       if u.randomInt(20) == 1
         @model.newPost(@)
 
-      @toNextMessage()
+      @toNextReading()
 
-    agent.toNextMessage = ->
-      if @reading && @reading.next?
-        if @reading.thread[0] == @reading && @reading.thread.next? && @reading.active != @original.active # first post
-          @read(@reading.thread.next.first())
-        else
-          @read(@reading.next)
-      else if @reading && @reading.thread.next?
-          @read(@reading.thread.next.first())
+    agent.toNextReading = (countIt) ->
+      if @reading and @reading.thread.next?
+        @read(@reading.thread.next.first(), countIt)
       else
-        @read(@model.threads[0][0])
+        @read(@model.threads[0][0], countIt)
+
+      tries = 0
+      while @reading.active != @original.active and tries < 10
+        if @reading.thread.next?
+          @read(@reading.thread.next.first(), false)
+        else
+          @read(@model.threads[0][0], false)
+        tries += 1
+
+      while @reading.next?
+        @read(@reading.next, countIt)
 
   newPost: (agent) ->
     if u.randomInt(7) == 1

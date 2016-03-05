@@ -54,38 +54,51 @@ class MM.Model extends ABM.Model
     citizen.sawArrest = false
 
     citizen.act = ->
-      if @imprisoned()
-        @prisonSentence -= 1
+      if !@fighting()
+        if @imprisoned()
+          @prisonSentence -= 1
 
-        if !@imprisoned() # just released
-          @moveToRandomEmptyLocation()
+          if !@imprisoned()
+            @moveToRandomEmptyLocation()
 
-      if !@fighting() and !@imprisoned() # including just released
-        if MM.TYPES.enclave == @config.type
-          if @riskAversion < 0.5
-            @moveToRandomUpperHalf(@config.walk)
-          else
-            @moveToRandomBottomHalf(@config.walk)
-        else if MM.TYPES.focalPoint == @config.type
-          if @riskAversion < 0.5
-            @moveTowardsPoint(@config.walk, {x: 0, y: 0})
-          else
-            @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
-        else if MM.TYPES.square == @config.type
-          @moveToRandomEmptyLocation()
-          if @active
-            @swapToActiveSquare({x: 0, y: 0}, range: 5)
-        else
-          if @config.activesAdvance and @active
-            @advance()
-          else
+        if @mediumMirror()
+          @mediumMirror().resetCount()
+          
+          if !@imprisoned()
+            if !@config.smartPhones and @mediumMirror().online() and @position
+              @moveOff()
+            else if !@position
+              @moveToRandomEmptyLocation()
+        
+        if @position? # free, just released, and not behind PC
+          if MM.TYPES.enclave == @config.type
+            if @riskAversion < 0.5
+              @moveToRandomUpperHalf(@config.walk)
+            else
+              @moveToRandomBottomHalf(@config.walk)
+          else if MM.TYPES.focalPoint == @config.type
+            if @riskAversion < 0.5
+              @moveTowardsPoint(@config.walk, {x: 0, y: 0})
+            else
+              @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
+          else if MM.TYPES.square == @config.type
             @moveToRandomEmptyNeighbor(@config.walk)
+            if @active
+              @swapToActiveSquare({x: 0, y: 0}, range: 5)
+          else
+            if @config.activesAdvance and @active
+              @advance()
+            else
+              @moveToRandomEmptyNeighbor(@config.walk)
 
-        if MM.FRIENDS.local == @config.friends
-          @makeLocalFriends(@config.friendsNumber)
+          if MM.FRIENDS.local == @config.friends
+            @makeLocalFriends(@config.friendsNumber)
 
-        @activate()
-        @updateColor()
+          if @config.holdOnlyIfNotified and @active and u.randomInt(20) == 1
+            @leaveNotice()
+
+          @activate()
+          @updateColor()
 
     citizen.grievance = ->
       @hardship * (1 - @regimeLegitimacy())
@@ -98,12 +111,10 @@ class MM.Model extends ABM.Model
           count = @mediumMirror().count
 
           count.citizens = count.reads # TODO fix/simplify
-
-          @mediumMirror().resetCount()
         else
           count = @countNeighbors(vision: @config.vision)
 
-        @lastLegitimacyDrop = (@lastLegitimacyDrop + @calculateLegitimacyDrop(count)) / 2
+        @lastLegitimacyDrop = (@lastLegitimacyDrop * 2 + @calculateLegitimacyDrop(count)) / 3
 
         return @config.baseRegimeLegitimacy - @lastLegitimacyDrop * 0.1
 
@@ -148,10 +159,12 @@ class MM.Model extends ABM.Model
       activation = @grievance() - @netRisk()
 
       if MM.TYPES.hold == @config.type
-        if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration
+        if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration and !@config.holdOnlyIfNotified or @notified
           status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
           @active = status.active
           @activism = status.activism
+          @notified = false
+
       else
         status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
         @active = status.active
@@ -180,6 +193,7 @@ class MM.Model extends ABM.Model
         if !@arresting.fighting()
           @arresting.imprison()
           @arresting = null
+
       if !@fighting()
         count = @countNeighbors(vision: @config.vision)
         count.cops += 1
@@ -200,13 +214,13 @@ class MM.Model extends ABM.Model
       @moveTowardsArrestProbability(@config.walk, @config.vision, true)
 
     cop.initiateArrest = ->
-        protester = @neighbors(@config.vision).sample(condition: (agent) ->
-          agent.breed.name is "citizens" and
-            agent.active and !agent.fighting())
+      protester = @neighbors(@config.vision).sample(condition: (agent) ->
+        agent.breed.name is "citizens" and
+          agent.active and !agent.fighting())
 
-        if protester
-          @arresting = protester
-          @arresting.arrest()
+      if protester
+        @arresting = protester
+        @arresting.arrest()
 
     cop.fighting = ->
       return (@arresting != null)
@@ -244,6 +258,17 @@ class MM.Model extends ABM.Model
         else if MM.FRIENDS.local == @config.friends
           citizen.makeLocalFriends(@config.friendsNumber)
 
+  set: (key, value) ->
+    if key == "view"
+      @views.changed()
+    else if key == "friends"
+      @resetAllFriends()
+    else if key == "medium"
+      @media.changed()
+    else
+      @config[key] = value
+      @config.check()
+
   actives: ->
     actives = []
     for citizen in @citizens
@@ -268,12 +293,20 @@ class MM.Model extends ABM.Model
     return arrests
 
   prisoners: (reset = false) ->
-    if !@prisoners_cache or reset
-      @prisoners_cache = []
+    if !@prisonersCache or reset
+      @prisonersCache = []
       for citizen in @citizens
         if citizen.imprisoned()
-          @prisoners_cache.push citizen
-    return @prisoners_cache
+          @prisonersCache.push citizen
+    return @prisonersCache
+
+  onlines: (reset = false) ->
+    if !@onlinesCache or reset
+      @onlinesCache = []
+      for citizen in @citizens
+        if citizen.mediumMirror() and citizen.mediumMirror().online()
+          @onlinesCache.push citizen
+    return @onlinesCache
 
   tickData: ->
     citizens = @citizens.length
@@ -290,6 +323,7 @@ class MM.Model extends ABM.Model
       arrests: arrests
       prisoners: prisoners
       cops: @cops.length
+      onlines: @onlines(true).length
     }
 
   resetData: ->
@@ -300,6 +334,7 @@ class MM.Model extends ABM.Model
       arrests: [],
       prisoners: [],
       cops: [],
+      onlines: [],
       media: []
     }
     
@@ -313,6 +348,7 @@ class MM.Model extends ABM.Model
     @data.arrests.push [ticks, tickData.arrests]
     @data.prisoners.push [ticks, tickData.prisoners]
     @data.cops.push [ticks, tickData.cops]
+    @data.onlines.push [ticks, tickData.onlines]
 
   recordMediaChange: ->
     ticks = @animator.ticks

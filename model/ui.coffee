@@ -17,14 +17,12 @@ class MM.UI
     @setupControls()
 
   setupControls: () ->
-    settings =
-      type: [MM.TYPES]
-      calculation: [MM.CALCULATIONS]
-      legitimacyCalculation: [MM.LEGITIMACY_CALCULATIONS]
-      friends: [MM.FRIENDS]
-      medium: [MM.MEDIA]
-      mediumType: [MM.MEDIUM_TYPES]
-      view: [MM.VIEWS]
+    dropdownHashes = {}
+    for key, value of @model.config.hashes
+      dropdownHashes[key] = [value]
+
+    settings = u.merge dropdownHashes, {
+      smartPhones: null
       #medium: [MM.MEDIA], {onChange: 55}
       citizenDensity: {min: 0, max: 1}
       copDensity: {min: 0, max: 0.10}
@@ -40,6 +38,7 @@ class MM.UI
       friendsMultiplier: {min: 0, max: 5}
       friendsHardshipHomophilous: null
       friendsLocalRange: 5
+    }
 
     buttons =
       step: ->
@@ -62,14 +61,7 @@ class MM.UI
       @gui.add(buttons, key)
 
   setDropdown: (key, ui) -> return (value) -> # closure-fu to keep key
-    ui.model.config[key] = parseInt(value)
-    ui.model.config.check()
-    if key == "view"
-      ui.model.views.changed()
-    else if key == "friends"
-      ui.model.resetAllFriends()
-    else if key == "medium"
-      ui.model.media.changed()
+    ui.model.set(key, parseInt(value))
 
   resetPlot: ->
     options = {

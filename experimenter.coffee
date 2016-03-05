@@ -4,23 +4,28 @@ abmcode = require "./lib/agentbase.coffee"
 ABM = abmcode.ABM
 u = ABM.util
 
-experimentReruns = 3
+experimentReruns = 2
 #reruns = 10
 #reruns = 30
 #reruns = 25 # To average it out
 
-#generations = 2
-experimentGenerations = 150
-#generations = 300
-#generations = 1500
-#generations = 150 # 15 days
+#experimentTicks = 2
+experimentTicks = 15
+#experimentTicks = 300
+#experimentTicks = 1500
+#experimentTicks = 150 # 15 days
 
+mediaSetups = null
 mediaSetups = [
-  {label: "Forum", experimentMedia: [[50, "forum"], [100, "email"]]}
+  {label: "Forum", experimentChange: {tick: 5, medium: "forum"}}
+  {label: "Email", medium: "email"}
 ]
 
 setups = [
-  {friends: MM.FRIENDS.random, friendsHardshipHomophilous: false, label: "friends random, not homophilous"}
+  {
+    label: "Epstein basic", type: "normal", legitimacyCalculation: "base",
+    experimentChanges: [{tick: 5, medium: "forum"}, {tick: 10, medium: "tv"}]
+  }
 #  {friends: MM.FRIENDS.random, friendsHardshipHomophilous: true, label: "friends random, homophilous"}
 #  {friends: MM.FRIENDS.local, friendsHardshipHomophilous: false, label: "friends local, not homophilous"}
 #  {friends: MM.FRIENDS.local, friendsHardshipHomophilous: true, label: "friends local, homophilous"}
@@ -30,6 +35,8 @@ setups = [
 #  {mediumCountsFor: 0.20, label: "medium counts for some"}
 #  {mediumCountsFor: 0.50, label: "medium counts for a lot"}
 #]
+
+# ### Running experiments
 
 runExperiment = (experiment) ->
   output = []
@@ -56,18 +63,19 @@ runTest = (testSetup) ->
   return {setup: testSetup, data: runs[0]}
 
 runModel = (model) ->
-  mediaIndex = 0
-  for [1..model.config.experimentGenerations]
+  changesIndex = 0
+  for [1..model.config.experimentTicks]
     model.once()
-    if model.config.experimentMedia and mediaIndex < model.config.experimentMedia.length and model.animator.ticks == model.config.experimentMedia[mediaIndex][0]
-      medium = model.config.experimentMedia[mediaIndex][1]
-      model.config.medium = MM.MEDIA[medium]
-      model.media.changed()
-      mediaIndex += 1
+    if model.config.experimentChanges and changesIndex < model.config.experimentChanges.length and
+        model.animator.ticks == model.config.experimentChanges[changesIndex].tick
+      for key, value of model.config.experimentChanges[changesIndex]
+        if key != "tick"
+          model.set(key, value)
+      changesIndex += 1
 
   return model
 
-getConfig = (testSetup) ->
+getConfig = (testSetup = {}) ->
   config = new MM.Config
   config.makeHeadless()
 
@@ -91,28 +99,48 @@ averageRuns = (runs) ->
   
   return runs
 
-prepareExperiment = (setups, mediaSetups, experimentGenerations, experimentReruns) ->
-  experiment = []
+# ### Preparation of runs
+
+prepareExperiment = (setups, experimentTicks, experimentReruns, mediaSetups = null) ->
+  if mediaSetups
+    newSetups = []
+
+    for setup in setups
+      for mediaSetup in mediaSetups
+        newLabel = mediaSetup.label + " " + setup.label
+        newSetups.push u.merge(u.merge(mediaSetup, setup), {label: newLabel})
+
+    setups = newSetups
+
+  config = getConfig()
 
   for setup in setups
-    setup.experimentGenerations = experimentGenerations
-    setup.experimentReruns = experimentReruns
+    if setup.experimentChange
+      setup.experimentChanges = [setup.experimentChange]
+      delete setup.experimentChange
 
-    for mediaSetup in mediaSetups
-      newLabel = mediaSetup.label + " " + setup.label
-      if mediaSetup.experimentMedia
-        if mediaSetup.experimentMedia[0][0] == 0
-          mediaSetup.medium = MM.MEDIA[mediaSetup.experimentMedia[0][0][1]]
-        else
-          mediaSetup.medium = MM.MEDIA.none
+    setup.experimentTicks ?= experimentTicks
+    setup.experimentReruns ?= experimentReruns
+    setup.medium ?= MM.MEDIA.none
+    for key, value of config.hashes
+      if setup[key]
+        setup[key] = replaceConfigString(setup[key], value)
 
-      else if mediaSetup.medium and u.isString(mediaSetup.medium)
-        mediaSetup.medium = MM.MEDIA[mediaSetup.medium]
+    if setup.experimentChanges
+      setup.experimentChanges.sort("tick")
+      for changes in setup.experimentChanges
+        for key, value of config.hashes
+          if changes[key]
+            changes[key] = replaceConfigString(changes[key], value)
 
-      experiment.push u.merge(u.merge(mediaSetup, setup), {label: newLabel})
+  return setups
 
-  return experiment
+replaceConfigString = (string, hash) ->
+  if string and u.isString(string)
+    return hash[string]
+  else
+    return string
 
-experiment = prepareExperiment(setups, mediaSetups, experimentGenerations, experimentReruns)
+experiment = prepareExperiment(setups, experimentTicks, experimentReruns, mediaSetups)
 
 runExperiment(experiment)

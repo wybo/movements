@@ -9,13 +9,7 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
       if u.randomInt(10) == 1
         @model.newPost(@) # TODO move newPost to agent
 
-      @readPosts()
-
-    agent.readPosts = ->
-      while true
-        break unless agent.toNextMessage()
-
-      @inbox.clear()
+      @toNextReading()
 
   newPost: (agent) ->
     friends = @agents.sample(size: 30, condition: (o) ->

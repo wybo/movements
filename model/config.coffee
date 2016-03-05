@@ -40,10 +40,15 @@ class MM.Config
     @mediumType = MM.MEDIUM_TYPES.uncensored
     #@view = MM.VIEWS.regimeLegitimacy
     @view = MM.VIEWS.riskAversion
+    @smartPhones = false
     
-    @copsRetreat = false
+    @holdInterval = 100 # for hold type
+    @holdReleaseDuration = 25
+    @holdOnlyIfNotified = true
     @activesAdvance = false
-    @copsDefect = true
+
+    @copsRetreat = false
+    @copsDefect = false
     #@prisonCapacity = 0.20
     @prisonCapacity = 1.00
 
@@ -54,9 +59,6 @@ class MM.Config
 
     @mediaChannels = 7 # for media TV and radio
 
-    @holdInterval = 100 # for hold type
-    @holdReleaseDuration = 25
-
     @citizenDensity = 0.7
     #@copDensity = 0.04
     #@copDensity = 0.012
@@ -65,7 +67,7 @@ class MM.Config
     @maxPrisonSentence = 30 # J
     #@baseRegimeLegitimacy = 0.85 # L
     #@baseRegimeLegitimacy = 0.80 # L
-    @baseRegimeLegitimacy = 0.80 # L
+    @baseRegimeLegitimacy = 0.79 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
@@ -81,8 +83,20 @@ class MM.Config
       arrests: {label: "Arrests", color: "purple"},
       prisoners: {label: "Prisoners", color: "black"},
       cops: {label: "Cops", color: "blue"}
+      onlines: {label: "Onlines", color: "cyan"}
     }
+
     # ### Do not modify below unless you know what you're doing.
+
+    @hashes = {
+      type: MM.TYPES,
+      calculation: MM.CALCULATIONS,
+      legitimacyCalculation: MM.LEGITIMACY_CALCULATIONS,
+      friends: MM.FRIENDS,
+      medium: MM.MEDIA,
+      mediumType: MM.MEDIUM_TYPES,
+      view: MM.VIEWS
+    }
 
     sharedModelOptions = {
       patchSize: 20

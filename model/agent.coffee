@@ -121,15 +121,16 @@ class MM.Agent extends ABM.Agent
     @moveTowardsPoint(walk, point, false)
 
   swapToActiveSquare: (point, options) ->
-    center = @model.patches.patch point
-    options.meToo = true
-    inactive = center.neighborAgents(options).sample(condition: (o) -> o.breed.name is "citizens" and !o.active)
-    if inactive
-      former_patch = @patch
-      to_patch = inactive.patch
-      inactive.moveOff()
-      @moveTo(to_patch.position)
-      inactive.moveTo(former_patch.position)
+    if @patch.distance(point, dimension: true) > options.range
+      center = @model.patches.patch point
+      options.meToo = true
+      inactive = center.neighborAgents(options).sample(condition: (o) -> o.breed.name is "citizens" and !o.active)
+      if inactive
+        former_patch = @patch
+        to_patch = inactive.patch
+        inactive.moveOff()
+        @moveTo(to_patch.position)
+        inactive.moveTo(former_patch.position)
 
   # Assumes a world with an y-axis that runs from -X to X
   moveToRandomUpperHalf: (walk, upper = true) ->
@@ -192,7 +193,7 @@ class MM.Agent extends ABM.Agent
   randomEmptyNeighbors: (walk) ->
     @patch.neighbors(walk).select((patch) -> patch.empty()).shuffle()
 
-  #### Misc
+  #### Friends & befriending
 
   resetFriends: ->
     @friendsHash = {}
@@ -267,3 +268,9 @@ class MM.Agent extends ABM.Agent
       list.push(@) # self included in clique
       for agent in list
         agent.beFriendList(list)
+
+
+  #### Notices
+
+  leaveNotice: ->
+    @patch.noticeCounter = 10
