@@ -4,7 +4,10 @@ class MM.Message
     @to = to
     @readers = new ABM.Array
 
-    if MM.MEDIUM_TYPES.uncensored == @from.original.config.mediumType
+    if MM.MEDIUM_TYPES.totalCensorship == @from.original.config.mediumType
+      @active = false
+      @activism = 0
+    else if MM.MEDIUM_TYPES.uncensored == @from.original.config.mediumType
       status = @from.original.calculateActiveStatus(@from.original.grievance(), true)
       @active = status.active
       @activism = status.activism

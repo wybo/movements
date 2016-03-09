@@ -198,7 +198,7 @@ class MM.Model extends ABM.Model
         count = @countNeighbors(vision: @config.vision)
         count.cops += 1
 
-        if @config.copsDefect and count.activism * 2 > count.citizens and count.cops < count.citizens * 10 and @animator.ticks > 50
+        if @config.copsDefect and count.activism * 2 > count.citizens and count.cops * 10 < count.activism and @model.animator.ticks > 50
           patch = @patch
           @die()
           citizen = @model.citizens.create 1, (citizen) =>

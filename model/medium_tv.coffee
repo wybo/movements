@@ -6,7 +6,7 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
     agent = super(original)
 
     agent.step = ->
-      if u.randomInt(20) == 1
+      if u.randomInt(50) == 1
         @model.newMessage(@)
       
       @toNextReading()

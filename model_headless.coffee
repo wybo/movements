@@ -20,12 +20,12 @@ indexHash = (array) ->
 
   return hash
 
-MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "hold", "square"])
+MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "hold", "square"]) # TODO pull apart
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
-MM.MEDIUM_TYPES = indexHash(["normal", "uncensored"]) # TODO micro, from original agent
+MM.MEDIUM_TYPES = indexHash(["normal", "uncensored", "totalCensorship"]) # TODO micro, from original agent
 MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"])
 # turn back to numbers once dat.gui fixed
 
@@ -37,7 +37,7 @@ class MM.Config
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
     @medium = MM.MEDIA.forum
-    @mediumType = MM.MEDIUM_TYPES.uncensored
+    @mediumType = MM.MEDIUM_TYPES.normal
     #@view = MM.VIEWS.regimeLegitimacy
     @view = MM.VIEWS.riskAversion
     @smartPhones = false
@@ -67,7 +67,7 @@ class MM.Config
     @maxPrisonSentence = 30 # J
     #@baseRegimeLegitimacy = 0.85 # L
     #@baseRegimeLegitimacy = 0.80 # L
-    @baseRegimeLegitimacy = 0.79 # L
+    @baseRegimeLegitimacy = 0.74 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
@@ -164,7 +164,10 @@ class MM.Message
     @to = to
     @readers = new ABM.Array
 
-    if MM.MEDIUM_TYPES.uncensored == @from.original.config.mediumType
+    if MM.MEDIUM_TYPES.totalCensorship == @from.original.config.mediumType
+      @active = false
+      @activism = 0
+    else if MM.MEDIUM_TYPES.uncensored == @from.original.config.mediumType
       status = @from.original.calculateActiveStatus(@from.original.grievance(), true)
       @active = status.active
       @activism = status.activism
@@ -651,17 +654,21 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
 
     agent.step = ->
       if u.randomInt(10) == 1
-        @model.newPost(@) # TODO move newPost to agent
+        @newPost() # TODO move newPost to agent
 
       @toNextReading()
 
-  newPost: (agent) ->
-    friends = @agents.sample(size: 30, condition: (o) ->
-      agent.original.isFriendsWith(o.original)
-    )
+    agent.newPost = ->
+      me = @
+      friends = @model.agents.sample(size: 15, condition: (o) ->
+        me.original.isFriendsWith(o.original) and me.id != o.id
+      )
+      friends.concat(@model.agents.sample(size: 30 - friends.length, condition: (o) ->
+        me.id != o.id
+      ))
 
-    for friend in friends
-      @newMessage(agent, friend)
+      for friend in friends
+        @model.newMessage(@, friend)
 
 class MM.MediumForum extends MM.Medium
   setup: ->
@@ -679,7 +686,7 @@ class MM.MediumForum extends MM.Medium
     agent = super(original)
 
     agent.step = ->
-      if u.randomInt(20) == 1
+      if u.randomInt(10) == 1
         @model.newPost(@)
 
       @toNextReading()
@@ -702,7 +709,7 @@ class MM.MediumForum extends MM.Medium
         @read(@reading.next, countIt)
 
   newPost: (agent) ->
-    if u.randomInt(7) == 1
+    if u.randomInt(10) == 1
       @newThread(agent)
     else
       @newComment(agent)
@@ -877,9 +884,14 @@ class MM.MediumTelephone extends MM.Medium
 
     agent.call = ->
       if @links.length == 0
-        id = @id # taken into closure
-        agent = @model.agents.sample(condition: (a) ->
-          id != a.id)
+        me = @ # taken into closure
+        agent = null # needed or may keep previous' use
+        if @model.config.friends != MM.FRIENDS.none and u.randomInt(3) < 2 # 2/3rd chanche
+          agent = @model.agents.sample(condition: (o) ->
+            me.original.isFriendsWith(o.original) and me.id != o.id
+          )
+        agent ?= @model.agents.sample(condition: (o) -> me.id != o.id)
+
         agent.disconnect()
 
         @model.links.create(@, agent).last()
@@ -916,7 +928,7 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
     agent = super(original)
 
     agent.step = ->
-      if u.randomInt(20) == 1
+      if u.randomInt(50) == 1
         @model.newMessage(@)
       
       @toNextReading()
@@ -1435,7 +1447,7 @@ class MM.Model extends ABM.Model
         count = @countNeighbors(vision: @config.vision)
         count.cops += 1
 
-        if @config.copsDefect and count.activism * 2 > count.citizens and count.cops < count.citizens * 10 and @animator.ticks > 50
+        if @config.copsDefect and count.activism * 2 > count.citizens and count.cops * 10 < count.activism and @model.animator.ticks > 50
           patch = @patch
           @die()
           citizen = @model.citizens.create 1, (citizen) =>

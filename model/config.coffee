@@ -20,12 +20,12 @@ indexHash = (array) ->
 
   return hash
 
-MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "hold", "square"])
+MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "hold", "square"]) # TODO pull apart
 MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
-MM.MEDIUM_TYPES = indexHash(["normal", "uncensored"]) # TODO micro, from original agent
+MM.MEDIUM_TYPES = indexHash(["normal", "uncensored", "totalCensorship"]) # TODO micro, from original agent
 MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"])
 # turn back to numbers once dat.gui fixed
 
@@ -37,7 +37,7 @@ class MM.Config
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
     @medium = MM.MEDIA.forum
-    @mediumType = MM.MEDIUM_TYPES.uncensored
+    @mediumType = MM.MEDIUM_TYPES.normal
     #@view = MM.VIEWS.regimeLegitimacy
     @view = MM.VIEWS.riskAversion
     @smartPhones = false
@@ -67,7 +67,7 @@ class MM.Config
     @maxPrisonSentence = 30 # J
     #@baseRegimeLegitimacy = 0.85 # L
     #@baseRegimeLegitimacy = 0.80 # L
-    @baseRegimeLegitimacy = 0.79 # L
+    @baseRegimeLegitimacy = 0.74 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0

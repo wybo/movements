@@ -14,7 +14,7 @@ class MM.MediumForum extends MM.Medium
     agent = super(original)
 
     agent.step = ->
-      if u.randomInt(20) == 1
+      if u.randomInt(10) == 1
         @model.newPost(@)
 
       @toNextReading()
@@ -37,7 +37,7 @@ class MM.MediumForum extends MM.Medium
         @read(@reading.next, countIt)
 
   newPost: (agent) ->
-    if u.randomInt(7) == 1
+    if u.randomInt(10) == 1
       @newThread(agent)
     else
       @newComment(agent)

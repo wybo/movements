@@ -7,14 +7,18 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
 
     agent.step = ->
       if u.randomInt(10) == 1
-        @model.newPost(@) # TODO move newPost to agent
+        @newPost() # TODO move newPost to agent
 
       @toNextReading()
 
-  newPost: (agent) ->
-    friends = @agents.sample(size: 30, condition: (o) ->
-      agent.original.isFriendsWith(o.original)
-    )
+    agent.newPost = ->
+      me = @
+      friends = @model.agents.sample(size: 15, condition: (o) ->
+        me.original.isFriendsWith(o.original) and me.id != o.id
+      )
+      friends.concat(@model.agents.sample(size: 30 - friends.length, condition: (o) ->
+        me.id != o.id
+      ))
 
-    for friend in friends
-      @newMessage(agent, friend)
+      for friend in friends
+        @model.newMessage(@, friend)

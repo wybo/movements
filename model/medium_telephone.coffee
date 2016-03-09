@@ -16,9 +16,14 @@ class MM.MediumTelephone extends MM.Medium
 
     agent.call = ->
       if @links.length == 0
-        id = @id # taken into closure
-        agent = @model.agents.sample(condition: (a) ->
-          id != a.id)
+        me = @ # taken into closure
+        agent = null # needed or may keep previous' use
+        if @model.config.friends != MM.FRIENDS.none and u.randomInt(3) < 2 # 2/3rd chanche
+          agent = @model.agents.sample(condition: (o) ->
+            me.original.isFriendsWith(o.original) and me.id != o.id
+          )
+        agent ?= @model.agents.sample(condition: (o) -> me.id != o.id)
+
         agent.disconnect()
 
         @model.links.create(@, agent).last()
