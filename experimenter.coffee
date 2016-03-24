@@ -13,8 +13,8 @@ experimentReruns = 1
 #experimentReruns = 25 # To average it out
 
 #experimentTicks = 2
-experimentTicks = 200
-#experimentTicks = 250
+#experimentTicks = 200
+experimentTicks = 250
 #experimentTicks = 300
 #experimentTicks = 1000
 #experimentTicks = 1500
@@ -26,12 +26,16 @@ mediaSetups = null
 #  {label: "Email", medium: "email"}
 #]
 mediaSetups = [
+  {label: "1, 0.65", experimentReruns: 1, baseRegimeLegitimacy: 0.65}
+  {label: "30, 0.65", experimentReruns: 30, baseRegimeLegitimacy: 0.65}
+  {label: "1, 0.68", experimentReruns: 1, baseRegimeLegitimacy: 0.68}
+  {label: "30, 0.68", experimentReruns: 30, baseRegimeLegitimacy: 0.68}
+  {label: "1, 0.70", experimentReruns: 1, baseRegimeLegitimacy: 0.70}
+  {label: "30, 0.70", experimentReruns: 30, baseRegimeLegitimacy: 0.70}
   {label: "1, 0.72", experimentReruns: 1, baseRegimeLegitimacy: 0.72}
   {label: "30, 0.72", experimentReruns: 30, baseRegimeLegitimacy: 0.72}
   {label: "1, 0.74", experimentReruns: 1, baseRegimeLegitimacy: 0.74}
   {label: "30, 0.74", experimentReruns: 30, baseRegimeLegitimacy: 0.74}
-  {label: "1, 0.76", experimentReruns: 1, baseRegimeLegitimacy: 0.76}
-  {label: "30, 0.76", experimentReruns: 30, baseRegimeLegitimacy: 0.76}
 ]
 
 setups = [
@@ -42,57 +46,71 @@ setups = [
     label: "Real arrest probability", type: "normal", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none"
   },
   {
-    label: "With square", type: "square", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none"
+    label: "Square", type: "square", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none"
   },
   {
-    label: "With friends", type: "square", calculation: "real", legitimacyCalculation: "base", friends: "random", medium: "none"
+    label: "Friends", type: "square", calculation: "real", legitimacyCalculation: "base", friends: "random", medium: "none"
   },
   {
-    label: "With prison-capacity to 40% of agents", type: "normal", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none", prisonCapacity: 0.4
+    label: "Prison-capacity to 40% of agents", type: "normal", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none", prisonCapacity: 0.4
   },
   {
-    label: "With defecting cops", type: "normal", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none", copsDefect: true
+    label: "Defecting cops", type: "normal", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none", copsDefect: true
   },
   {
-    label: "With legitimacy affected by arrests", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "none", medium: "none", copsDefect: true
+    label: "Legitimacy affected by arrests", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "none", medium: "none", copsDefect: true
   },
   # Forum and other media
   {
-    label: "With a medium; tv, total censorship", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "tv", mediumType: "totalCensorship", copsDefect: true
+    label: "Medium; tv, normal censorship", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "tv", mediumType: "normal", copsDefect: true
   },
   {
-    label: "With a medium; tv, normal censorship", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "tv", copsDefect: true
+    label: "Medium; tv, total censorship", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "tv", mediumType: "totalCensorship", copsDefect: true
   },
   {
-    label: "With a medium; forum", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "forum", mediumType: "uncensored", copsDefect: true
+    label: "Medium; forum", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "forum", mediumType: "normal", copsDefect: true
   },
   {
-    label: "With a medium; forum, censored", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "forum", mediumType: "censored", copsDefect: true
+    label: "Medium; facebook", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "normal", copsDefect: true
   },
   {
-    label: "With a medium; facebook", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "uncensored", copsDefect: true
+    label: "Medium; facebook, uncensored", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "uncensored", copsDefect: true
   },
   # Mechanisms
-    #{
-    #  label: "Forum with seclusion", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "forum", mediumType: "uncensored", copsDefect: true
-    #},
-    #{
-    #  label: "Facebook with seclusion", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "tv", mediumType: "uncensored", copsDefect: true
-    #},
   {
-    label: "With exposition to friends", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "none", copsDefect: true
+    label: "Seclusion: TV", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "tv", mediumType: "normal", copsDefect: true, mediaRiskAversionHomophilous: true
   },
   {
-    label: "Facebook with exposition", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "uncensored", copsDefect: true
+    label: "Seclusion: Forum", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "forum", mediumType: "normal", copsDefect: true, mediaRiskAversionHomophilous: true
   },
   {
-    label: "Facebook with micro", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "micro", copsDefect: true
+    label: "Seclusion: Facebook", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "normal", copsDefect: true, friendsRiskAversionHomophilous: true
+  },
+  {
+    label: "Exposition: Forum", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "forum", mediumType: "uncensored", copsDefect: true
+  },
+  {
+    label: "Exposition: Facebook", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "uncensored", copsDefect: true
+  },
+  {
+    label: "Micro: Forum", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "forum", mediumType: "micro", copsDefect: true
+  },
+  {
+    label: "Micro: Facebook", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "micro", copsDefect: true
   }
 
 #  {friends: MM.FRIENDS.random, friendsHardshipHomophilous: true, label: "friends random, homophilous"}
 #  {friends: MM.FRIENDS.local, friendsHardshipHomophilous: false, label: "friends local, not homophilous"}
 #  {friends: MM.FRIENDS.local, friendsHardshipHomophilous: true, label: "friends local, homophilous"}
 ]
+
+setups = [
+  {
+    label: "Real with micro", type: "micro", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none"
+  },
+]
+
+
 #setupSets = [
 #  {mediumCountsFor: 0.05, label: "medium counts for little"}
 #  {mediumCountsFor: 0.20, label: "medium counts for some"}
@@ -267,7 +285,6 @@ replaceConfigString = (string, hash) ->
     return string
 
 experiment = prepareExperiment(setups, experimentTicks, experimentReruns, mediaSetups)
-console.log experiment
 if argv.mode == "single"
   runExperiment(experiment)
 else

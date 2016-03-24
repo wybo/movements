@@ -12,6 +12,7 @@ class MM.Medium extends ABM.Model
 
     @dummyAgent = {
       original: {active: false, activism: 0.0, grievance: (->), calculateActiveStatus: (-> @), config: @config}
+      config: @config
       read: (->)
       dummy: true
     }

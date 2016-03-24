@@ -21,13 +21,13 @@ class MM.Agent extends ABM.Agent
 
   #### Calculations and counting
 
-  calculateActiveStatus: (activation, withMicro) ->
+  calculateActiveStatus: (activation) ->
     if activation > @config.threshold
-      return {activism: 1.0, active: true}
-    else if withMicro and activation > @config.thresholdMicro
-      return {activism: 0.4, active: false}
+      return {activism: 1.0, micro: 1.0, active: true}
+    else if activation > @config.thresholdMicro
+      return {activism: 0.0, micro: 0.4, active: false}
     else
-      return {activism: 0.0, active: false}
+      return {activism: 0.0, micro: 0.0, active: false}
 
   calculateLegitimacyDrop: (count) ->
     #return count.arrests / (count.citizens - count.activism)
@@ -236,9 +236,14 @@ class MM.Agent extends ABM.Agent
     id = @id # taken into closure
     friendsHash = @friendsHash
     if @config.friendsHardshipHomophilous
-      hardship = @hardship
+      hardshipped = @hardshipped
       friends = list.sample(size: needed, condition: (o) ->
-        o.friends.length < number and !friendsHash[o.id] and id != o.id and (hardship >= 0.5 and o.hardship >= 0.5 or hardship < 0.5 and o.hardship < 0.5)
+        o.friends.length < number and !friendsHash[o.id] and id != o.id and hardshipped == o.hardshipped
+      )
+    else if @config.friendsRiskAversionHomophilous
+      riskAverse = @riskAverse
+      friends = list.sample(size: needed, condition: (o) ->
+        o.friends.length < number and !friendsHash[o.id] and id != o.id and riskAverse == o.riskAverse
       )
     else
       friends = list.sample(size: needed, condition: (o) ->

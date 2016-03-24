@@ -26,7 +26,8 @@ class MM.MediumForum extends MM.Medium
         @read(@model.threads[0][0], countIt)
 
       tries = 0
-      while @reading.active != @original.active and tries < 10
+      while @reading.active != @original.active and tries < 10 and
+          (!@config.mediaRiskAversionHomophilous or @original.riskAverse == @reading.riskAverse)
         if @reading.thread.next?
           @read(@reading.thread.next.first(), false)
         else
@@ -36,14 +37,16 @@ class MM.MediumForum extends MM.Medium
       while @reading.next?
         @read(@reading.next, countIt)
 
-  newPost: (agent) ->
+  newPost: (agent) -> # TODO move to agent
     if u.randomInt(10) == 1
       @newThread(agent)
     else
       @newComment(agent)
 
-  newThread: (agent) ->
+  newThread: (agent) -> # TODO same
     newThread = new ABM.Array
+    if @config.mediaRiskAversionHomophilous
+      newThread.riskAverse = agent.original.riskAverse
     
     newThread.next = @threads.first()
     if newThread.next?

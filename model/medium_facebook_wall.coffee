@@ -7,7 +7,7 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
 
     agent.step = ->
       if u.randomInt(10) == 1
-        @newPost() # TODO move newPost to agent
+        @newPost()
 
       @toNextReading()
 

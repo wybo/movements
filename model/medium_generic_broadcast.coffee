@@ -11,12 +11,19 @@ class MM.MediumGenericBroadcast extends MM.Medium
     agent = super(original)
 
     if !agent.channel
-      agent.channel = @channels[u.randomInt(@channels.length)]
+      if @config.mediaRiskAversionHomophilous # TODO finish for other media as well
+        agent.channel = @channels.sample(condition: (o) -> o.riskAverse == agent.riskAverse)
+      else
+        agent.channel = @channels[u.randomInt(@channels.length)]
 
     return agent
 
   newChannel: (number) ->
     newChannel = new ABM.Array
+    if @config.mediaRiskAversionHomophilous
+      newChannel.riskAverse == false
+      if number % 2 == 0
+        newChannel.riskAverse == true
 
     newChannel.number = number
 

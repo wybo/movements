@@ -25,7 +25,7 @@ MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
-MM.MEDIUM_TYPES = indexHash(["normal", "uncensored", "totalCensorship"]) # TODO micro, from original agent
+MM.MEDIUM_TYPES = indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
 MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"])
 # turn back to numbers once dat.gui fixed
 
@@ -54,9 +54,11 @@ class MM.Config
 
     @friendsNumber = 30 # also used for Fb
     @friendsMultiplier = 2 # 1 actively cancels out friends
-    @friendsHardshipHomophilous = true # If true range has to be 6 min, and friends max 30 or will have fewer
+    @friendsHardshipHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
+    @friendsRiskAversionHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
 
+    @mediaRiskAversionHomophilous = false
     @mediaChannels = 7 # for media TV and radio
 
     @citizenDensity = 0.7
@@ -164,21 +166,25 @@ class MM.Message
     @to = to
     @readers = new ABM.Array
 
-    if MM.MEDIUM_TYPES.totalCensorship == @from.original.config.mediumType
+    if MM.MEDIUM_TYPES.totalCensorship == @from.config.mediumType
       @active = false
       @activism = 0
-    else if MM.MEDIUM_TYPES.uncensored == @from.original.config.mediumType
-      status = @from.original.calculateActiveStatus(@from.original.grievance(), true)
+    else if MM.MEDIUM_TYPES.uncensored == @from.config.mediumType
+      status = @from.original.calculateActiveStatus(@from.original.grievance())
       @active = status.active
       @activism = status.activism
+
+      #if @from.original.sawArrest # TODO fix/improve
+      #  @active = true
+      #  @activism = 1
+    else if MM.MEDIUM_TYPES.micro == @from.config.mediumType
+      @active = @from.original.active
+      @activism = @from.original.micro
     else
       @active = @from.original.active
       @activism = @from.original.activism
 
-    #@arrest = @from.original.sawArrest TODO
-    if @from.original.sawArrest
-      @active = true
-      @activism = 1
+    #@arrest = @from.original.sawArrest TODO fix/improve
 
   destroy: ->
     for reader in @readers by -1
@@ -198,6 +204,7 @@ class MM.Medium extends ABM.Model
 
     @dummyAgent = {
       original: {active: false, activism: 0.0, grievance: (->), calculateActiveStatus: (-> @), config: @config}
+      config: @config
       read: (->)
       dummy: true
     }
@@ -342,13 +349,13 @@ class MM.Agent extends ABM.Agent
 
   #### Calculations and counting
 
-  calculateActiveStatus: (activation, withMicro) ->
+  calculateActiveStatus: (activation) ->
     if activation > @config.threshold
-      return {activism: 1.0, active: true}
-    else if withMicro and activation > @config.thresholdMicro
-      return {activism: 0.4, active: false}
+      return {activism: 1.0, micro: 1.0, active: true}
+    else if activation > @config.thresholdMicro
+      return {activism: 0.0, micro: 0.4, active: false}
     else
-      return {activism: 0.0, active: false}
+      return {activism: 0.0, micro: 0.0, active: false}
 
   calculateLegitimacyDrop: (count) ->
     #return count.arrests / (count.citizens - count.activism)
@@ -557,9 +564,14 @@ class MM.Agent extends ABM.Agent
     id = @id # taken into closure
     friendsHash = @friendsHash
     if @config.friendsHardshipHomophilous
-      hardship = @hardship
+      hardshipped = @hardshipped
       friends = list.sample(size: needed, condition: (o) ->
-        o.friends.length < number and !friendsHash[o.id] and id != o.id and (hardship >= 0.5 and o.hardship >= 0.5 or hardship < 0.5 and o.hardship < 0.5)
+        o.friends.length < number and !friendsHash[o.id] and id != o.id and hardshipped == o.hardshipped
+      )
+    else if @config.friendsRiskAversionHomophilous
+      riskAverse = @riskAverse
+      friends = list.sample(size: needed, condition: (o) ->
+        o.friends.length < number and !friendsHash[o.id] and id != o.id and riskAverse == o.riskAverse
       )
     else
       friends = list.sample(size: needed, condition: (o) ->
@@ -654,7 +666,7 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
 
     agent.step = ->
       if u.randomInt(10) == 1
-        @newPost() # TODO move newPost to agent
+        @newPost()
 
       @toNextReading()
 
@@ -698,7 +710,8 @@ class MM.MediumForum extends MM.Medium
         @read(@model.threads[0][0], countIt)
 
       tries = 0
-      while @reading.active != @original.active and tries < 10
+      while @reading.active != @original.active and tries < 10 and
+          (!@config.mediaRiskAversionHomophilous or @original.riskAverse == @reading.riskAverse)
         if @reading.thread.next?
           @read(@reading.thread.next.first(), false)
         else
@@ -708,14 +721,16 @@ class MM.MediumForum extends MM.Medium
       while @reading.next?
         @read(@reading.next, countIt)
 
-  newPost: (agent) ->
+  newPost: (agent) -> # TODO move to agent
     if u.randomInt(10) == 1
       @newThread(agent)
     else
       @newComment(agent)
 
-  newThread: (agent) ->
+  newThread: (agent) -> # TODO same
     newThread = new ABM.Array
+    if @config.mediaRiskAversionHomophilous
+      newThread.riskAverse = agent.original.riskAverse
     
     newThread.next = @threads.first()
     if newThread.next?
@@ -777,12 +792,19 @@ class MM.MediumGenericBroadcast extends MM.Medium
     agent = super(original)
 
     if !agent.channel
-      agent.channel = @channels[u.randomInt(@channels.length)]
+      if @config.mediaRiskAversionHomophilous # TODO finish for other media as well
+        agent.channel = @channels.sample(condition: (o) -> o.riskAverse == agent.riskAverse)
+      else
+        agent.channel = @channels[u.randomInt(@channels.length)]
 
     return agent
 
   newChannel: (number) ->
     newChannel = new ABM.Array
+    if @config.mediaRiskAversionHomophilous
+      newChannel.riskAverse == false
+      if number % 2 == 0
+        newChannel.riskAverse == true
 
     newChannel.number = number
 
@@ -886,7 +908,7 @@ class MM.MediumTelephone extends MM.Medium
       if @links.length == 0
         me = @ # taken into closure
         agent = null # needed or may keep previous' use
-        if @model.config.friends != MM.FRIENDS.none and u.randomInt(3) < 2 # 2/3rd chanche
+        if @config.friends != MM.FRIENDS.none and u.randomInt(3) < 2 # 2/3rd chanche
           agent = @model.agents.sample(condition: (o) ->
             me.original.isFriendsWith(o.original) and me.id != o.id
           )
@@ -1263,7 +1285,6 @@ class MM.Model extends ABM.Model
 
     for patch in @patches.create()
       if MM.TYPES.enclave == @config.type
-
         if patch.position.y > 0
           patch.color = u.color.random type: "gray", min: 180, max: 204
         else
@@ -1294,7 +1315,11 @@ class MM.Model extends ABM.Model
     citizen.moveToRandomEmptyLocation()
 
     citizen.hardship = u.randomFloat() # H
+    citizen.hardship = u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1) # H
+    citizen.hardshipped = true if citizen.hardship > 0.5
+    citizen.riskAversion = u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1) # R
     citizen.riskAversion = u.randomFloat() # R
+    citizen.riskAverse = true if citizen.riskAversion > 0.5
     citizen.lastLegitimacyDrop = 0
     citizen.active = false
     citizen.activism = 0.0
@@ -1321,15 +1346,15 @@ class MM.Model extends ABM.Model
         
         if @position? # free, just released, and not behind PC
           if MM.TYPES.enclave == @config.type
-            if @riskAversion < 0.5
-              @moveToRandomUpperHalf(@config.walk)
-            else
+            if @riskAverse
               @moveToRandomBottomHalf(@config.walk)
-          else if MM.TYPES.focalPoint == @config.type
-            if @riskAversion < 0.5
-              @moveTowardsPoint(@config.walk, {x: 0, y: 0})
             else
+              @moveToRandomUpperHalf(@config.walk)
+          else if MM.TYPES.focalPoint == @config.type
+            if @riskAverse
               @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
+            else
+              @moveTowardsPoint(@config.walk, {x: 0, y: 0})
           else if MM.TYPES.square == @config.type
             @moveToRandomEmptyNeighbor(@config.walk)
             if @active
@@ -1405,18 +1430,21 @@ class MM.Model extends ABM.Model
       @moveAwayFromArrestProbability(@config.walk, @config.vision)
 
     citizen.activate = ->
-      activation = @grievance() - @netRisk()
-
       if MM.TYPES.hold == @config.type
         if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration and !@config.holdOnlyIfNotified or @notified
-          status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
-          @active = status.active
-          @activism = status.activism
+          @actuallyActivate()
           @notified = false
-
       else
-        status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
-        @active = status.active
+        @actuallyActivate()
+
+    citizen.actuallyActivate = ->
+      activation = @grievance() - @netRisk()
+      status = @calculateActiveStatus(activation)
+      @active = status.active
+      @micro = status.micro
+      if MM.TYPES.micro == @config.type
+        @activism = status.micro
+      else
         @activism = status.activism
 
     citizen.updateColor = ->

@@ -14,7 +14,6 @@ class MM.Model extends ABM.Model
 
     for patch in @patches.create()
       if MM.TYPES.enclave == @config.type
-
         if patch.position.y > 0
           patch.color = u.color.random type: "gray", min: 180, max: 204
         else
@@ -45,7 +44,11 @@ class MM.Model extends ABM.Model
     citizen.moveToRandomEmptyLocation()
 
     citizen.hardship = u.randomFloat() # H
+    citizen.hardship = u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1) # H
+    citizen.hardshipped = true if citizen.hardship > 0.5
+    citizen.riskAversion = u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1) # R
     citizen.riskAversion = u.randomFloat() # R
+    citizen.riskAverse = true if citizen.riskAversion > 0.5
     citizen.lastLegitimacyDrop = 0
     citizen.active = false
     citizen.activism = 0.0
@@ -72,15 +75,15 @@ class MM.Model extends ABM.Model
         
         if @position? # free, just released, and not behind PC
           if MM.TYPES.enclave == @config.type
-            if @riskAversion < 0.5
-              @moveToRandomUpperHalf(@config.walk)
-            else
+            if @riskAverse
               @moveToRandomBottomHalf(@config.walk)
-          else if MM.TYPES.focalPoint == @config.type
-            if @riskAversion < 0.5
-              @moveTowardsPoint(@config.walk, {x: 0, y: 0})
             else
+              @moveToRandomUpperHalf(@config.walk)
+          else if MM.TYPES.focalPoint == @config.type
+            if @riskAverse
               @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
+            else
+              @moveTowardsPoint(@config.walk, {x: 0, y: 0})
           else if MM.TYPES.square == @config.type
             @moveToRandomEmptyNeighbor(@config.walk)
             if @active
@@ -156,18 +159,21 @@ class MM.Model extends ABM.Model
       @moveAwayFromArrestProbability(@config.walk, @config.vision)
 
     citizen.activate = ->
-      activation = @grievance() - @netRisk()
-
       if MM.TYPES.hold == @config.type
         if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration and !@config.holdOnlyIfNotified or @notified
-          status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
-          @active = status.active
-          @activism = status.activism
+          @actuallyActivate()
           @notified = false
-
       else
-        status = @calculateActiveStatus(activation, (MM.TYPES.micro == @config.type))
-        @active = status.active
+        @actuallyActivate()
+
+    citizen.actuallyActivate = ->
+      activation = @grievance() - @netRisk()
+      status = @calculateActiveStatus(activation)
+      @active = status.active
+      @micro = status.micro
+      if MM.TYPES.micro == @config.type
+        @activism = status.micro
+      else
         @activism = status.activism
 
     citizen.updateColor = ->

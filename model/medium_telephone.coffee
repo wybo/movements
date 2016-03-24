@@ -18,7 +18,7 @@ class MM.MediumTelephone extends MM.Medium
       if @links.length == 0
         me = @ # taken into closure
         agent = null # needed or may keep previous' use
-        if @model.config.friends != MM.FRIENDS.none and u.randomInt(3) < 2 # 2/3rd chanche
+        if @config.friends != MM.FRIENDS.none and u.randomInt(3) < 2 # 2/3rd chanche
           agent = @model.agents.sample(condition: (o) ->
             me.original.isFriendsWith(o.original) and me.id != o.id
           )

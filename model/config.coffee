@@ -25,7 +25,7 @@ MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
-MM.MEDIUM_TYPES = indexHash(["normal", "uncensored", "totalCensorship"]) # TODO micro, from original agent
+MM.MEDIUM_TYPES = indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
 MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"])
 # turn back to numbers once dat.gui fixed
 
@@ -54,9 +54,11 @@ class MM.Config
 
     @friendsNumber = 30 # also used for Fb
     @friendsMultiplier = 2 # 1 actively cancels out friends
-    @friendsHardshipHomophilous = true # If true range has to be 6 min, and friends max 30 or will have fewer
+    @friendsHardshipHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
+    @friendsRiskAversionHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
 
+    @mediaRiskAversionHomophilous = false
     @mediaChannels = 7 # for media TV and radio
 
     @citizenDensity = 0.7
