@@ -41,34 +41,8 @@ class MM.Agent extends ABM.Agent
       return count.activism / count.citizens
 
   calculatePerceivedArrestProbability: (count) ->
-    return @calculateCopWillMakeArrestProbability(count) *
-      @calculateSpecificCitizenArrestProbability(count)
-
-  calculateSpecificCitizenArrestProbability: (count) ->
-    if MM.CALCULATIONS.epstein == @config.calculation or MM.CALCULATIONS.overpowered == @config.calculation
-      return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.activism)
-    else if MM.CALCULATIONS.wilensky == @config.calculation
-      return 1 - Math.exp(-1 * @config.kConstant * Math.floor(count.cops / count.activism))
-    else # real
-      if count.cops > count.activism
-        return 1
-      else
-        return count.cops / count.activism
-
-  calculateCopWillMakeArrestProbability: (count) ->
-    if MM.CALCULATIONS.overpowered == @config.calculation
-      if count.cops * 5 > count.activism
-        return 1
-      else
-        return 0
-    else if MM.CALCULATIONS.real == @config.calculation
-      overwhelm = count.cops * 7 / count.activism
-      if overwhelm > 1
-        return 1
-      else
-        return overwhelm
-    else
-      return 1
+    return @config.copWillMakeArrestProbability.call(@, count) *
+      @config.citizenArrestProbability.call(@, count)
 
   countNeighbors: (options) ->
     cops = 0

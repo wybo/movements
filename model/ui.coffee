@@ -22,8 +22,9 @@ class MM.UI
       dropdownHashes[key] = [value]
 
     settings = u.merge dropdownHashes, {
+      riskAversionDistributionNormal: null
+      hardshipDistributionNormal: null
       smartPhones: null
-      #medium: [MM.MEDIA], {onChange: 55}
       citizenDensity: {min: 0, max: 1}
       copDensity: {min: 0, max: 0.10}
       maxPrisonSentence: {min: 0, max: 1000}
@@ -32,7 +33,6 @@ class MM.UI
       thresholdMicro: {min: -1, max: 1}
       prisonCapacity: {min: 0, max: 1}
       copsRetreat: null
-      activesAdvance: null
       copsDefect: null
       friendsNumber: null
       friendsMultiplier: {min: 0, max: 5}
@@ -56,9 +56,13 @@ class MM.UI
         adder = @gui.add(@model.config, key)
         for setting, argument of value
           adder[setting](argument)
+        adder.onChange(@set(key, @))
 
     for key, bull of buttons
       @gui.add(buttons, key)
+
+  set: (key, ui) -> return (value) -> # closure-fu to keep key
+    ui.model.set(key, value)
 
   setDropdown: (key, ui) -> return (value) -> # closure-fu to keep key
     ui.model.set(key, parseInt(value))

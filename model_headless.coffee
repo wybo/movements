@@ -20,8 +20,8 @@ indexHash = (array) ->
 
   return hash
 
-MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "hold", "square"]) # TODO pull apart
-MM.CALCULATIONS = indexHash(["epstein", "wilensky", "overpowered", "real"])
+MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "activesAdvance", "square"]) # TODO pull apart
+MM.CALCULATIONS = indexHash(["real", "epstein", "wilensky", "overwhelmed", "overpowered"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
@@ -41,11 +41,14 @@ class MM.Config
     #@view = MM.VIEWS.regimeLegitimacy
     @view = MM.VIEWS.riskAversion
     @smartPhones = false
+
+    @riskAversionDistributionNormal = false
+    @hardshipDistributionNormal = false
     
+    @holdActivation = false # hold off
     @holdInterval = 100 # for hold type
     @holdReleaseDuration = 25
     @holdOnlyIfNotified = true
-    @activesAdvance = false
 
     @copsRetreat = false
     @copsDefect = false
@@ -69,7 +72,7 @@ class MM.Config
     @maxPrisonSentence = 30 # J
     #@baseRegimeLegitimacy = 0.85 # L
     #@baseRegimeLegitimacy = 0.80 # L
-    @baseRegimeLegitimacy = 0.74 # L
+    @baseRegimeLegitimacy = 0.72 # L
     #@baseRegimeLegitimacy = 0.82 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
@@ -133,6 +136,7 @@ class MM.Config
 
     @config = @
 
+    @setFunctions()
     @check()
 
   makeHeadless: ->
@@ -142,6 +146,222 @@ class MM.Config
     @mediaMirrorModelOptions.isHeadless = true
 
     @check()
+
+  setFunctions: ->
+    # Defaults
+
+    @colorPatch = (patch) ->
+      patch.color = u.color.random type: "gray", min: 224, max: 255
+
+    @riskAversionDistribution = ->
+      return u.randomFloat()
+
+    @hardshipDistribution = ->
+      return u.randomFloat()
+
+    @regimeLegitimacy = ->
+      return @config.baseRegimeLegitimacy
+
+    @citizenArrestProbability = (count) ->
+      if count.cops > count.activism
+        return 1
+      else
+        return count.cops / count.activism
+
+    @copWillMakeArrestProbability = (count) ->
+      return 1
+
+    @move = ->
+      @moveToRandomEmptyNeighbor(@config.walk)
+
+    @moveOffIfOnline = ->
+      if @mediumMirror().online()
+        if @position
+          @moveOff()
+      else
+        if !@position
+          @moveToRandomEmptyLocation()
+
+    @maintainFriends = ->
+
+    @resetAllFriends = ->
+
+    @sampleFriend = ->
+      return null
+
+    @setStatus = (status) ->
+      @active = status.active
+      @micro = status.micro
+      @activism = status.activism
+
+    @setMessageStatus = ->
+      @active = @from.original.active
+      @activism = @from.original.activism
+
+    @micros = ->
+
+    # Types
+
+    if MM.TYPES.enclave == @type
+      @colorPatch = (patch) ->
+        if patch.position.y > 0
+          patch.color = u.color.random type: "gray", min: 180, max: 204
+        else
+          patch.color = u.color.random type: "gray", min: 234, max: 255
+
+      @move = ->
+        if @riskAverse
+          @moveToRandomBottomHalf(@config.walk)
+        else
+          @moveToRandomUpperHalf(@config.walk)
+
+    else if MM.TYPES.focalPoint == @type
+      @move = ->
+        if @riskAverse
+          @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
+        else
+          @moveTowardsPoint(@config.walk, {x: 0, y: 0})
+
+    else if MM.TYPES.activesAdvance == @type
+      @move = ->
+        if @active
+          @advance()
+        else
+          @moveToRandomEmptyNeighbor(@config.walk)
+
+    else if MM.TYPES.square == @type
+      @move = ->
+        @moveToRandomEmptyNeighbor(@config.walk)
+        if @active
+          @swapToActiveSquare({x: 0, y: 0}, range: 5)
+
+    # Calculations
+
+    if MM.CALCULATIONS.epstein == @calculation
+      @citizenArrestProbability = (count) ->
+        return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.activism)
+
+    else if MM.CALCULATIONS.wilensky == @calculation
+      @citizenArrestProbability = (count) ->
+        return 1 - Math.exp(-1 * @config.kConstant * Math.floor(count.cops / count.activism))
+
+    else if MM.CALCULATIONS.overwhelmed == @calculation # used for 'real' for a bit
+      @copWillMakeArrestProbability = (count) ->
+        overwhelm = count.cops * 7 / count.activism
+        if overwhelm > 1
+          return 1
+        else
+          return overwhelm
+
+    else if MM.CALCULATIONS.overpowered == @calculation
+      @copWillMakeArrestProbability = (count) ->
+        if count.cops * 7 > count.activism
+          return 1
+        else
+          return 0
+ 
+    # Legitimacy Calculations
+
+    if MM.LEGITIMACY_CALCULATIONS.arrests == @legitimacyCalculation
+      @regimeLegitimacy = ->
+        if @imprisoned()
+          return @config.baseRegimeLegitimacy
+        else
+          if @mediumMirror() and @mediumMirror().online()
+            count = @mediumMirror().count
+
+            count.citizens = count.reads # TODO fix/simplify
+          else
+            count = @countNeighbors(vision: @config.vision)
+
+          @lastLegitimacyDrop = (@lastLegitimacyDrop * 2 + @calculateLegitimacyDrop(count)) / 3
+
+          return @config.baseRegimeLegitimacy - @lastLegitimacyDrop * 0.1
+  
+    # Friends
+
+    if MM.FRIENDS.none != @friends
+      @sampleFriend = ->
+        me = @
+        return @model.agents.sample(condition: (o) ->
+            me.original.isFriendsWith(o.original) and me.id != o.id
+        )
+
+    if MM.FRIENDS.random == @friends
+      @resetAllFriends = ->
+        for citizen in @citizens # 2 loops to reset old before making new
+          citizen.resetFriends()
+
+        for citizen in @citizens
+          citizen.makeRandomFriends(@config.friendsNumber)
+
+    else if MM.FRIENDS.cliques == @friends
+      @resetAllFriends = ->
+        for citizen in @citizens
+          citizen.resetFriends()
+
+        for citizen in @citizens
+          citizen.makeCliqueFriends(@config.friendsNumber)
+
+    else if MM.FRIENDS.local == @friends
+      @maintainFriends = ->
+        @makeLocalFriends(@config.friendsNumber)
+
+      @resetAllFriends = ->
+        for citizen in @citizens
+          citizen.resetFriends()
+
+        for citizen in @citizens
+          citizen.makeLocalFriends(@config.friendsNumber)
+
+    # Medium types (Media and Views in their classes)
+
+    if MM.MEDIUM_TYPES.totalCensorship == @mediumType
+      @setMessageStatus = ->
+        @active = false
+        @activism = 0
+
+    else if MM.MEDIUM_TYPES.uncensored == @mediumType
+      @setMessageStatus = ->
+        status = @from.original.calculateActiveStatus(@from.original.grievance())
+        @active = status.active
+        @activism = status.activism
+
+    else if MM.MEDIUM_TYPES.micro == @mediumType
+      @setMessageStatus = ->
+        @active = @from.original.active
+        @activism = @from.original.micro
+
+      #if @from.original.sawArrest # TODO fix/improve
+      #  @active = true
+      #  @activism = 1
+
+    if @smartPhones
+      @moveOffIfOnline = ->
+        if !@position
+          @moveToRandomEmptyLocation()
+
+    if @microContributions
+      @setStatus = (status) ->
+        @active = status.active
+        @micro = status.micro
+        @activism = status.micro # micro taken for activism
+
+      @micros = ->
+        for citizen in @citizens
+          if !citizen.active and citizen.activism > 0 and
+              not citizen.imprisoned()
+            micros.push citizen
+
+    if @riskAversionDistributionNormal
+      @riskAversionDistribution = ->
+        d = u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
+        console.log d
+        return d
+    
+    if @hardshipDistributionNormal
+      @hardshipDistribution = ->
+        u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
 
   check: ->
     if @testRun && @modelOptions.isHeadless
@@ -165,26 +385,7 @@ class MM.Message
     @from = from
     @to = to
     @readers = new ABM.Array
-
-    if MM.MEDIUM_TYPES.totalCensorship == @from.config.mediumType
-      @active = false
-      @activism = 0
-    else if MM.MEDIUM_TYPES.uncensored == @from.config.mediumType
-      status = @from.original.calculateActiveStatus(@from.original.grievance())
-      @active = status.active
-      @activism = status.activism
-
-      #if @from.original.sawArrest # TODO fix/improve
-      #  @active = true
-      #  @activism = 1
-    else if MM.MEDIUM_TYPES.micro == @from.config.mediumType
-      @active = @from.original.active
-      @activism = @from.original.micro
-    else
-      @active = @from.original.active
-      @activism = @from.original.activism
-
-    #@arrest = @from.original.sawArrest TODO fix/improve
+    @from.config.setMessageStatus.call(@)
 
   destroy: ->
     for reader in @readers by -1
@@ -369,34 +570,8 @@ class MM.Agent extends ABM.Agent
       return count.activism / count.citizens
 
   calculatePerceivedArrestProbability: (count) ->
-    return @calculateCopWillMakeArrestProbability(count) *
-      @calculateSpecificCitizenArrestProbability(count)
-
-  calculateSpecificCitizenArrestProbability: (count) ->
-    if MM.CALCULATIONS.epstein == @config.calculation or MM.CALCULATIONS.overpowered == @config.calculation
-      return 1 - Math.exp(-1 * @config.kConstant * count.cops / count.activism)
-    else if MM.CALCULATIONS.wilensky == @config.calculation
-      return 1 - Math.exp(-1 * @config.kConstant * Math.floor(count.cops / count.activism))
-    else # real
-      if count.cops > count.activism
-        return 1
-      else
-        return count.cops / count.activism
-
-  calculateCopWillMakeArrestProbability: (count) ->
-    if MM.CALCULATIONS.overpowered == @config.calculation
-      if count.cops * 5 > count.activism
-        return 1
-      else
-        return 0
-    else if MM.CALCULATIONS.real == @config.calculation
-      overwhelm = count.cops * 7 / count.activism
-      if overwhelm > 1
-        return 1
-      else
-        return overwhelm
-    else
-      return 1
+    return @config.copWillMakeArrestProbability.call(@, count) *
+      @config.citizenArrestProbability.call(@, count)
 
   countNeighbors: (options) ->
     cops = 0
@@ -642,7 +817,6 @@ class MM.Media
     @current().restart() # TODO eval
     @model.recordMediaChange()
     @updateOld()
-
 
 class MM.MediumEMail extends MM.MediumGenericDelivery
   setup: ->
@@ -908,10 +1082,8 @@ class MM.MediumTelephone extends MM.Medium
       if @links.length == 0
         me = @ # taken into closure
         agent = null # needed or may keep previous' use
-        if @config.friends != MM.FRIENDS.none and u.randomInt(3) < 2 # 2/3rd chanche
-          agent = @model.agents.sample(condition: (o) ->
-            me.original.isFriendsWith(o.original) and me.id != o.id
-          )
+        if u.randomInt(3) < 2 # 2/3rd chanche
+          agent = config.sampleFriend.call(@)
         agent ?= @model.agents.sample(condition: (o) -> me.id != o.id)
 
         agent.disconnect()
@@ -1048,8 +1220,9 @@ class MM.UI
       dropdownHashes[key] = [value]
 
     settings = u.merge dropdownHashes, {
+      riskAversionDistributionNormal: null
+      hardshipDistributionNormal: null
       smartPhones: null
-      #medium: [MM.MEDIA], {onChange: 55}
       citizenDensity: {min: 0, max: 1}
       copDensity: {min: 0, max: 0.10}
       maxPrisonSentence: {min: 0, max: 1000}
@@ -1058,7 +1231,6 @@ class MM.UI
       thresholdMicro: {min: -1, max: 1}
       prisonCapacity: {min: 0, max: 1}
       copsRetreat: null
-      activesAdvance: null
       copsDefect: null
       friendsNumber: null
       friendsMultiplier: {min: 0, max: 5}
@@ -1082,9 +1254,13 @@ class MM.UI
         adder = @gui.add(@model.config, key)
         for setting, argument of value
           adder[setting](argument)
+        adder.onChange(@set(key, @))
 
     for key, bull of buttons
       @gui.add(buttons, key)
+
+  set: (key, ui) -> return (value) -> # closure-fu to keep key
+    ui.model.set(key, value)
 
   setDropdown: (key, ui) -> return (value) -> # closure-fu to keep key
     ui.model.set(key, parseInt(value))
@@ -1284,20 +1460,14 @@ class MM.Model extends ABM.Model
     @resetData()
 
     for patch in @patches.create()
-      if MM.TYPES.enclave == @config.type
-        if patch.position.y > 0
-          patch.color = u.color.random type: "gray", min: 180, max: 204
-        else
-          patch.color = u.color.random type: "gray", min: 234, max: 255
-      else
-        patch.color = u.color.random type: "gray", min: 224, max: 255
+      @config.colorPatch(patch)
 
     space = @patches.length
 
     for citizen in @citizens.create @config.citizenDensity * space
       @setupCitizen(citizen)
 
-    @resetAllFriends()
+    @config.resetAllFriends.call(@)
 
     for cop in @cops.create @config.copDensity * space
       @setupCop(cop)
@@ -1314,11 +1484,9 @@ class MM.Model extends ABM.Model
     citizen.setColor "green"
     citizen.moveToRandomEmptyLocation()
 
-    citizen.hardship = u.randomFloat() # H
-    citizen.hardship = u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1) # H
+    citizen.hardship = @config.hardshipDistribution() # H
     citizen.hardshipped = true if citizen.hardship > 0.5
-    citizen.riskAversion = u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1) # R
-    citizen.riskAversion = u.randomFloat() # R
+    citizen.riskAversion = @config.riskAversionDistribution() # R
     citizen.riskAverse = true if citizen.riskAversion > 0.5
     citizen.lastLegitimacyDrop = 0
     citizen.active = false
@@ -1328,6 +1496,9 @@ class MM.Model extends ABM.Model
     citizen.sawArrest = false
 
     citizen.act = ->
+      if @mediumMirror()
+        @mediumMirror().resetCount()
+
       if !@fighting()
         if @imprisoned()
           @prisonSentence -= 1
@@ -1335,38 +1506,13 @@ class MM.Model extends ABM.Model
           if !@imprisoned()
             @moveToRandomEmptyLocation()
 
+      if !@imprisoned() # free or just released
         if @mediumMirror()
-          @mediumMirror().resetCount()
-          
-          if !@imprisoned()
-            if !@config.smartPhones and @mediumMirror().online() and @position
-              @moveOff()
-            else if !@position
-              @moveToRandomEmptyLocation()
-        
-        if @position? # free, just released, and not behind PC
-          if MM.TYPES.enclave == @config.type
-            if @riskAverse
-              @moveToRandomBottomHalf(@config.walk)
-            else
-              @moveToRandomUpperHalf(@config.walk)
-          else if MM.TYPES.focalPoint == @config.type
-            if @riskAverse
-              @moveAwayFromPoint(@config.walk, {x: 0, y: 0})
-            else
-              @moveTowardsPoint(@config.walk, {x: 0, y: 0})
-          else if MM.TYPES.square == @config.type
-            @moveToRandomEmptyNeighbor(@config.walk)
-            if @active
-              @swapToActiveSquare({x: 0, y: 0}, range: 5)
-          else
-            if @config.activesAdvance and @active
-              @advance()
-            else
-              @moveToRandomEmptyNeighbor(@config.walk)
+          @config.moveOffIfOnline.call(@)
 
-          if MM.FRIENDS.local == @config.friends
-            @makeLocalFriends(@config.friendsNumber)
+        if @position? # free, just released, and not behind PC
+          @config.move.call(@)
+          @config.maintainFriends.call(@)
 
           if @config.holdOnlyIfNotified and @active and u.randomInt(20) == 1
             @leaveNotice()
@@ -1378,19 +1524,7 @@ class MM.Model extends ABM.Model
       @hardship * (1 - @regimeLegitimacy())
 
     citizen.regimeLegitimacy = ->
-      if MM.LEGITIMACY_CALCULATIONS.base == @config.legitimacyCalculation or @imprisoned()
-        return @config.baseRegimeLegitimacy
-      else
-        if @mediumMirror() and @mediumMirror().online()
-          count = @mediumMirror().count
-
-          count.citizens = count.reads # TODO fix/simplify
-        else
-          count = @countNeighbors(vision: @config.vision)
-
-        @lastLegitimacyDrop = (@lastLegitimacyDrop * 2 + @calculateLegitimacyDrop(count)) / 3
-
-        return @config.baseRegimeLegitimacy - @lastLegitimacyDrop * 0.1
+      @config.regimeLegitimacy.call(@)
 
     citizen.arrestProbability = ->
       count = @countNeighbors(vision: @config.vision)
@@ -1430,7 +1564,7 @@ class MM.Model extends ABM.Model
       @moveAwayFromArrestProbability(@config.walk, @config.vision)
 
     citizen.activate = ->
-      if MM.TYPES.hold == @config.type
+      if @config.holdActivation
         if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration and !@config.holdOnlyIfNotified or @notified
           @actuallyActivate()
           @notified = false
@@ -1440,12 +1574,7 @@ class MM.Model extends ABM.Model
     citizen.actuallyActivate = ->
       activation = @grievance() - @netRisk()
       status = @calculateActiveStatus(activation)
-      @active = status.active
-      @micro = status.micro
-      if MM.TYPES.micro == @config.type
-        @activism = status.micro
-      else
-        @activism = status.activism
+      @config.setStatus.call(@, status)
 
     citizen.updateColor = ->
       if @active
@@ -1507,7 +1636,7 @@ class MM.Model extends ABM.Model
     for agent in @agents
       agent.act()
       if agent.breed.name is "citizens" and u.randomInt(20) == 1
-          @media.current().use(agent)
+        @media.current().use(agent)
 
     unless @isHeadless
       window.modelUI.drawPlot()
@@ -1522,29 +1651,17 @@ class MM.Model extends ABM.Model
     if @config.testRun
       @testStep()
 
-  resetAllFriends: ->
-    if MM.FRIENDS.none != @config.friends
-      for citizen in @citizens
-        citizen.resetFriends()
-
-      for citizen in @citizens
-        if MM.FRIENDS.random == @config.friends
-          citizen.makeRandomFriends(@config.friendsNumber)
-        else if MM.FRIENDS.cliques == @config.friends
-          citizen.makeCliqueFriends(@config.friendsNumber)
-        else if MM.FRIENDS.local == @config.friends
-          citizen.makeLocalFriends(@config.friendsNumber)
-
   set: (key, value) ->
+    @config[key] = value
+    @config.check()
+    @config.setFunctions()
+
     if key == "view"
       @views.changed()
     else if key == "friends"
-      @resetAllFriends()
+      @config.resetAllFriends.call(@)
     else if key == "medium"
       @media.changed()
-    else
-      @config[key] = value
-      @config.check()
 
   actives: ->
     actives = []
@@ -1555,11 +1672,7 @@ class MM.Model extends ABM.Model
 
   micros: ->
     micros = []
-    if MM.TYPES.micro == @config.type
-      for citizen in @citizens
-        if !citizen.active and citizen.activism > 0 and
-            not citizen.imprisoned()
-          micros.push citizen
+    @config.micros.call(@)
     return micros
 
   arrests: ->
