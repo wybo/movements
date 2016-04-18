@@ -1,10 +1,6 @@
-class MM.ViewGeneric extends MM.View
-  setup: ->
-    @size = 1.0
+class MM.ViewGeneric extends MM.ViewModel
+  populate: ->
     super
-
-  populate: (options) ->
-    super(options)
 
     for citizen in @citizens
       if MM.VIEWS.hardship == @config.view

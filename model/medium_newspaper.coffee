@@ -2,7 +2,7 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
   setup: ->
     super
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     agent.step = ->

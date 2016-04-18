@@ -20,6 +20,19 @@ class MM.Medium extends ABM.Model
     for patch in @patches.create()
       patch.color = u.color.white
 
+  populate: ->
+    for original in @originalModel.agents
+      if original.breed.name == "citizens"
+        @createAgent(original)
+
+  access: (original) ->
+    # TODO fix for multiple media
+    agent = original.mediumMirror()
+
+    agent.onlineTimer = 5 # activates medium
+
+    return agent
+
   step: ->
     for agent in @agents by -1
       if agent.online()
@@ -29,49 +42,44 @@ class MM.Medium extends ABM.Model
 
     @drawAll()
 
-  use: (original) ->
-    agent = original.mediumMirror()
+  createAgent: (original) ->
+    agent = @agents.create(1).last()
+    agent.config = @config
+    agent.original = original
+    original.mediumMirrors[@config.medium] = agent
 
-    if !agent
-      agent = @agents.create(1).last()
-      agent.config = @config
-      agent.original = original
-      original.mediumMirrors[@config.medium] = agent
+    agent.size = @size
+    agent.heading = u.degreesToRadians(270)
+    agent.color = original.color
+    # agent.count below
 
-      agent.size = @size
-      agent.heading = u.degreesToRadians(270)
-      agent.color = original.color
-      # agent.count below
+    agent.online = ->
+      @onlineTimer > 0
 
-      agent.online = ->
-        @onlineTimer > 0
+    agent.read = (message, countIt = true) ->
+      @closeMessage()
 
-      agent.read = (message, countIt = true) ->
-        @closeMessage()
+      if message and countIt
+        message.readers.push(@)
+        @count.reads += 1
+        if message.active
+          @count.actives += 1
+        @count.activism += message.activism
+        if message.arrest
+          @count.arrests += 1
 
-        if message and countIt
-          message.readers.push(@)
-          @count.reads += 1
-          if message.active
-            @count.actives += 1
-          @count.activism += message.activism
-          if message.arrest
-            @count.arrests += 1
+      @reading = message
 
-        @reading = message
+    agent.closeMessage = ->
+      if @reading
+        @reading.readers.remove(@)
 
-      agent.closeMessage = ->
-        if @reading
-          @reading.readers.remove(@)
+      @reading = null
 
-        @reading = null
+    agent.resetCount = ->
+      @count = {reads: 0, actives: 0, activism: 0, arrests: 0}
 
-      agent.resetCount = ->
-        @count = {reads: 0, actives: 0, activism: 0, arrests: 0}
-
-      agent.resetCount()
-
-    agent.onlineTimer = 5 # activates medium
+    agent.resetCount() # TODO see if need for use
 
     return agent
 
@@ -92,3 +100,5 @@ class MM.Medium extends ABM.Model
   copyOriginalColors: ->
     for agent in @agents
       agent.color = agent.original.color
+
+  drawAll: ->

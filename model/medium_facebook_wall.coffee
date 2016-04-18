@@ -2,7 +2,7 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
   setup: ->
     super
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     agent.step = ->

@@ -5,20 +5,15 @@
 class MM.View extends ABM.Model
   setup: ->
     @agentBreeds ["citizens", "cops"]
+    @patches.create()
 
-    for patch in @patches.create()
-      patch.color = u.color.white
-
-  populate: (model) ->
-    for original in model.agents
+  populate: ->
+    for original in @originalModel.agents
       @createAgent(original)
 
   step: ->
-    for agent in @agents
-      if agent.original.position
-        agent.moveTo agent.original.position
-      else
-        agent.moveOff()
+    for patch in @patches
+      patch.color = u.color.white
 
   createAgent: (original) ->
     if original.breed.name == "citizens"
@@ -28,7 +23,7 @@ class MM.View extends ABM.Model
 
     agent = @agents.last()
     agent.original = original
-    original.viewMirrors[original.model.config.view] = agent
 
     agent.size = @size
-    agent.shape = "square"
+    agent.shape = @shape
+    agent.heading = u.degreesToRadians(270)

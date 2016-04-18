@@ -10,7 +10,7 @@ class MM.MediumForum extends MM.Medium
     while @threads.length <= @world.max.x
       @newPost(@dummyAgent)
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     agent.step = ->
@@ -78,19 +78,3 @@ class MM.MediumForum extends MM.Medium
   newComment: (agent) ->
     if agent.reading
       agent.reading.thread.post new MM.Message agent
-
-  drawAll: ->
-    @copyOriginalColors()
-    @resetPatches()
-
-    for thread, i in @threads
-      for post, j in thread
-        if i <= @world.max.x and j <= @world.max.y
-          post.patch = @patches.patch x: i, y: @world.max.y - j
-          @colorPatch(post.patch, post)
-        else
-          post.patch = null
-
-    for agent in @agents
-      if agent.reading.patch?
-        agent.moveTo(agent.reading.patch.position)

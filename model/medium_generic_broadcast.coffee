@@ -7,7 +7,7 @@ class MM.MediumGenericBroadcast extends MM.Medium
     for n in [0..@config.mediaChannels]
       @newChannel(n)
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     if !agent.channel
@@ -46,18 +46,3 @@ class MM.MediumGenericBroadcast extends MM.Medium
 
   route: (message) ->
     message.from.channel.message message
-
-  drawAll: ->
-    @copyOriginalColors()
-    @resetPatches()
-
-    for channel, i in @channels
-      #x = i % (@world.max.x + 1)
-      for message, j in channel
-        patch = @patches.patch(x: i, y: j)
-        @colorPatch(patch, message)
-
-    for agent, i in @agents
-      x = agent.channel.number
-
-      agent.moveTo x: x, y: 0

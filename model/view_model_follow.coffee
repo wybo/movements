@@ -1,12 +1,8 @@
-class MM.ViewFollow extends MM.View
-  setup: ->
-    @size = 1.0
+class MM.ViewFollow extends MM.ViewModel
+  populate: ->
     super
 
-  populate: (model) ->
-    super(model)
-
-    @agent = model.citizens.first().viewMirror()
+    @agent = @citizens.first()
 
     console.log "Selected agent for following:"
     console.log @agent

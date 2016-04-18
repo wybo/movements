@@ -7,7 +7,7 @@ class MM.MediumWebsite extends MM.Medium
     while @sites.length < 100
       @newPage(@dummyAgent)
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     agent.step = ->

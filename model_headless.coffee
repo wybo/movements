@@ -20,13 +20,20 @@ indexHash = (array) ->
 
   return hash
 
+deHash = (hash) ->
+  array = []
+  for key, value of hash
+    array[value] = key
+
+  return array
+
 MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "activesAdvance", "square"]) # TODO pull apart
 MM.CALCULATIONS = indexHash(["real", "epstein", "wilensky", "overwhelmed", "overpowered"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
 MM.MEDIUM_TYPES = indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
-MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"])
+MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(deHash(MM.MEDIA)))
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -36,10 +43,11 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.forum
+    @medium = MM.MEDIA.email
     @mediumType = MM.MEDIUM_TYPES.normal
     #@view = MM.VIEWS.regimeLegitimacy
-    @view = MM.VIEWS.riskAversion
+    #@view = MM.VIEWS.riskAversion
+    @view = MM.VIEWS.email
     @smartPhones = false
 
     @riskAversionDistributionNormal = false
@@ -186,7 +194,7 @@ class MM.Config
 
     @resetAllFriends = ->
 
-    @sampleFriend = ->
+    @sampleOnlineFriend = ->
       return null
 
     @setStatus = (status) ->
@@ -281,10 +289,10 @@ class MM.Config
     # Friends
 
     if MM.FRIENDS.none != @friends
-      @sampleFriend = ->
+      @sampleOnlineFriend = ->
         me = @
         return @model.agents.sample(condition: (o) ->
-            me.original.isFriendsWith(o.original) and me.id != o.id
+            me.original.isFriendsWith(o.original) and me.id != o.id and o.online()
         )
 
     if MM.FRIENDS.random == @friends
@@ -355,13 +363,11 @@ class MM.Config
 
     if @riskAversionDistributionNormal
       @riskAversionDistribution = ->
-        d = u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
-        console.log d
-        return d
+        return u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
     
     if @hardshipDistributionNormal
       @hardshipDistribution = ->
-        u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
+        return u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
 
   check: ->
     if @testRun && @modelOptions.isHeadless
@@ -413,6 +419,19 @@ class MM.Medium extends ABM.Model
     for patch in @patches.create()
       patch.color = u.color.white
 
+  populate: ->
+    for original in @originalModel.agents
+      if original.breed.name == "citizens"
+        @createAgent(original)
+
+  access: (original) ->
+    # TODO fix for multiple media
+    agent = original.mediumMirror()
+
+    agent.onlineTimer = 5 # activates medium
+
+    return agent
+
   step: ->
     for agent in @agents by -1
       if agent.online()
@@ -422,49 +441,44 @@ class MM.Medium extends ABM.Model
 
     @drawAll()
 
-  use: (original) ->
-    agent = original.mediumMirror()
+  createAgent: (original) ->
+    agent = @agents.create(1).last()
+    agent.config = @config
+    agent.original = original
+    original.mediumMirrors[@config.medium] = agent
 
-    if !agent
-      agent = @agents.create(1).last()
-      agent.config = @config
-      agent.original = original
-      original.mediumMirrors[@config.medium] = agent
+    agent.size = @size
+    agent.heading = u.degreesToRadians(270)
+    agent.color = original.color
+    # agent.count below
 
-      agent.size = @size
-      agent.heading = u.degreesToRadians(270)
-      agent.color = original.color
-      # agent.count below
+    agent.online = ->
+      @onlineTimer > 0
 
-      agent.online = ->
-        @onlineTimer > 0
+    agent.read = (message, countIt = true) ->
+      @closeMessage()
 
-      agent.read = (message, countIt = true) ->
-        @closeMessage()
+      if message and countIt
+        message.readers.push(@)
+        @count.reads += 1
+        if message.active
+          @count.actives += 1
+        @count.activism += message.activism
+        if message.arrest
+          @count.arrests += 1
 
-        if message and countIt
-          message.readers.push(@)
-          @count.reads += 1
-          if message.active
-            @count.actives += 1
-          @count.activism += message.activism
-          if message.arrest
-            @count.arrests += 1
+      @reading = message
 
-        @reading = message
+    agent.closeMessage = ->
+      if @reading
+        @reading.readers.remove(@)
 
-      agent.closeMessage = ->
-        if @reading
-          @reading.readers.remove(@)
+      @reading = null
 
-        @reading = null
+    agent.resetCount = ->
+      @count = {reads: 0, actives: 0, activism: 0, arrests: 0}
 
-      agent.resetCount = ->
-        @count = {reads: 0, actives: 0, activism: 0, arrests: 0}
-
-      agent.resetCount()
-
-    agent.onlineTimer = 5 # activates medium
+    agent.resetCount() # TODO see if need for use
 
     return agent
 
@@ -486,16 +500,18 @@ class MM.Medium extends ABM.Model
     for agent in @agents
       agent.color = agent.original.color
 
+  drawAll: ->
+
 class MM.MediumGenericDelivery extends MM.Medium
   setup: ->
     super
 
     @inboxes = new ABM.Array
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
-    if !agent.inbox # TODO really needed?
+    if !agent.inbox
       agent.inbox = @inboxes[agent.original.id] = new ABM.Array
 
     agent.toNextReading = (countIt) ->
@@ -533,16 +549,11 @@ class MM.Agent extends ABM.Agent
 
     @mediumMirrors = new ABM.Array
     @mediumMirrors[MM.MEDIA.none] = false
-    @viewMirrors = new ABM.Array
-    @viewMirrors[MM.VIEWS.none] = false
 
     @resetFriends()
 
   mediumMirror: ->
     @mediumMirrors[@config.medium]
-
-  viewMirror: ->
-    @viewMirrors[@config.view]
 
   setColor: (color) ->
     @color = new u.color color
@@ -789,13 +800,13 @@ class MM.Media
 
     @media = new ABM.Array
 
-    options = u.merge(@model.config.mediaModelOptions, {config: @model.config})
-    mirrorOptions = u.merge(@model.config.mediaMirrorModelOptions, {config: @model.config})
+    options = u.merge(@model.config.mediaModelOptions, {config: @model.config, originalModel: @model})
+    #mirrorOptions = u.merge(@model.config.mediaMirrorModelOptions, {config: @model.config, originalModel: @model})
 
     @media[MM.MEDIA.none] = new MM.MediumNone(options)
     @media[MM.MEDIA.tv] = new MM.MediumTV(options)
     @media[MM.MEDIA.newspaper] = new MM.MediumNewspaper(options)
-    @media[MM.MEDIA.telephone] = new MM.MediumTelephone(mirrorOptions)
+    @media[MM.MEDIA.telephone] = new MM.MediumTelephone(options)
     @media[MM.MEDIA.email] = new MM.MediumEMail(options)
     @media[MM.MEDIA.website] = new MM.MediumWebsite(options)
     @media[MM.MEDIA.forum] = new MM.MediumForum(options)
@@ -805,6 +816,10 @@ class MM.Media
 
   current: ->
     @media[@model.config.medium]
+
+  allOffline: ->
+    for medium in @media
+      medium.onlineTimer = 0
 
   old: ->
     @media[@model.config.oldMedium]
@@ -822,7 +837,7 @@ class MM.MediumEMail extends MM.MediumGenericDelivery
   setup: ->
     super
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     agent.step = ->
@@ -835,7 +850,7 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
   setup: ->
     super
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     agent.step = ->
@@ -868,7 +883,7 @@ class MM.MediumForum extends MM.Medium
     while @threads.length <= @world.max.x
       @newPost(@dummyAgent)
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     agent.step = ->
@@ -937,22 +952,6 @@ class MM.MediumForum extends MM.Medium
     if agent.reading
       agent.reading.thread.post new MM.Message agent
 
-  drawAll: ->
-    @copyOriginalColors()
-    @resetPatches()
-
-    for thread, i in @threads
-      for post, j in thread
-        if i <= @world.max.x and j <= @world.max.y
-          post.patch = @patches.patch x: i, y: @world.max.y - j
-          @colorPatch(post.patch, post)
-        else
-          post.patch = null
-
-    for agent in @agents
-      if agent.reading.patch?
-        agent.moveTo(agent.reading.patch.position)
-
 class MM.MediumGenericBroadcast extends MM.Medium
   setup: ->
     super
@@ -962,7 +961,7 @@ class MM.MediumGenericBroadcast extends MM.Medium
     for n in [0..@config.mediaChannels]
       @newChannel(n)
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     if !agent.channel
@@ -1002,26 +1001,11 @@ class MM.MediumGenericBroadcast extends MM.Medium
   route: (message) ->
     message.from.channel.message message
 
-  drawAll: ->
-    @copyOriginalColors()
-    @resetPatches()
-
-    for channel, i in @channels
-      #x = i % (@world.max.x + 1)
-      for message, j in channel
-        patch = @patches.patch(x: i, y: j)
-        @colorPatch(patch, message)
-
-    for agent, i in @agents
-      x = agent.channel.number
-
-      agent.moveTo x: x, y: 0
-
 class MM.MediumNewspaper extends MM.MediumGenericBroadcast
   setup: ->
     super
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     agent.step = ->
@@ -1058,67 +1042,74 @@ class MM.MediumNone extends MM.Medium
   setup: ->
     super
 
-  use: (original) ->
+  access: (original) ->
 
   step: ->
+
+  createAgent: (original) ->
 
 class MM.MediumTelephone extends MM.Medium
   setup: ->
     super
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     agent.step = ->
-      if u.randomInt(3) == 1
-        @call()
+      if !@reading
+        if u.randomInt(3) == 1
+          @call()
 
-      if @reading
+      if @initiated_call
         if @timer < 0
           @disconnect()
         @timer -= 1
 
     agent.call = ->
-      if @links.length == 0
-        me = @ # taken into closure
-        agent = null # needed or may keep previous' use
-        if u.randomInt(3) < 2 # 2/3rd chanche
-          agent = config.sampleFriend.call(@)
-        agent ?= @model.agents.sample(condition: (o) -> me.id != o.id)
+      me = @ # taken into closure
+      agent = null # needed or may keep previous' use
+      if u.randomInt(3) < 2 # 2/3rd chanche
+        agent = @config.sampleOnlineFriend.call(@)
+      agent ?= @model.agents.sample(condition: (o) -> me.id != o.id and o.online())
 
-        agent.disconnect()
+      agent.disconnect()
 
-        @model.links.create(@, agent).last()
-        agent.timer = u.randomInt(3)
+      @timer = 5
+      @initiated_call = true
 
-        agent.read(new MM.Message @, agent)
+      @read(new MM.Message agent, @)
+      agent.read(new MM.Message @, agent)
 
     agent.disconnect = ->
-      for link in @links
-        link.to.closeMessage()
-        link.to.timer = null
-        link.die()
-      @timer = 0 # for disconnect due to offline
+      if @reading
+        for reader in @reading.readers
+          reader.closeMessage()
+          reader.timer = 0
+          reader.initiated_call = false
+
+        @closeMessage()
+        @timer = 0 # for disconnect due to offline
+        @initiated_call = false
 
     agent.toNextMessage = ->
       # No need to always call
 
-  drawAll: ->
-    @copyOriginalColors()
-    @resetPatches()
-
-    for agent in @agents
-      if agent.original.position # Not jailed
-        agent.moveTo(agent.original.position)
-        if agent.reading
-          patch = @patches.patch(agent.position)
-          @colorPatch(patch, agent.reading)
+      #  drawAll: ->
+      #    @copyOriginalColors()
+      #    @resetPatches()
+      #
+      #    for agent in @agents
+      #      if agent.original.position # Not jailed
+      #        agent.moveTo(agent.original.position)
+      #        if agent.reading
+      #          patch = @patches.patch(agent.position)
+      #          @colorPatch(patch, agent.reading)
 
 class MM.MediumTV extends MM.MediumGenericBroadcast
   setup: ->
     super
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     agent.step = ->
@@ -1130,31 +1121,6 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
     agent.toNextReading = (countIt) ->
       @read(@channel[0], countIt)
 
-  drawAll: ->
-    @copyOriginalColors()
-    @resetPatches()
-
-    channelStep = Math.floor(@world.max.x / (@channels.length + 1))
-
-    xOffset = channelStep
-    for channel, i in @channels
-      message = channel[0]
-      if message
-        for agent, j in message.readers
-          k = j - 1
-
-          if j == 0
-            agent.moveTo x: xOffset, y: 0
-          else
-            column_nr = Math.floor(k / (@world.max.y + 1))
-            agent.moveTo x: xOffset - column_nr - 1, y: k % (@world.max.y + 1)
-
-      for message, j in channel
-        patch = @patches.patch(x: xOffset, y: j)
-        @colorPatch(patch, message)
-
-      xOffset += channelStep
-
 class MM.MediumWebsite extends MM.Medium
   setup: ->
     super
@@ -1164,7 +1130,7 @@ class MM.MediumWebsite extends MM.Medium
     while @sites.length < 100
       @newPage(@dummyAgent)
 
-  use: (original) ->
+  createAgent: (original) ->
     agent = super(original)
 
     agent.step = ->
@@ -1301,20 +1267,15 @@ class MM.UI
 class MM.View extends ABM.Model
   setup: ->
     @agentBreeds ["citizens", "cops"]
+    @patches.create()
 
-    for patch in @patches.create()
-      patch.color = u.color.white
-
-  populate: (model) ->
-    for original in model.agents
+  populate: ->
+    for original in @originalModel.agents
       @createAgent(original)
 
   step: ->
-    for agent in @agents
-      if agent.original.position
-        agent.moveTo agent.original.position
-      else
-        agent.moveOff()
+    for patch in @patches
+      patch.color = u.color.white
 
   createAgent: (original) ->
     if original.breed.name == "citizens"
@@ -1324,39 +1285,154 @@ class MM.View extends ABM.Model
 
     agent = @agents.last()
     agent.original = original
-    original.viewMirrors[original.model.config.view] = agent
 
     agent.size = @size
-    agent.shape = "square"
+    agent.shape = @shape
+    agent.heading = u.degreesToRadians(270)
 
-class MM.ViewArrestProbability extends MM.View
+# Copyright 2014, Wybo Wiersma, available under the GPL v3
+# This model builds upon Epsteins model of protest, and illustrates
+# the possible impact of social media on protest formation.
+
+class MM.ViewMedium extends MM.View
   setup: ->
-    @size = 1.0
+    @size = 0.6
+    @shape = "default"
     super
-
-  populate: (options) ->
-    super(options)
-
-    for agent in @agents
-      if agent.original.breed.name is "cops"
-        agent.color = agent.original.color
 
   step: ->
     super
 
     for agent in @agents
-      if agent.original.breed.name is "citizens"
-        agent.color = u.color.red.fraction(agent.original.arrestProbability())
+      agent.original.mirror = agent # mirror is only available in media views
+      if agent.original.online()
+        agent.color = agent.original.original.color # via medium to model, then color
+      else
+        agent.moveOff()
 
-class MM.ViewFollow extends MM.View
-  setup: ->
-    @size = 1.0
+  colorPatch: (patch, message) ->
+    if message.arrest
+      patch.color = u.color.mediumpurple
+    else if message.activism == 1.0
+      patch.color = u.color.salmon
+    else if message.activism > 0
+      patch.color = u.color.pink
+    else
+      patch.color = u.color.lightgray
+
+class MM.ViewMediumForum extends MM.ViewMedium
+  step: ->
     super
 
-  populate: (model) ->
-    super(model)
+    for thread, i in @model.threads
+      for post, j in thread
+        if i <= @world.max.x and j <= @world.max.y
+          patch = @patches.patch x: i, y: @world.max.y - j
+          @colorPatch(patch, post)
+          for reader in post.readers
+            if reader.online()
+              reader.mirror.moveTo(patch.position)
 
-    @agent = model.citizens.first().viewMirror()
+class MM.ViewMediumGeneric extends MM.ViewMedium
+
+class MM.ViewMediumGenericDelivery extends MM.ViewMedium
+  step: ->
+    super
+
+    xOffset = yOffset = 0
+    for agent, i in @agents
+      x = i % (@world.max.x + 1)
+      yOffset = Math.floor(i / (@world.max.x + 1)) * 5
+
+      for message, j in agent.original.inbox
+        patch = @patches.patch(x: x, y: yOffset + j)
+        @colorPatch(patch, message)
+
+      agent.moveTo x: x, y: yOffset
+
+class MM.ViewMediumNewspaper extends MM.ViewMedium
+  step: ->
+    super
+
+    channelStep = Math.floor(@world.max.x / (@model.channels.length + 1))
+
+    xOffset = channelStep
+    for channel, i in @model.channels
+      for message, j in channel
+        for agent, k in message.readers
+          agent.mirror.moveTo x: xOffset - k, y: j
+
+        patch = @patches.patch(x: xOffset, y: j)
+        @colorPatch(patch, message)
+
+      xOffset += channelStep
+
+class MM.ViewMediumTelephone extends MM.ViewMedium
+  step: ->
+    super
+
+    yOffset = xOffset = 0
+    for agent in @agents
+      if agent.original.online()
+        if agent.original.initiated_call
+          from_position = {x: xOffset, y: yOffset}
+          to_position = {x: xOffset + 1, y: yOffset}
+          agent.moveTo(from_position)
+          agent.original.reading.from.mirror.moveTo(to_position)
+          @colorPatch(@patches.patch(from_position), agent.original.reading)
+          @colorPatch(@patches.patch(to_position), agent.original.reading.from.reading)
+          yOffset += 2
+
+          if yOffset > @world.max.y
+            yOffset = 0
+            xOffset += 3
+
+
+class MM.ViewMediumTV extends MM.ViewMedium
+  step: ->
+    super
+
+    channelStep = Math.floor(@world.max.x / (@model.channels.length + 1))
+
+    xOffset = channelStep
+    for channel, i in @model.channels
+      message = channel[0]
+      if message
+        for agent, j in message.readers
+          k = j - 1
+
+          if j == 0
+            agent.mirror.moveTo x: xOffset, y: 0
+          else
+            column_nr = Math.floor(k / (@world.max.y + 1))
+            agent.mirror.moveTo x: xOffset - column_nr - 1, y: k % (@world.max.y + 1)
+
+      for message, j in channel
+        patch = @patches.patch(x: xOffset, y: j)
+        @colorPatch(patch, message)
+
+      xOffset += channelStep
+
+class MM.ViewModel extends MM.View
+  setup: ->
+    @size = 1.0
+    @shape = "square"
+    super
+
+  step: ->
+    super
+
+    for agent in @agents
+      if agent.original.position
+        agent.moveTo agent.original.position
+      else
+        agent.moveOff()
+
+class MM.ViewFollow extends MM.ViewModel
+  populate: ->
+    super
+
+    @agent = @citizens.first()
 
     console.log "Selected agent for following:"
     console.log @agent
@@ -1372,13 +1448,9 @@ class MM.ViewFollow extends MM.View
 
     @agent.original.color = @agent.color = u.color.black
 
-class MM.ViewGeneric extends MM.View
-  setup: ->
-    @size = 1.0
+class MM.ViewGeneric extends MM.ViewModel
+  populate: ->
     super
-
-  populate: (options) ->
-    super(options)
 
     for citizen in @citizens
       if MM.VIEWS.hardship == @config.view
@@ -1409,7 +1481,7 @@ class MM.ViewNone extends MM.View
   setup: ->
     super
 
-  populate: (options) ->
+  populate: ->
 
   step: ->
 
@@ -1419,15 +1491,34 @@ class MM.Views
 
     @views = new ABM.Array
 
-    genericView = new MM.ViewGeneric(u.merge(@model.config.viewModelOptions, {config: @model.config}))
+    genericView = new MM.ViewGeneric(u.merge(@model.config.viewModelOptions, {config: @model.config, originalModel: @model}))
+
+    @views[MM.VIEWS.none] = new MM.ViewNone(u.merge(@model.config.viewModelOptions, {config: @model.config, originalModel: @model}))
+    @views[MM.VIEWS.follow] = new MM.ViewFollow(u.merge(@model.config.viewModelOptions, {config: @model.config, originalModel: @model}))
+
+    @initializeView("forum", MM.ViewMediumForum, "view")
+    @initializeView("tv", MM.ViewMediumTV, "view")
+    @initializeView("newspaper", MM.ViewMediumNewspaper, "view")
+    @initializeView("telephone", MM.ViewMediumTelephone, "view")
+    @initializeView("email", MM.ViewMediumGenericDelivery, "view")
 
     for key, viewNumber of MM.VIEWS
-      @views[viewNumber] = genericView
+      for mediaKey, mediaNumber of MM.MEDIA
+        if key == mediaKey
+          @views[viewNumber] ?= new MM.ViewMediumGeneric(
+            u.merge(@model.config.mediaModelOptions, {config: @model.config, originalModel: @model.media.media[mediaNumber], div: "view"})
+          )
 
-    @views[MM.VIEWS.none] = new MM.ViewNone(@model.config.viewModelOptions)
-    @views[MM.VIEWS.follow] = new MM.ViewFollow(@model.config.viewModelOptions)
+      # Fill in with generic view otherwise
+      @views[viewNumber] ?= genericView
 
     @updateOld()
+
+  initializeView: (name, klass, div, options) ->
+    options ?= @model.config.mediaModelOptions
+    @views[MM.VIEWS[name]] = new klass(
+      u.merge(options, {config: @model.config, originalModel: @model.media.media[MM.MEDIA[name]], div: "view"})
+    )
 
   current: ->
     @views[@model.config.view]
@@ -1441,9 +1532,13 @@ class MM.Views
   changed: ->
     @old().reset()
     @current().reset()
-    @current().populate(@model)
+    @current().populate()
     @current().start()
     @updateOld()
+
+# Copyright 2014, Wybo Wiersma, available under the GPL v3
+# This model builds upon Epsteins model of protest, and illustrates
+# the possible impact of social media on protest formation.
 
 class MM.Model extends ABM.Model
   restart: ->
@@ -1474,7 +1569,8 @@ class MM.Model extends ABM.Model
 
     unless @isHeadless
       window.modelUI.resetPlot()
-      @views.current().populate(@)
+      @media.current().populate() # TODO change to make populate all
+      @views.current().populate()
       @consoleLog()
 
   setupCitizen: (citizen) ->
@@ -1546,6 +1642,7 @@ class MM.Model extends ABM.Model
     citizen.imprison = ->
       @prisonSentence = 1 + u.randomInt(@config.maxPrisonSentence)
       @moveOff()
+      @model.media.allOffline()
 
     citizen.arrest = ->
       @arrestDuration = @config.arrestDuration
@@ -1636,7 +1733,7 @@ class MM.Model extends ABM.Model
     for agent in @agents
       agent.act()
       if agent.breed.name is "citizens" and u.randomInt(20) == 1
-        @media.current().use(agent)
+        @media.current().access(agent)
 
     unless @isHeadless
       window.modelUI.drawPlot()
@@ -1879,7 +1976,7 @@ class MM.ModelSimple extends ABM.Model
 
     unless @isHeadless
       window.modelUI.resetPlot()
-      @views.current().populate(@)
+      @views.current().populate()
       @consoleLog()
 
   step: -> # called by MM.Model.animate
@@ -1888,7 +1985,7 @@ class MM.ModelSimple extends ABM.Model
       agent.act()
       if u.randomInt(100) == 1
         if agent.breed.name is "citizens"
-          @media.current().use(agent)
+          @media.current().access(agent)
 
     unless @isHeadless
       window.modelUI.drawPlot()
@@ -1975,9 +2072,8 @@ class MM.ModelSimple extends ABM.Model
 #class MM.Initializer extends MM.ModelSimple
 class MM.Initializer extends MM.Model
   @initialize: (@config) ->
-    @config ?= new MM.Config
-    return new MM.Initializer(u.merge(@config.modelOptions, {config: @config}))
-    #return new MM.Initializer(@config) TODO
+    config ?= new MM.Config
+    return new MM.Initializer(u.merge(config.modelOptions, {config: config}))
   
   startup: ->
     @media = new MM.Media(this)

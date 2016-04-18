@@ -1,9 +1,8 @@
 #class MM.Initializer extends MM.ModelSimple
 class MM.Initializer extends MM.Model
   @initialize: (@config) ->
-    @config ?= new MM.Config
-    return new MM.Initializer(u.merge(@config.modelOptions, {config: @config}))
-    #return new MM.Initializer(@config) TODO
+    config ?= new MM.Config
+    return new MM.Initializer(u.merge(config.modelOptions, {config: config}))
   
   startup: ->
     @media = new MM.Media(this)

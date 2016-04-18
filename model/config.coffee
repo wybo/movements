@@ -20,13 +20,20 @@ indexHash = (array) ->
 
   return hash
 
+deHash = (hash) ->
+  array = []
+  for key, value of hash
+    array[value] = key
+
+  return array
+
 MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "activesAdvance", "square"]) # TODO pull apart
 MM.CALCULATIONS = indexHash(["real", "epstein", "wilensky", "overwhelmed", "overpowered"])
 MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
 MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
 MM.MEDIUM_TYPES = indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
-MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"])
+MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(deHash(MM.MEDIA)))
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -36,10 +43,11 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.forum
+    @medium = MM.MEDIA.email
     @mediumType = MM.MEDIUM_TYPES.normal
     #@view = MM.VIEWS.regimeLegitimacy
-    @view = MM.VIEWS.riskAversion
+    #@view = MM.VIEWS.riskAversion
+    @view = MM.VIEWS.email
     @smartPhones = false
 
     @riskAversionDistributionNormal = false
@@ -186,7 +194,7 @@ class MM.Config
 
     @resetAllFriends = ->
 
-    @sampleFriend = ->
+    @sampleOnlineFriend = ->
       return null
 
     @setStatus = (status) ->
@@ -281,10 +289,10 @@ class MM.Config
     # Friends
 
     if MM.FRIENDS.none != @friends
-      @sampleFriend = ->
+      @sampleOnlineFriend = ->
         me = @
         return @model.agents.sample(condition: (o) ->
-            me.original.isFriendsWith(o.original) and me.id != o.id
+            me.original.isFriendsWith(o.original) and me.id != o.id and o.online()
         )
 
     if MM.FRIENDS.random == @friends
@@ -355,13 +363,11 @@ class MM.Config
 
     if @riskAversionDistributionNormal
       @riskAversionDistribution = ->
-        d = u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
-        console.log d
-        return d
+        return u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
     
     if @hardshipDistributionNormal
       @hardshipDistribution = ->
-        u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
+        return u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
 
   check: ->
     if @testRun && @modelOptions.isHeadless

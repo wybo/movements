@@ -4,16 +4,11 @@ class MM.Agent extends ABM.Agent
 
     @mediumMirrors = new ABM.Array
     @mediumMirrors[MM.MEDIA.none] = false
-    @viewMirrors = new ABM.Array
-    @viewMirrors[MM.VIEWS.none] = false
 
     @resetFriends()
 
   mediumMirror: ->
     @mediumMirrors[@config.medium]
-
-  viewMirror: ->
-    @viewMirrors[@config.view]
 
   setColor: (color) ->
     @color = new u.color color

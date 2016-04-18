@@ -1,3 +1,7 @@
+# Copyright 2014, Wybo Wiersma, available under the GPL v3
+# This model builds upon Epsteins model of protest, and illustrates
+# the possible impact of social media on protest formation.
+
 class MM.Model extends ABM.Model
   restart: ->
     @media.current().restart()
@@ -27,7 +31,8 @@ class MM.Model extends ABM.Model
 
     unless @isHeadless
       window.modelUI.resetPlot()
-      @views.current().populate(@)
+      @media.current().populate() # TODO change to make populate all
+      @views.current().populate()
       @consoleLog()
 
   setupCitizen: (citizen) ->
@@ -99,6 +104,7 @@ class MM.Model extends ABM.Model
     citizen.imprison = ->
       @prisonSentence = 1 + u.randomInt(@config.maxPrisonSentence)
       @moveOff()
+      @model.media.allOffline()
 
     citizen.arrest = ->
       @arrestDuration = @config.arrestDuration
@@ -189,7 +195,7 @@ class MM.Model extends ABM.Model
     for agent in @agents
       agent.act()
       if agent.breed.name is "citizens" and u.randomInt(20) == 1
-        @media.current().use(agent)
+        @media.current().access(agent)
 
     unless @isHeadless
       window.modelUI.drawPlot()

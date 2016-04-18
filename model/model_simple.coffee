@@ -82,7 +82,7 @@ class MM.ModelSimple extends ABM.Model
 
     unless @isHeadless
       window.modelUI.resetPlot()
-      @views.current().populate(@)
+      @views.current().populate()
       @consoleLog()
 
   step: -> # called by MM.Model.animate
@@ -91,7 +91,7 @@ class MM.ModelSimple extends ABM.Model
       agent.act()
       if u.randomInt(100) == 1
         if agent.breed.name is "citizens"
-          @media.current().use(agent)
+          @media.current().access(agent)
 
     unless @isHeadless
       window.modelUI.drawPlot()
