@@ -221,6 +221,7 @@ class MM.Model extends ABM.Model
       @config.resetAllFriends.call(@)
     else if key == "medium"
       @media.changed()
+      # TODO update UI
 
   actives: ->
     actives = []

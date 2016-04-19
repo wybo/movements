@@ -12,28 +12,13 @@ if typeof ABM == 'undefined'
 u = ABM.util # ABM.util alias
 log = (object) -> console.log object
 
-indexHash = (array) ->
-  hash = {}
-  i = 0
-  for key in array
-    hash[key] = i++
-
-  return hash
-
-deHash = (hash) ->
-  array = []
-  for key, value of hash
-    array[value] = key
-
-  return array
-
-MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "activesAdvance", "square"]) # TODO pull apart
-MM.CALCULATIONS = indexHash(["real", "epstein", "wilensky", "overwhelmed", "overpowered"])
-MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
-MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
-MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
-MM.MEDIUM_TYPES = indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
-MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(deHash(MM.MEDIA)))
+MM.TYPES = u.indexHash(["normal", "enclave", "focalPoint", "micro", "activesAdvance", "square"]) # TODO pull apart
+MM.CALCULATIONS = u.indexHash(["real", "epstein", "wilensky", "overwhelmed", "overpowered"])
+MM.LEGITIMACY_CALCULATIONS = u.indexHash(["base", "arrests"])
+MM.FRIENDS = u.indexHash(["none", "random", "cliques", "local"])
+MM.MEDIA = u.indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
+MM.MEDIUM_TYPES = u.indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
+MM.VIEWS = u.indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA)))
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -43,11 +28,11 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.email
+    @medium = MM.MEDIA.website
     @mediumType = MM.MEDIUM_TYPES.normal
     #@view = MM.VIEWS.regimeLegitimacy
     #@view = MM.VIEWS.riskAversion
-    @view = MM.VIEWS.email
+    @view = MM.VIEWS.website
     @smartPhones = false
 
     @riskAversionDistributionNormal = false
@@ -829,7 +814,9 @@ class MM.Media
 
   changed: ->
     @old().reset()
-    @current().restart() # TODO eval
+    @current().reset() # TODO eval
+    @current().populate()
+    @current().start()
     @model.recordMediaChange()
     @updateOld()
 
@@ -1149,19 +1136,6 @@ class MM.MediumWebsite extends MM.Medium
       site = @sites.pop()
       site.destroy()
 
-  drawAll: ->
-    @copyOriginalColors()
-    @resetPatches()
-
-    for site in @sites
-      if !site.patch?
-        site.patch = @patches.sample()
-
-      @colorPatch(site.patch, site) # TODO reduce
-
-    for agent in @agents
-      agent.moveTo(agent.reading.patch.position)
-
 class MM.UI
   constructor: (model, options = {}) ->
     if window.modelUI
@@ -1230,6 +1204,9 @@ class MM.UI
 
   setDropdown: (key, ui) -> return (value) -> # closure-fu to keep key
     ui.model.set(key, parseInt(value))
+    if key == "medium"
+      ui.model.set("view", MM.VIEWS[u.deIndexHash(MM.MEDIA)[parseInt(value)]])
+
 
   resetPlot: ->
     options = {
@@ -1324,7 +1301,7 @@ class MM.ViewMediumForum extends MM.ViewMedium
   step: ->
     super
 
-    for thread, i in @model.threads
+    for thread, i in @originalModel.threads
       for post, j in thread
         if i <= @world.max.x and j <= @world.max.y
           patch = @patches.patch x: i, y: @world.max.y - j
@@ -1354,10 +1331,10 @@ class MM.ViewMediumNewspaper extends MM.ViewMedium
   step: ->
     super
 
-    channelStep = Math.floor(@world.max.x / (@model.channels.length + 1))
+    channelStep = Math.floor(@world.max.x / (@originalModel.channels.length + 1))
 
     xOffset = channelStep
-    for channel, i in @model.channels
+    for channel, i in @originalModel.channels
       for message, j in channel
         for agent, k in message.readers
           agent.mirror.moveTo x: xOffset - k, y: j
@@ -1392,10 +1369,10 @@ class MM.ViewMediumTV extends MM.ViewMedium
   step: ->
     super
 
-    channelStep = Math.floor(@world.max.x / (@model.channels.length + 1))
+    channelStep = Math.floor(@world.max.x / (@originalModel.channels.length + 1))
 
     xOffset = channelStep
-    for channel, i in @model.channels
+    for channel, i in @originalModel.channels
       message = channel[0]
       if message
         for agent, j in message.readers
@@ -1412,6 +1389,20 @@ class MM.ViewMediumTV extends MM.ViewMedium
         @colorPatch(patch, message)
 
       xOffset += channelStep
+
+class MM.ViewMediumWebsite extends MM.ViewMedium
+  step: ->
+    super
+
+    for site in @originalModel.sites
+      if !site.patch?
+        site.patch = @patches.sample() # Tad messy, only one view per model
+
+      @colorPatch(site.patch, site)
+
+    for agent in @agents
+      if agent.original.online()
+        agent.moveTo(agent.original.reading.patch.position)
 
 class MM.ViewModel extends MM.View
   setup: ->
@@ -1501,6 +1492,8 @@ class MM.Views
     @initializeView("newspaper", MM.ViewMediumNewspaper, "view")
     @initializeView("telephone", MM.ViewMediumTelephone, "view")
     @initializeView("email", MM.ViewMediumGenericDelivery, "view")
+    @initializeView("website", MM.ViewMediumWebsite, "view")
+    @initializeView("facebookWall", MM.ViewMediumGenericDelivery, "view")
 
     for key, viewNumber of MM.VIEWS
       for mediaKey, mediaNumber of MM.MEDIA
@@ -1759,6 +1752,7 @@ class MM.Model extends ABM.Model
       @config.resetAllFriends.call(@)
     else if key == "medium"
       @media.changed()
+      # TODO update UI
 
   actives: ->
     actives = []

@@ -2,10 +2,10 @@ class MM.ViewMediumTV extends MM.ViewMedium
   step: ->
     super
 
-    channelStep = Math.floor(@world.max.x / (@model.channels.length + 1))
+    channelStep = Math.floor(@world.max.x / (@originalModel.channels.length + 1))
 
     xOffset = channelStep
-    for channel, i in @model.channels
+    for channel, i in @originalModel.channels
       message = channel[0]
       if message
         for agent, j in message.readers

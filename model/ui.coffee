@@ -66,6 +66,9 @@ class MM.UI
 
   setDropdown: (key, ui) -> return (value) -> # closure-fu to keep key
     ui.model.set(key, parseInt(value))
+    if key == "medium"
+      ui.model.set("view", MM.VIEWS[u.deIndexHash(MM.MEDIA)[parseInt(value)]])
+
 
   resetPlot: ->
     options = {

@@ -12,28 +12,13 @@ if typeof ABM == 'undefined'
 u = ABM.util # ABM.util alias
 log = (object) -> console.log object
 
-indexHash = (array) ->
-  hash = {}
-  i = 0
-  for key in array
-    hash[key] = i++
-
-  return hash
-
-deHash = (hash) ->
-  array = []
-  for key, value of hash
-    array[value] = key
-
-  return array
-
-MM.TYPES = indexHash(["normal", "enclave", "focalPoint", "micro", "activesAdvance", "square"]) # TODO pull apart
-MM.CALCULATIONS = indexHash(["real", "epstein", "wilensky", "overwhelmed", "overpowered"])
-MM.LEGITIMACY_CALCULATIONS = indexHash(["base", "arrests"])
-MM.FRIENDS = indexHash(["none", "random", "cliques", "local"])
-MM.MEDIA = indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
-MM.MEDIUM_TYPES = indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
-MM.VIEWS = indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(deHash(MM.MEDIA)))
+MM.TYPES = u.indexHash(["normal", "enclave", "focalPoint", "micro", "activesAdvance", "square"]) # TODO pull apart
+MM.CALCULATIONS = u.indexHash(["real", "epstein", "wilensky", "overwhelmed", "overpowered"])
+MM.LEGITIMACY_CALCULATIONS = u.indexHash(["base", "arrests"])
+MM.FRIENDS = u.indexHash(["none", "random", "cliques", "local"])
+MM.MEDIA = u.indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
+MM.MEDIUM_TYPES = u.indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
+MM.VIEWS = u.indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA)))
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -43,11 +28,11 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.email
+    @medium = MM.MEDIA.website
     @mediumType = MM.MEDIUM_TYPES.normal
     #@view = MM.VIEWS.regimeLegitimacy
     #@view = MM.VIEWS.riskAversion
-    @view = MM.VIEWS.email
+    @view = MM.VIEWS.website
     @smartPhones = false
 
     @riskAversionDistributionNormal = false

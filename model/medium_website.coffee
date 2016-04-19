@@ -25,16 +25,3 @@ class MM.MediumWebsite extends MM.Medium
     if @sites.length > 100
       site = @sites.pop()
       site.destroy()
-
-  drawAll: ->
-    @copyOriginalColors()
-    @resetPatches()
-
-    for site in @sites
-      if !site.patch?
-        site.patch = @patches.sample()
-
-      @colorPatch(site.patch, site) # TODO reduce
-
-    for agent in @agents
-      agent.moveTo(agent.reading.patch.position)

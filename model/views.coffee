@@ -14,6 +14,8 @@ class MM.Views
     @initializeView("newspaper", MM.ViewMediumNewspaper, "view")
     @initializeView("telephone", MM.ViewMediumTelephone, "view")
     @initializeView("email", MM.ViewMediumGenericDelivery, "view")
+    @initializeView("website", MM.ViewMediumWebsite, "view")
+    @initializeView("facebookWall", MM.ViewMediumGenericDelivery, "view")
 
     for key, viewNumber of MM.VIEWS
       for mediaKey, mediaNumber of MM.MEDIA

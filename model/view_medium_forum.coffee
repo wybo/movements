@@ -2,7 +2,7 @@ class MM.ViewMediumForum extends MM.ViewMedium
   step: ->
     super
 
-    for thread, i in @model.threads
+    for thread, i in @originalModel.threads
       for post, j in thread
         if i <= @world.max.x and j <= @world.max.y
           patch = @patches.patch x: i, y: @world.max.y - j
