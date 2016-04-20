@@ -330,6 +330,7 @@ class MM.Model extends ABM.Model
       @config[key] += 1
     else
       @config[key] = 0
+    console.log "Testing " + key + " " + u.deIndexHash(hash)[@config[key]]
 
   testStep: ->
     if @animator.ticks % 2 == 0

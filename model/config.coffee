@@ -18,12 +18,12 @@ MM.LEGITIMACY_CALCULATIONS = u.indexHash(["base", "arrests"])
 MM.FRIENDS = u.indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = u.indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
 MM.MEDIUM_TYPES = u.indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
-MM.VIEWS = u.indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA)))
+MM.VIEWS = u.indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA).remove("none")))
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
   constructor: ->
-    @testRun = false
+    @testRun = true
     @type = MM.TYPES.square
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
