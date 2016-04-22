@@ -28,7 +28,7 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.website
+    @media = new ABM.Array MM.MEDIA.website
     @mediumType = MM.MEDIUM_TYPES.normal
     #@view = MM.VIEWS.regimeLegitimacy
     #@view = MM.VIEWS.riskAversion
@@ -54,6 +54,8 @@ class MM.Config
     @friendsRiskAversionHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
 
+    @mediaOnlineTime = 5 # Nr of ticks the user should stay online # TODO make work
+    @mediaReadNr = 10 # Nr of messages that should be read every tick # TODO make work
     @mediaRiskAversionHomophilous = false
     @mediaChannels = 7 # for media TV and radio
 
@@ -168,7 +170,7 @@ class MM.Config
       @moveToRandomEmptyNeighbor(@config.walk)
 
     @moveOffIfOnline = ->
-      if @mediumMirror().online()
+      if @online()
         if @position
           @moveOff()
       else
@@ -260,8 +262,10 @@ class MM.Config
         if @imprisoned()
           return @config.baseRegimeLegitimacy
         else
-          if @mediumMirror() and @mediumMirror().online()
-            count = @mediumMirror().count
+          if @online()
+            count = {}
+            for medium in @mediaMirrors()
+              count = u.addUp(count, medium.count)
 
             count.citizens = count.reads # TODO fix/simplify
           else
@@ -355,6 +359,8 @@ class MM.Config
         return u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
 
   check: ->
+    @medium = @media.first()
+
     if @testRun && @modelOptions.isHeadless
       throw "Cannot be a testRun if headless"
 
@@ -394,6 +400,8 @@ class MM.Medium extends ABM.Model
   setup: ->
     @size = 0.6
 
+    @mirrors = []
+
     @dummyAgent = {
       original: {active: false, activism: 0.0, grievance: (->), calculateActiveStatus: (-> @), config: @config}
       config: @config
@@ -411,7 +419,7 @@ class MM.Medium extends ABM.Model
 
   access: (original) ->
     # TODO fix for multiple media
-    agent = original.mediumMirror()
+    agent = @mirrors[original.id]
 
     agent.onlineTimer = 5 # activates medium
 
@@ -430,7 +438,7 @@ class MM.Medium extends ABM.Model
     agent = @agents.create(1).last()
     agent.config = @config
     agent.original = original
-    original.mediumMirrors[@config.medium] = agent
+    @mirrors[original.id] = agent
 
     agent.size = @size
     agent.heading = u.degreesToRadians(270)
@@ -532,13 +540,7 @@ class MM.Agent extends ABM.Agent
   constructor: ->
     super
 
-    @mediumMirrors = new ABM.Array
-    @mediumMirrors[MM.MEDIA.none] = false
-
     @resetFriends()
-
-  mediumMirror: ->
-    @mediumMirrors[@config.medium]
 
   setColor: (color) ->
     @color = new u.color color
@@ -692,6 +694,32 @@ class MM.Agent extends ABM.Agent
   randomEmptyNeighbors: (walk) ->
     @patch.neighbors(walk).select((patch) -> patch.empty()).shuffle()
 
+  #### Media
+
+  mediaMirrors: ->
+    if !@mirrorsCache
+      @mirrorsCache = new ABM.Array
+      for medium in @model.media.adopted
+        if medium.mirrors[@id]
+          @mirrorsCache.push medium.mirrors[@id]
+
+    return @mirrorsCache
+
+  online: ->
+    # TODO make cached
+    for mirror in @mediaMirrors()
+      if mirror.online()
+        return true
+
+  goOffline: ->
+    for mirror in @mediaMirrors()
+      mirror.onlineTimer = 0
+  
+  mediaTickReset: ->
+    for mirror in @mediaMirrors()
+      mirror.resetCount()
+    @mirrorsCache = null
+
   #### Friends & befriending
 
   resetFriends: ->
@@ -773,7 +801,6 @@ class MM.Agent extends ABM.Agent
       for agent in list
         agent.beFriendList(list)
 
-
   #### Notices
 
   leaveNotice: ->
@@ -786,7 +813,6 @@ class MM.Media
     @media = new ABM.Array
 
     options = u.merge(@model.config.mediaModelOptions, {config: @model.config, originalModel: @model})
-    #mirrorOptions = u.merge(@model.config.mediaMirrorModelOptions, {config: @model.config, originalModel: @model})
 
     @media[MM.MEDIA.none] = new MM.MediumNone(options)
     @media[MM.MEDIA.tv] = new MM.MediumTV(options)
@@ -797,28 +823,45 @@ class MM.Media
     @media[MM.MEDIA.forum] = new MM.MediumForum(options)
     @media[MM.MEDIA.facebookWall] = new MM.MediumFacebookWall(options)
 
-    @updateOld()
+    @adopted = new ABM.Array
+    @adoptedReset() # Defines a few more adopted
 
-  current: ->
-    @media[@model.config.medium]
+  populate: ->
+    for medium in @adopted
+      medium.populate()
 
-  allOffline: ->
-    for medium in @media
-      medium.onlineTimer = 0
+  restart: ->
+    for medium in @adopted
+      @medium.restart()
 
-  old: ->
-    @media[@model.config.oldMedium]
+  once: ->
+    for medium in @adopted
+      medium.once()
 
-  updateOld: ->
-    @model.config.oldMedium = @model.config.medium
+  adoptedReset: ->
+    @adoptedOld = @adopted
+    @adoptedDropped = new ABM.Array
+    for medium in @adoptedOld
+      @adoptedDropped.push medium
+
+    @adopted = new ABM.Array
+    @adoptedAdded = new ABM.Array
+    for mediumNr in @model.config.media
+      @adopted.push @media[mediumNr]
+      @adoptedAdded.push @media[mediumNr]
+
+    @adoptedDropped.remove(@adopted)
+    @adoptedAdded.remove(@adoptedDropped)
 
   changed: ->
-    @old().reset()
-    @current().reset() # TODO eval
-    @current().populate()
-    @current().start()
+    @adoptedReset()
+    for medium in @adoptedDropped
+      medium.reset()
+    for medium in @adoptedAdded
+      medium.reset()
+      medium.populate()
+      medium.start()
     @model.recordMediaChange()
-    @updateOld()
 
 class MM.MediumEMail extends MM.MediumGenericDelivery
   setup: ->
@@ -1535,7 +1578,7 @@ class MM.Views
 
 class MM.Model extends ABM.Model
   restart: ->
-    @media.current().restart()
+    @media.restart()
 
     unless @isHeadless
       @views.current().restart()
@@ -1562,7 +1605,7 @@ class MM.Model extends ABM.Model
 
     unless @isHeadless
       window.modelUI.resetPlot()
-      @media.current().populate() # TODO change to make populate all
+      @media.populate()
       @views.current().populate()
       @consoleLog()
 
@@ -1585,8 +1628,8 @@ class MM.Model extends ABM.Model
     citizen.sawArrest = false
 
     citizen.act = ->
-      if @mediumMirror()
-        @mediumMirror().resetCount()
+      # TODO make media reading read a certain nr of posts!
+      @mediaTickReset()
 
       if !@fighting()
         if @imprisoned()
@@ -1596,8 +1639,7 @@ class MM.Model extends ABM.Model
             @moveToRandomEmptyLocation()
 
       if !@imprisoned() # free or just released
-        if @mediumMirror()
-          @config.moveOffIfOnline.call(@)
+        @config.moveOffIfOnline.call(@)
 
         if @position? # free, just released, and not behind PC
           @config.move.call(@)
@@ -1635,7 +1677,7 @@ class MM.Model extends ABM.Model
     citizen.imprison = ->
       @prisonSentence = 1 + u.randomInt(@config.maxPrisonSentence)
       @moveOff()
-      @model.media.allOffline()
+      @goOffline()
 
     citizen.arrest = ->
       @arrestDuration = @config.arrestDuration
@@ -1725,13 +1767,15 @@ class MM.Model extends ABM.Model
     @agents.shuffle()
     for agent in @agents
       agent.act()
-      if agent.breed.name is "citizens" and u.randomInt(20) == 1
-        @media.current().access(agent)
+      if agent.breed.name is "citizens"
+        for medium in @media.adopted
+          if u.randomInt(20) == 1
+            medium.access(agent)
 
     unless @isHeadless
       window.modelUI.drawPlot()
 
-    @media.current().once()
+    @media.once()
 
     unless @isHeadless
       @views.current().once()
@@ -1742,7 +1786,10 @@ class MM.Model extends ABM.Model
       @testStep()
 
   set: (key, value) ->
-    @config[key] = value
+    if key == "medium"
+      @config["media"] = [value]
+    else
+      @config[key] = value
     @config.check()
     @config.setFunctions()
 
@@ -1785,7 +1832,7 @@ class MM.Model extends ABM.Model
     if !@onlinesCache or reset
       @onlinesCache = []
       for citizen in @citizens
-        if citizen.mediumMirror() and citizen.mediumMirror().online()
+        if citizen.online()
           @onlinesCache.push citizen
     return @onlinesCache
 
@@ -1856,12 +1903,18 @@ class MM.Model extends ABM.Model
     console.log 'Cops:'
     console.log @cops
 
+  testSet: (key, hash, value) ->
+    if key == "medium"
+      @config["media"] = [value]
+    else
+      @config[key] = value
+    console.log "Testing " + key + " " + u.deIndexHash(hash)[@config[key]]
+
   testAdvance: (key, hash) ->
     if @config[key] < Object.keys(hash).length - 1
-      @config[key] += 1
+      @testSet(key, hash, @config[key] + 1)
     else
-      @config[key] = 0
-    console.log "Testing " + key + " " + u.deIndexHash(hash)[@config[key]]
+      @testSet(key, hash, 0)
 
   testStep: ->
     if @animator.ticks % 2 == 0
@@ -1869,200 +1922,25 @@ class MM.Model extends ABM.Model
       if @config.calculation == 0
         @testAdvance("legitimacyCalculation", MM.LEGITIMACY_CALCULATIONS)
 
-    if @animator.ticks % 7 == 0
+    if @animator.ticks % 20 == 0
       @testAdvance("view", MM.VIEWS)
+      mediaKey = MM.MEDIA[u.deIndexHash(MM.VIEWS)[@config.view]]
+      if mediaKey
+        @testSet("medium", MM.MEDIA, mediaKey)
+        if @config.medium == 0
+          @testAdvance("mediumType", MM.MEDIUM_TYPES)
+        @media.changed()
+      else
+        @testSet("medium", MM.MEDIA, MM.MEDIA[u.array.sample(Object.keys(MM.MEDIA))])
       @views.changed()
 
 #    if @animator.ticks % 12 == 0 TODO, errors out
 #      @testAdvance("friends", MM.FRIENDS)
 #      @resetAllFriends()
 
-    if @animator.ticks % 20 == 0
-      @testAdvance("medium", MM.MEDIA)
-      if @config.medium == 0
-        @testAdvance("mediumType", MM.MEDIUM_TYPES)
-      @media.changed()
-
-    if @animator.ticks > 20 * Object.keys(MM.MEDIA).length * Object.keys(MM.MEDIUM_TYPES).length
+    if @animator.ticks > 20 * Object.keys(MM.VIEWS).length * Object.keys(MM.MEDIUM_TYPES).length
       console.log 'Test completed!'
       @stop()
-
-class MM.ModelSimple extends ABM.Model
-  # TODO actives
-
-  restart: ->
-    @media.current().restart()
-
-    unless @isHeadless
-      @views.current().restart()
-
-    super
-
-  setup: ->
-    @agentBreeds ["citizens", "cops"]
-    @size = 0.9
-    @resetData()
-
-    for patch in @patches.create()
-      patch.color = u.color.random type: "gray", min: 224, max: 255
-
-    space = @patches.length
-
-    for citizen in @citizens.create @config.citizenDensity * space
-      citizen.config = @config
-      citizen.size = @size
-      citizen.shape = "person"
-      citizen.setColor "green"
-      citizen.moveToRandomEmptyLocation()
-
-      citizen.hardship = u.randomFloat() # H
-      citizen.active = false
-      citizen.prisonSentence = 0
-
-      citizen.act = ->
-        if @imprisoned()
-          @prisonSentence -= 1
-
-          if !@imprisoned() # just released
-             @moveToRandomEmptyLocation()
-
-        if !@imprisoned()
-          @moveToRandomEmptyNeighbor(@config.walk)
-          @activate()
-
-      citizen.excitement = ->
-        count = @countNeighbors(@config.vision)
-        count.actives += 1
-
-        return (count.actives / count.citizens) ** 2
-
-      citizen.activate = ->
-        if @excitement() > @hardship
-          @active = true
-          @setColor "red"
-        else
-          @active = false
-          @setColor "green"
-
-       citizen.imprison = (sentence) ->
-         @prisonSentence = sentence
-         @moveOff()
-
-       citizen.imprisoned = ->
-         @prisonSentence > 0
-
-     for cop in @cops.create @config.copDensity * space
-       cop.config = @config
-       cop.size = @size
-       cop.shape = "person"
-       cop.setColor "blue"
-       cop.moveToRandomEmptyLocation()
-
-       cop.act = ->
-         @makeArrest()
-         @moveToRandomEmptyNeighbor()
-
-       cop.makeArrest = ->
-          protester = @neighbors(@config.vision).sample(condition: (agent) ->
-            agent.breed.name is "citizens" and agent.active)
-
-          if protester
-            protester.imprison(1 + u.randomInt(@config.maxPrisonSentence))
-
-    unless @isHeadless
-      window.modelUI.resetPlot()
-      @views.current().populate()
-      @consoleLog()
-
-  step: -> # called by MM.Model.animate
-    @agents.shuffle()
-    for agent in @agents
-      agent.act()
-      if u.randomInt(100) == 1
-        if agent.breed.name is "citizens"
-          @media.current().access(agent)
-
-    unless @isHeadless
-      window.modelUI.drawPlot()
-
-    @media.current().once()
-
-    unless @isHeadless
-      @views.current().once()
-
-    @recordData()
-
-  prisoners: ->
-    prisoners = []
-    for citizen in @citizens
-      if citizen.imprisoned()
-        prisoners.push citizen
-    prisoners
-
-  actives: ->
-    actives = []
-    for citizen in @citizens
-      if citizen.active
-        actives.push citizen
-    actives
-
-  micros: ->
-    []
-
-  cops: ->
-    @cops.length
-
-  tickData: ->
-    citizens = @citizens.length
-    actives = @actives().length
-    micros = @micros().length
-    prisoners = @prisoners().length
-
-    return {
-      citizens: citizens
-      actives: actives
-      micros: micros
-      prisoners: prisoners
-      passives: citizens - actives - micros - prisoners
-      cops: @cops.length
-    }
-
-  resetData: ->
-    @data = {
-      passives: [], actives: [], prisoners: [], cops: [], micros: [],
-      media: []
-    }
-    
-  recordData: ->
-    ticks = @animator.ticks
-    tickData = @tickData()
-
-    #@data.passives.push [ticks, tickData.passives]
-    @data.actives.push [ticks, tickData.actives]
-    @data.prisoners.push [ticks, tickData.prisoners]
-    @data.cops.push [ticks, tickData.cops]
-    @data.micros.push [ticks, tickData.micros]
-
-  recordMediaChange: ->
-    @data.media.push [ticks, 0], [ticks, @citizens.length], null
-
-  consoleLog: ->
-    console.log 'Config:'
-    console.log @config
-    console.log 'Calibration:'
-    console.log '  Arrest Probability:'
-
-    for count in [
-        {cops: 0, actives: 1},
-        {cops: 1, actives: 1}, {cops: 2, actives: 1}, {cops: 3, actives: 1},
-        {cops: 1, actives: 4}, {cops: 2, actives: 4}, {cops: 3, actives: 4}
-      ]
-      console.log @citizens[0].calculatePerceivedArrestProbability(count)
-
-    console.log 'Citizens:'
-    console.log @citizens
-    console.log 'Cops:'
-    console.log @cops
 
 #class MM.Initializer extends MM.ModelSimple
 class MM.Initializer extends MM.Model

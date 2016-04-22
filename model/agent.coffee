@@ -2,13 +2,7 @@ class MM.Agent extends ABM.Agent
   constructor: ->
     super
 
-    @mediumMirrors = new ABM.Array
-    @mediumMirrors[MM.MEDIA.none] = false
-
     @resetFriends()
-
-  mediumMirror: ->
-    @mediumMirrors[@config.medium]
 
   setColor: (color) ->
     @color = new u.color color
@@ -162,6 +156,32 @@ class MM.Agent extends ABM.Agent
   randomEmptyNeighbors: (walk) ->
     @patch.neighbors(walk).select((patch) -> patch.empty()).shuffle()
 
+  #### Media
+
+  mediaMirrors: ->
+    if !@mirrorsCache
+      @mirrorsCache = new ABM.Array
+      for medium in @model.media.adopted
+        if medium.mirrors[@id]
+          @mirrorsCache.push medium.mirrors[@id]
+
+    return @mirrorsCache
+
+  online: ->
+    # TODO make cached
+    for mirror in @mediaMirrors()
+      if mirror.online()
+        return true
+
+  goOffline: ->
+    for mirror in @mediaMirrors()
+      mirror.onlineTimer = 0
+  
+  mediaTickReset: ->
+    for mirror in @mediaMirrors()
+      mirror.resetCount()
+    @mirrorsCache = null
+
   #### Friends & befriending
 
   resetFriends: ->
@@ -242,7 +262,6 @@ class MM.Agent extends ABM.Agent
       list.push(@) # self included in clique
       for agent in list
         agent.beFriendList(list)
-
 
   #### Notices
 

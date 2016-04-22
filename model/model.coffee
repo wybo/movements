@@ -4,7 +4,7 @@
 
 class MM.Model extends ABM.Model
   restart: ->
-    @media.current().restart()
+    @media.restart()
 
     unless @isHeadless
       @views.current().restart()
@@ -31,7 +31,7 @@ class MM.Model extends ABM.Model
 
     unless @isHeadless
       window.modelUI.resetPlot()
-      @media.current().populate() # TODO change to make populate all
+      @media.populate()
       @views.current().populate()
       @consoleLog()
 
@@ -54,8 +54,8 @@ class MM.Model extends ABM.Model
     citizen.sawArrest = false
 
     citizen.act = ->
-      if @mediumMirror()
-        @mediumMirror().resetCount()
+      # TODO make media reading read a certain nr of posts!
+      @mediaTickReset()
 
       if !@fighting()
         if @imprisoned()
@@ -65,8 +65,7 @@ class MM.Model extends ABM.Model
             @moveToRandomEmptyLocation()
 
       if !@imprisoned() # free or just released
-        if @mediumMirror()
-          @config.moveOffIfOnline.call(@)
+        @config.moveOffIfOnline.call(@)
 
         if @position? # free, just released, and not behind PC
           @config.move.call(@)
@@ -104,7 +103,7 @@ class MM.Model extends ABM.Model
     citizen.imprison = ->
       @prisonSentence = 1 + u.randomInt(@config.maxPrisonSentence)
       @moveOff()
-      @model.media.allOffline()
+      @goOffline()
 
     citizen.arrest = ->
       @arrestDuration = @config.arrestDuration
@@ -194,13 +193,15 @@ class MM.Model extends ABM.Model
     @agents.shuffle()
     for agent in @agents
       agent.act()
-      if agent.breed.name is "citizens" and u.randomInt(20) == 1
-        @media.current().access(agent)
+      if agent.breed.name is "citizens"
+        for medium in @media.adopted
+          if u.randomInt(20) == 1
+            medium.access(agent)
 
     unless @isHeadless
       window.modelUI.drawPlot()
 
-    @media.current().once()
+    @media.once()
 
     unless @isHeadless
       @views.current().once()
@@ -211,7 +212,10 @@ class MM.Model extends ABM.Model
       @testStep()
 
   set: (key, value) ->
-    @config[key] = value
+    if key == "medium"
+      @config["media"] = [value]
+    else
+      @config[key] = value
     @config.check()
     @config.setFunctions()
 
@@ -254,7 +258,7 @@ class MM.Model extends ABM.Model
     if !@onlinesCache or reset
       @onlinesCache = []
       for citizen in @citizens
-        if citizen.mediumMirror() and citizen.mediumMirror().online()
+        if citizen.online()
           @onlinesCache.push citizen
     return @onlinesCache
 
@@ -325,12 +329,18 @@ class MM.Model extends ABM.Model
     console.log 'Cops:'
     console.log @cops
 
+  testSet: (key, hash, value) ->
+    if key == "medium"
+      @config["media"] = [value]
+    else
+      @config[key] = value
+    console.log "Testing " + key + " " + u.deIndexHash(hash)[@config[key]]
+
   testAdvance: (key, hash) ->
     if @config[key] < Object.keys(hash).length - 1
-      @config[key] += 1
+      @testSet(key, hash, @config[key] + 1)
     else
-      @config[key] = 0
-    console.log "Testing " + key + " " + u.deIndexHash(hash)[@config[key]]
+      @testSet(key, hash, 0)
 
   testStep: ->
     if @animator.ticks % 2 == 0
@@ -338,20 +348,22 @@ class MM.Model extends ABM.Model
       if @config.calculation == 0
         @testAdvance("legitimacyCalculation", MM.LEGITIMACY_CALCULATIONS)
 
-    if @animator.ticks % 7 == 0
+    if @animator.ticks % 20 == 0
       @testAdvance("view", MM.VIEWS)
+      mediaKey = MM.MEDIA[u.deIndexHash(MM.VIEWS)[@config.view]]
+      if mediaKey
+        @testSet("medium", MM.MEDIA, mediaKey)
+        if @config.medium == 0
+          @testAdvance("mediumType", MM.MEDIUM_TYPES)
+        @media.changed()
+      else
+        @testSet("medium", MM.MEDIA, MM.MEDIA[u.array.sample(Object.keys(MM.MEDIA))])
       @views.changed()
 
 #    if @animator.ticks % 12 == 0 TODO, errors out
 #      @testAdvance("friends", MM.FRIENDS)
 #      @resetAllFriends()
 
-    if @animator.ticks % 20 == 0
-      @testAdvance("medium", MM.MEDIA)
-      if @config.medium == 0
-        @testAdvance("mediumType", MM.MEDIUM_TYPES)
-      @media.changed()
-
-    if @animator.ticks > 20 * Object.keys(MM.MEDIA).length * Object.keys(MM.MEDIUM_TYPES).length
+    if @animator.ticks > 20 * Object.keys(MM.VIEWS).length * Object.keys(MM.MEDIUM_TYPES).length
       console.log 'Test completed!'
       @stop()

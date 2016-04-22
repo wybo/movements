@@ -10,6 +10,8 @@ class MM.Medium extends ABM.Model
   setup: ->
     @size = 0.6
 
+    @mirrors = []
+
     @dummyAgent = {
       original: {active: false, activism: 0.0, grievance: (->), calculateActiveStatus: (-> @), config: @config}
       config: @config
@@ -27,7 +29,7 @@ class MM.Medium extends ABM.Model
 
   access: (original) ->
     # TODO fix for multiple media
-    agent = original.mediumMirror()
+    agent = @mirrors[original.id]
 
     agent.onlineTimer = 5 # activates medium
 
@@ -46,7 +48,7 @@ class MM.Medium extends ABM.Model
     agent = @agents.create(1).last()
     agent.config = @config
     agent.original = original
-    original.mediumMirrors[@config.medium] = agent
+    @mirrors[original.id] = agent
 
     agent.size = @size
     agent.heading = u.degreesToRadians(270)

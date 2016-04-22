@@ -5,7 +5,6 @@ class MM.Media
     @media = new ABM.Array
 
     options = u.merge(@model.config.mediaModelOptions, {config: @model.config, originalModel: @model})
-    #mirrorOptions = u.merge(@model.config.mediaMirrorModelOptions, {config: @model.config, originalModel: @model})
 
     @media[MM.MEDIA.none] = new MM.MediumNone(options)
     @media[MM.MEDIA.tv] = new MM.MediumTV(options)
@@ -16,25 +15,42 @@ class MM.Media
     @media[MM.MEDIA.forum] = new MM.MediumForum(options)
     @media[MM.MEDIA.facebookWall] = new MM.MediumFacebookWall(options)
 
-    @updateOld()
+    @adopted = new ABM.Array
+    @adoptedReset() # Defines a few more adopted
 
-  current: ->
-    @media[@model.config.medium]
+  populate: ->
+    for medium in @adopted
+      medium.populate()
 
-  allOffline: ->
-    for medium in @media
-      medium.onlineTimer = 0
+  restart: ->
+    for medium in @adopted
+      @medium.restart()
 
-  old: ->
-    @media[@model.config.oldMedium]
+  once: ->
+    for medium in @adopted
+      medium.once()
 
-  updateOld: ->
-    @model.config.oldMedium = @model.config.medium
+  adoptedReset: ->
+    @adoptedOld = @adopted
+    @adoptedDropped = new ABM.Array
+    for medium in @adoptedOld
+      @adoptedDropped.push medium
+
+    @adopted = new ABM.Array
+    @adoptedAdded = new ABM.Array
+    for mediumNr in @model.config.media
+      @adopted.push @media[mediumNr]
+      @adoptedAdded.push @media[mediumNr]
+
+    @adoptedDropped.remove(@adopted)
+    @adoptedAdded.remove(@adoptedDropped)
 
   changed: ->
-    @old().reset()
-    @current().reset() # TODO eval
-    @current().populate()
-    @current().start()
+    @adoptedReset()
+    for medium in @adoptedDropped
+      medium.reset()
+    for medium in @adoptedAdded
+      medium.reset()
+      medium.populate()
+      medium.start()
     @model.recordMediaChange()
-    @updateOld()

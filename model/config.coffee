@@ -28,7 +28,7 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @medium = MM.MEDIA.website
+    @media = new ABM.Array MM.MEDIA.website
     @mediumType = MM.MEDIUM_TYPES.normal
     #@view = MM.VIEWS.regimeLegitimacy
     #@view = MM.VIEWS.riskAversion
@@ -54,6 +54,8 @@ class MM.Config
     @friendsRiskAversionHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
 
+    @mediaOnlineTime = 5 # Nr of ticks the user should stay online # TODO make work
+    @mediaReadNr = 10 # Nr of messages that should be read every tick # TODO make work
     @mediaRiskAversionHomophilous = false
     @mediaChannels = 7 # for media TV and radio
 
@@ -168,7 +170,7 @@ class MM.Config
       @moveToRandomEmptyNeighbor(@config.walk)
 
     @moveOffIfOnline = ->
-      if @mediumMirror().online()
+      if @online()
         if @position
           @moveOff()
       else
@@ -260,8 +262,10 @@ class MM.Config
         if @imprisoned()
           return @config.baseRegimeLegitimacy
         else
-          if @mediumMirror() and @mediumMirror().online()
-            count = @mediumMirror().count
+          if @online()
+            count = {}
+            for medium in @mediaMirrors()
+              count = u.addUp(count, medium.count)
 
             count.citizens = count.reads # TODO fix/simplify
           else
@@ -355,6 +359,8 @@ class MM.Config
         return u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
 
   check: ->
+    @medium = @media.first()
+
     if @testRun && @modelOptions.isHeadless
       throw "Cannot be a testRun if headless"
 
