@@ -4,7 +4,7 @@ class MM.Media
 
     @media = new ABM.Array
 
-    options = u.merge(@model.config.mediaModelOptions, {config: @model.config, originalModel: @model})
+    options = u.merge(@model.config.mediaModelOptions, {config: @model.config, originalModel: @model, isHeadless: true})
 
     @media[MM.MEDIA.none] = new MM.MediumNone(options)
     @media[MM.MEDIA.tv] = new MM.MediumTV(options)

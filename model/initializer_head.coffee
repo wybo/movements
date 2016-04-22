@@ -10,10 +10,6 @@ window.reInitialize = ->
     context.canvas.width = context.canvas.width
   window.initialize(window.model.config)
 
-$("#model_container").after('<div id="before_graph" class="model_container" style="float: left;"><div id="medium"></div></div>')
-$("#model_container").after('<div class="model_container" style="float: left;"><div id="view"></div></div>')
-
-#$("#model_container").append('<div id="view"></div>')
-#$("#model_container").append('<div id="medium"></div>')
+$("#model_container").after('<div id="before_graph" class="model_container" style="float: left;"><div id="view"></div></div>')
 
 window.initialize(config)

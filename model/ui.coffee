@@ -69,7 +69,6 @@ class MM.UI
     if key == "medium"
       ui.model.set("view", MM.VIEWS[u.deIndexHash(MM.MEDIA)[parseInt(value)]])
 
-
   resetPlot: ->
     options = {
       series: {

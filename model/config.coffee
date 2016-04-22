@@ -112,22 +112,11 @@ class MM.Config
       # config is added
     })
 
-    @viewModelOptions = u.merge(sharedModelOptions, {
-      div: "view"
-    })
-
     @mediaModelOptions = {
-      div: "medium"
-      #patchSize: 15
       patchSize: 10
       min: {x: 0, y: 0}
       max: {x: 39, y: 39}
     }
-
-    @mediaMirrorModelOptions = u.merge(sharedModelOptions, {
-      div: "medium"
-      # config is added
-    })
 
     @config = @
 
@@ -136,9 +125,6 @@ class MM.Config
 
   makeHeadless: ->
     @modelOptions.isHeadless = true
-    @viewModelOptions.isHeadless = true
-    @mediaModelOptions.isHeadless = true
-    @mediaMirrorModelOptions.isHeadless = true
 
     @check()
 
