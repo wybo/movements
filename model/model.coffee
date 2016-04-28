@@ -213,7 +213,7 @@ class MM.Model extends ABM.Model
 
   set: (key, value) ->
     if key == "medium"
-      @config["media"] = [value]
+      @config["media"] = new ABM.Array value
     else
       @config[key] = value
     @config.check()

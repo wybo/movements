@@ -50,7 +50,10 @@ class MM.UI
 
     for key, value of settings
       if u.isArray(value)
-        adder = @gui.add(@model.config, key, value...)
+        if key == "view"
+          adder = @gui.add(@model.config, key, value...).listen()
+        else
+          adder = @gui.add(@model.config, key, value...)
         adder.onChange(@setDropdown(key, @))
       else
         adder = @gui.add(@model.config, key)

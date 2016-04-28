@@ -7,14 +7,15 @@ argv = require('yargs').argv
 childProcess = require('child_process')
 os = require('os')
 
-experimentReruns = 1
+experimentReruns = 2
 #experimentReruns = 10
 #experimentReruns = 30
 #experimentReruns = 25 # To average it out
 
 #experimentTicks = 2
+experimentTicks = 15
 #experimentTicks = 200
-experimentTicks = 250
+#experimentTicks = 250
 #experimentTicks = 300
 #experimentTicks = 1000
 #experimentTicks = 1500
@@ -24,6 +25,7 @@ mediaSetups = null
 #mediaSetups = [
 #  {label: "Forum", experimentChange: {tick: 5, medium: "forum"}}
 #  {label: "Email", medium: "email"}
+#  {label: "Email, TV", media: ["email", "tv"]}
 #]
 mediaSetups = [
   {label: "1, 0.65", experimentReruns: 1, baseRegimeLegitimacy: 0.65}
@@ -36,6 +38,10 @@ mediaSetups = [
   {label: "30, 0.72", experimentReruns: 30, baseRegimeLegitimacy: 0.72}
   {label: "1, 0.74", experimentReruns: 1, baseRegimeLegitimacy: 0.74}
   {label: "30, 0.74", experimentReruns: 30, baseRegimeLegitimacy: 0.74}
+]
+
+mediaSetups = [
+  {label: "1, 0.65", experimentReruns: 2, baseRegimeLegitimacy: 0.65}
 ]
 
 setups = [
@@ -137,12 +143,17 @@ runExperiment = (experiment, nrOfChildren = false) ->
       if message == "done"
         process.disconnect()
       else
+        printSetup(message)
         process.send(runTest(message))
     )
   else if nrOfChildren
+    console.log "# Running experiments (multithreaded)"
     tests = new ABM.Array
     nrOfChildren = os.cpus().length
     done = 0
+
+    if experiment.length < nrOfChildren
+      nrOfChildren = experiment.length
 
     for i in [0...nrOfChildren]
       child = childProcess.fork('./experimenter.coffee', env: {FORK: true})
@@ -160,12 +171,17 @@ runExperiment = (experiment, nrOfChildren = false) ->
 
       child.send(experiment.pop())
   else
+    console.log "# Running experiments (single threaded)"
     tests = new ABM.Array
     for testSetup in experiment
+      printSetup(message)
       testOutput = runTest(testSetup)
       tests.push(testOutput)
 
     outputExperiment(tests)
+
+printSetup = (setup) ->
+  console.log "# setupNr: " + setup.experimentSetupNr + ", reruns: " + setup.experimentReruns + ", label " + setup.label
 
 outputExperiment = (tests) ->
   output = []
@@ -175,17 +191,17 @@ outputExperiment = (tests) ->
   runs = []
 
   for test in tests
-    if test.setupNr != lastSetupNr
-      runs = averageRuns(runs)
-      output.push {setup: lastTestSetup, data: runs[0]}
+    if test.setupNr != lastSetupNr # Next group of runs
+      averaged = averageRuns(runs)
+      output.push {setup: lastTestSetup, data: averaged, fullData: runs}
       lastSetupNr = test.setupNr
       lastTestSetup = test.testSetup
       runs = []
 
     runs.push test.data
 
-  runs = averageRuns(runs) # for last setupNr
-  output.push {setup: lastTestSetup, data: runs[0]}
+  averaged = averageRuns(runs) # for last setupNr, group of runs
+  output.push {setup: lastTestSetup, data: averaged, fullData: runs}
 
   console.log JSON.stringify(output, null)
 
@@ -214,19 +230,21 @@ getConfig = (testSetup = {}) ->
   return config
 
 averageRuns = (runs) ->
+  averaged = {}
   for run, i in runs
-    if i > 0
-      for key, variable of run
-        if key != "media"
-          for pair, k in variable
-            runs[0][key][k][1] += pair[1] * 1.0
+    for key, variable of run
+      averaged[key] ?= []
+      if key != "media"
+        for pair, k in variable
+          averaged[key][k] ?= [pair[0], 0]
+          averaged[key][k][1] += pair[1] * 1.0
 
-  for key, variable of runs[0]
+  for key, variable of averaged
     if key != "media"
       for pair, k in variable
-        runs[0][key][k][1] = Math.round(runs[0][key][k][1] / runs.length * 100) / 100
+        averaged[key][k][1] = Math.round(averaged[key][k][1] / runs.length * 100) / 100
   
-  return runs
+  return averaged
 
 # ### Preparation of runs
 
@@ -234,6 +252,7 @@ prepareExperiment = (setups, experimentTicks, experimentReruns, mediaSetups = nu
   expandedSetups = []
 
   setups = prepareSetups(setups, experimentTicks, experimentReruns, mediaSetups)
+  
   setupNr = 0
   for setup in setups
     for [1..setup.experimentReruns]
@@ -256,15 +275,28 @@ prepareSetups = (setups, experimentTicks, experimentReruns, mediaSetups) ->
   config = getConfig()
 
   for setup in setups
+    # Expand setting shortcuts
+    if setup.medium
+      setup.media = new ABM.Array setup.medium
+      delete setup.medium
+
     if setup.experimentChange
-      setup.experimentChanges = [setup.experimentChange]
+      setup.experimentChanges = new ABM.Array setup.experimentChange
       delete setup.experimentChange
 
     setup.experimentTicks ?= experimentTicks
     setup.experimentReruns ?= experimentReruns
-    for key, value of config.hashes
+
+    # Replace hash strings by integers
+    if setup.media
+      media = setup.media
+      setup.media = new ABM.Array
+      for medium in media
+        setup.media.push replaceConfigString(medium, MM.MEDIA)
+
+    for key, configHash of config.hashes
       if setup[key]
-        setup[key] = replaceConfigString(setup[key], value)
+        setup[key] = replaceConfigString(setup[key], configHash)
 
     if setup.experimentChanges
       setup.experimentChanges.sort("tick")
@@ -285,6 +317,7 @@ replaceConfigString = (string, hash) ->
     return string
 
 experiment = prepareExperiment(setups, experimentTicks, experimentReruns, mediaSetups)
+
 if argv.mode == "single"
   runExperiment(experiment)
 else

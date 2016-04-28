@@ -23,7 +23,7 @@ MM.VIEWS = u.indexHash(["none", "riskAversion", "hardship", "grievance", "regime
 
 class MM.Config
   constructor: ->
-    @testRun = true
+    @testRun = false
     @type = MM.TYPES.square
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
@@ -1217,7 +1217,10 @@ class MM.UI
 
     for key, value of settings
       if u.isArray(value)
-        adder = @gui.add(@model.config, key, value...)
+        if key == "view"
+          adder = @gui.add(@model.config, key, value...).listen()
+        else
+          adder = @gui.add(@model.config, key, value...)
         adder.onChange(@setDropdown(key, @))
       else
         adder = @gui.add(@model.config, key)
@@ -1767,7 +1770,7 @@ class MM.Model extends ABM.Model
 
   set: (key, value) ->
     if key == "medium"
-      @config["media"] = [value]
+      @config["media"] = new ABM.Array value
     else
       @config[key] = value
     @config.check()

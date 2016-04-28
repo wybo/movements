@@ -23,7 +23,7 @@ MM.VIEWS = u.indexHash(["none", "riskAversion", "hardship", "grievance", "regime
 
 class MM.Config
   constructor: ->
-    @testRun = true
+    @testRun = false
     @type = MM.TYPES.square
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests

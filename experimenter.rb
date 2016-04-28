@@ -1,10 +1,24 @@
 #!/usr/bin/ruby
 
-experiment = `./coffee experimenter.coffee` # TODO fix coffeescript ABM
-#experiment = `coffee experimenter.coffee` # TODO fix coffeescript ABM
+require 'open3'
 
-puts experiment
+args = "" # ./experimenter.rb --mode=single for single-threaded
+if ARGV.length > 0
+  args = " " + ARGV.join(" ")
+end
+cmd = "./coffee experimenter.coffee#{args}" # TODO fix coffeescript ABM
 
+lines = []
+Open3.popen3(cmd) do |stdin, stdout, stderr, wait_thr|
+  while line = stdout.gets
+    puts line
+    if line !~ /^#/
+      lines.push line
+    end
+  end
+end
+
+experiment = lines.join(",")
 experiment = experiment.gsub("\n",",")
 experiment = experiment.gsub(/],$/,"]")
 
