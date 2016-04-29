@@ -7,15 +7,15 @@ argv = require('yargs').argv
 childProcess = require('child_process')
 os = require('os')
 
-experimentReruns = 2
+#experimentReruns = 2
 #experimentReruns = 10
-#experimentReruns = 30
+experimentReruns = 30
 #experimentReruns = 25 # To average it out
 
 #experimentTicks = 2
-experimentTicks = 15
+#experimentTicks = 15
 #experimentTicks = 200
-#experimentTicks = 250
+experimentTicks = 250
 #experimentTicks = 300
 #experimentTicks = 1000
 #experimentTicks = 1500
@@ -29,20 +29,20 @@ mediaSetups = null
 #]
 mediaSetups = [
   {label: "1, 0.65", experimentReruns: 1, baseRegimeLegitimacy: 0.65}
-  {label: "30, 0.65", experimentReruns: 30, baseRegimeLegitimacy: 0.65}
-  {label: "1, 0.68", experimentReruns: 1, baseRegimeLegitimacy: 0.68}
-  {label: "30, 0.68", experimentReruns: 30, baseRegimeLegitimacy: 0.68}
-  {label: "1, 0.70", experimentReruns: 1, baseRegimeLegitimacy: 0.70}
-  {label: "30, 0.70", experimentReruns: 30, baseRegimeLegitimacy: 0.70}
-  {label: "1, 0.72", experimentReruns: 1, baseRegimeLegitimacy: 0.72}
-  {label: "30, 0.72", experimentReruns: 30, baseRegimeLegitimacy: 0.72}
-  {label: "1, 0.74", experimentReruns: 1, baseRegimeLegitimacy: 0.74}
-  {label: "30, 0.74", experimentReruns: 30, baseRegimeLegitimacy: 0.74}
+#  {label: "30, 0.65", experimentReruns: 30, baseRegimeLegitimacy: 0.65}
+#  {label: "1, 0.68", experimentReruns: 1, baseRegimeLegitimacy: 0.68}
+#  {label: "30, 0.68", experimentReruns: 30, baseRegimeLegitimacy: 0.68}
+#  {label: "1, 0.70", experimentReruns: 1, baseRegimeLegitimacy: 0.70}
+#  {label: "30, 0.70", experimentReruns: 30, baseRegimeLegitimacy: 0.70}
+#  {label: "1, 0.72", experimentReruns: 1, baseRegimeLegitimacy: 0.72}
+#  {label: "30, 0.72", experimentReruns: 30, baseRegimeLegitimacy: 0.72}
+#  {label: "1, 0.74", experimentReruns: 1, baseRegimeLegitimacy: 0.74}
+#  {label: "30, 0.74", experimentReruns: 30, baseRegimeLegitimacy: 0.74}
 ]
 
-mediaSetups = [
-  {label: "1, 0.65", experimentReruns: 2, baseRegimeLegitimacy: 0.65}
-]
+#mediaSetups = [
+#  {label: "1, 0.65", experimentReruns: 2, baseRegimeLegitimacy: 0.65}
+#]
 
 setups = [
   {
@@ -110,12 +110,11 @@ setups = [
 #  {friends: MM.FRIENDS.local, friendsHardshipHomophilous: true, label: "friends local, homophilous"}
 ]
 
-setups = [
-  {
-    label: "Real with micro", type: "micro", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none"
-  },
-]
-
+#setups = [
+#  {
+#    label: "Real with micro", type: "micro", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none"
+#  },
+#]
 
 #setupSets = [
 #  {mediumCountsFor: 0.05, label: "medium counts for little"}
@@ -138,6 +137,7 @@ runTest = (testSetup, callback = null) ->
     return output
 
 runExperiment = (experiment, nrOfChildren = false) ->
+  console.log "# Running experiments"
   if process.env.FORK
     process.on('message', (message) ->
       if message == "done"
@@ -147,7 +147,7 @@ runExperiment = (experiment, nrOfChildren = false) ->
         process.send(runTest(message))
     )
   else if nrOfChildren
-    console.log "# Running experiments (multithreaded)"
+    console.log "# (multithreaded)"
     tests = new ABM.Array
     nrOfChildren = os.cpus().length
     done = 0
@@ -171,10 +171,10 @@ runExperiment = (experiment, nrOfChildren = false) ->
 
       child.send(experiment.pop())
   else
-    console.log "# Running experiments (single threaded)"
+    console.log "# (single threaded)"
     tests = new ABM.Array
     for testSetup in experiment
-      printSetup(message)
+      printSetup(testSetup)
       testOutput = runTest(testSetup)
       tests.push(testOutput)
 

@@ -29,9 +29,10 @@ class MM.Model extends ABM.Model
     for cop in @cops.create @config.copDensity * space
       @setupCop(cop)
 
+    @media.populate()
+
     unless @isHeadless
       window.modelUI.resetPlot()
-      @media.populate()
       @views.current().populate()
       @consoleLog()
 
