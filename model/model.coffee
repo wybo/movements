@@ -166,7 +166,7 @@ class MM.Model extends ABM.Model
         if @config.copsDefect and count.activism * 2 > count.citizens and count.cops * 10 < count.activism and @model.animator.ticks > 50
           patch = @patch
           @die()
-          citizen = @model.citizens.create 1, (citizen) =>
+          @model.citizens.create 1, (citizen) =>
             @model.setupCitizen(citizen)
             citizen.moveTo(patch.position)
         else if @config.copsRetreat and @calculateCopWillMakeArrestProbability(count) < u.randomFloat()
@@ -191,8 +191,10 @@ class MM.Model extends ABM.Model
       return (@arresting != null)
 
   step: -> # called by MM.Model.animate
-    @agents.shuffle()
-    for agent in @agents
+    shuffled = ABM.Array.from(@agents.slice(0)).shuffle()
+    # TODO if time fix. Deep copy. Can't use agents.shuffle or will lose modified push in returned array, leading to no ID's
+
+    for agent in shuffled
       agent.act()
       if agent.breed.name is "citizens"
         for medium in @media.adopted
@@ -214,7 +216,10 @@ class MM.Model extends ABM.Model
 
   set: (key, value) ->
     if key == "medium"
-      @config["media"] = new ABM.Array value
+      if value == "none"
+        @config["media"] = new ABM.Array
+      else
+        @config["media"] = new ABM.Array value
     else
       @config[key] = value
     @config.check()
@@ -310,7 +315,9 @@ class MM.Model extends ABM.Model
     @data.media.push {ticks: ticks, medium: @config.oldMedium, state: false}
     @data.media.push {ticks: ticks, medium: @config.medium, state: true}
     unless @isHeadless
-      window.modelUI.plotOptions.grid.markings.push { color: "#000", lineWidth: 1, xaxis: { from: ticks, to: ticks } }
+      window.modelUI.plotOptions.grid.markings.push {
+        color: "#000", lineWidth: 1, xaxis: { from: ticks, to: ticks }
+      }
 
   consoleLog: ->
     console.log 'Config:'

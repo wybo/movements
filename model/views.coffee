@@ -7,7 +7,6 @@ class MM.Views
     options = u.merge(@model.config.modelOptions, {config: @model.config, originalModel: @model, div: "view"})
     mediaOptions = u.merge(@model.config.mediaModelOptions, {config: @model.config, div: "view"})
 
-    @views[MM.VIEWS.none] = new MM.ViewNone(options)
     @views[MM.VIEWS.follow] = new MM.ViewFollow(options)
 
     @initializeView("tv", MM.ViewMediumTV, mediaOptions)

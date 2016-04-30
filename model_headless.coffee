@@ -18,7 +18,7 @@ MM.LEGITIMACY_CALCULATIONS = u.indexHash(["base", "arrests"])
 MM.FRIENDS = u.indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = u.indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
 MM.MEDIUM_TYPES = u.indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
-MM.VIEWS = u.indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA).remove("none")))
+MM.VIEWS = u.indexHash(["riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA).remove("none")))
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -345,7 +345,10 @@ class MM.Config
         return u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
 
   check: ->
-    @medium = @media.first()
+    if @media.length > 0
+      @medium = @media.first()
+    else
+      @medium = MM.MEDIA.none
 
     if @testRun && @modelOptions.isHeadless
       throw "Cannot be a testRun if headless"
@@ -361,7 +364,7 @@ class MM.Config
 
     for index in [@type, @calculation, @legitimacyCalculation, @friends, @medium, @mediumType, @view]
       if !u.isInteger(index)
-        throw "Config index not integer!"
+        throw "Config index " + index + " not integer!"
 
 class MM.Message
   constructor: (from, to) ->
@@ -404,8 +407,10 @@ class MM.Medium extends ABM.Model
         @createAgent(original)
 
   access: (original) ->
-    # TODO fix for multiple media
     agent = @mirrors[original.id]
+
+    if !agent # Agents replacing defected cops are new
+      agent = @createAgent(original)
 
     agent.onlineTimer = 5 # activates medium
 
@@ -800,7 +805,6 @@ class MM.Media
 
     options = u.merge(@model.config.mediaModelOptions, {config: @model.config, originalModel: @model, isHeadless: true})
 
-    @media[MM.MEDIA.none] = new MM.MediumNone(options)
     @media[MM.MEDIA.tv] = new MM.MediumTV(options)
     @media[MM.MEDIA.newspaper] = new MM.MediumNewspaper(options)
     @media[MM.MEDIA.telephone] = new MM.MediumTelephone(options)
@@ -833,8 +837,9 @@ class MM.Media
     @adopted = new ABM.Array
     @adoptedAdded = new ABM.Array
     for mediumNr in @model.config.media
-      @adopted.push @media[mediumNr]
-      @adoptedAdded.push @media[mediumNr]
+      if mediumNr != MM.MEDIA.none
+        @adopted.push @media[mediumNr]
+        @adoptedAdded.push @media[mediumNr]
 
     @adoptedDropped.remove(@adopted)
     @adoptedAdded.remove(@adoptedDropped)
@@ -1054,16 +1059,6 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
 
       xOffset += channelStep
 
-class MM.MediumNone extends MM.Medium
-  setup: ->
-    super
-
-  access: (original) ->
-
-  step: ->
-
-  createAgent: (original) ->
-
 class MM.MediumTelephone extends MM.Medium
   setup: ->
     super
@@ -1236,8 +1231,13 @@ class MM.UI
 
   setDropdown: (key, ui) -> return (value) -> # closure-fu to keep key
     ui.model.set(key, parseInt(value))
+    intValue = parseInt(value)
     if key == "medium"
-      ui.model.set("view", MM.VIEWS[u.deIndexHash(MM.MEDIA)[parseInt(value)]])
+      if intValue == MM.MEDIA.none
+        if MM.MEDIA[u.deIndexHash(MM.VIEWS)[ui.model.config.view]]
+          ui.model.set("view", MM.VIEWS.arrestProbability)
+      else
+        ui.model.set("view", MM.VIEWS[u.deIndexHash(MM.MEDIA)[intValue]])
 
   resetPlot: ->
     options = {
@@ -1499,14 +1499,6 @@ class MM.ViewGeneric extends MM.ViewModel
       for citizen in @citizens
         citizen.color = u.color.red.fraction(citizen.original.grievance())
 
-class MM.ViewNone extends MM.View
-  setup: ->
-    super
-
-  populate: ->
-
-  step: ->
-
 class MM.Views
   constructor: (model, options = {}) ->
     @model = model
@@ -1516,7 +1508,6 @@ class MM.Views
     options = u.merge(@model.config.modelOptions, {config: @model.config, originalModel: @model, div: "view"})
     mediaOptions = u.merge(@model.config.mediaModelOptions, {config: @model.config, div: "view"})
 
-    @views[MM.VIEWS.none] = new MM.ViewNone(options)
     @views[MM.VIEWS.follow] = new MM.ViewFollow(options)
 
     @initializeView("tv", MM.ViewMediumTV, mediaOptions)
@@ -1723,7 +1714,7 @@ class MM.Model extends ABM.Model
         if @config.copsDefect and count.activism * 2 > count.citizens and count.cops * 10 < count.activism and @model.animator.ticks > 50
           patch = @patch
           @die()
-          citizen = @model.citizens.create 1, (citizen) =>
+          @model.citizens.create 1, (citizen) =>
             @model.setupCitizen(citizen)
             citizen.moveTo(patch.position)
         else if @config.copsRetreat and @calculateCopWillMakeArrestProbability(count) < u.randomFloat()
@@ -1748,8 +1739,10 @@ class MM.Model extends ABM.Model
       return (@arresting != null)
 
   step: -> # called by MM.Model.animate
-    @agents.shuffle()
-    for agent in @agents
+    shuffled = ABM.Array.from(@agents.slice(0)).shuffle()
+    # TODO if time fix. Deep copy. Can't use agents.shuffle or will lose modified push in returned array, leading to no ID's
+
+    for agent in shuffled
       agent.act()
       if agent.breed.name is "citizens"
         for medium in @media.adopted
@@ -1771,7 +1764,10 @@ class MM.Model extends ABM.Model
 
   set: (key, value) ->
     if key == "medium"
-      @config["media"] = new ABM.Array value
+      if value == "none"
+        @config["media"] = new ABM.Array
+      else
+        @config["media"] = new ABM.Array value
     else
       @config[key] = value
     @config.check()
@@ -1867,7 +1863,9 @@ class MM.Model extends ABM.Model
     @data.media.push {ticks: ticks, medium: @config.oldMedium, state: false}
     @data.media.push {ticks: ticks, medium: @config.medium, state: true}
     unless @isHeadless
-      window.modelUI.plotOptions.grid.markings.push { color: "#000", lineWidth: 1, xaxis: { from: ticks, to: ticks } }
+      window.modelUI.plotOptions.grid.markings.push {
+        color: "#000", lineWidth: 1, xaxis: { from: ticks, to: ticks }
+      }
 
   consoleLog: ->
     console.log 'Config:'
@@ -1934,6 +1932,7 @@ class MM.Initializer extends MM.Model
   
   startup: ->
     @media = new MM.Media(this)
+
     unless @isHeadless
       @views = new MM.Views(this)
       window.modelUI = new MM.UI(this)

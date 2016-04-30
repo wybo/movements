@@ -29,15 +29,15 @@ mediaSetups = null
 #]
 mediaSetups = [
   {label: "1, 0.65", experimentReruns: 1, baseRegimeLegitimacy: 0.65}
-#  {label: "30, 0.65", experimentReruns: 30, baseRegimeLegitimacy: 0.65}
-#  {label: "1, 0.68", experimentReruns: 1, baseRegimeLegitimacy: 0.68}
-#  {label: "30, 0.68", experimentReruns: 30, baseRegimeLegitimacy: 0.68}
-#  {label: "1, 0.70", experimentReruns: 1, baseRegimeLegitimacy: 0.70}
-#  {label: "30, 0.70", experimentReruns: 30, baseRegimeLegitimacy: 0.70}
-#  {label: "1, 0.72", experimentReruns: 1, baseRegimeLegitimacy: 0.72}
-#  {label: "30, 0.72", experimentReruns: 30, baseRegimeLegitimacy: 0.72}
-#  {label: "1, 0.74", experimentReruns: 1, baseRegimeLegitimacy: 0.74}
-#  {label: "30, 0.74", experimentReruns: 30, baseRegimeLegitimacy: 0.74}
+  {label: "30, 0.65", experimentReruns: 30, baseRegimeLegitimacy: 0.65}
+  {label: "1, 0.68", experimentReruns: 1, baseRegimeLegitimacy: 0.68}
+  {label: "30, 0.68", experimentReruns: 30, baseRegimeLegitimacy: 0.68}
+  {label: "1, 0.70", experimentReruns: 1, baseRegimeLegitimacy: 0.70}
+  {label: "30, 0.70", experimentReruns: 30, baseRegimeLegitimacy: 0.70}
+  {label: "1, 0.72", experimentReruns: 1, baseRegimeLegitimacy: 0.72}
+  {label: "30, 0.72", experimentReruns: 30, baseRegimeLegitimacy: 0.72}
+  {label: "1, 0.74", experimentReruns: 1, baseRegimeLegitimacy: 0.74}
+  {label: "30, 0.74", experimentReruns: 30, baseRegimeLegitimacy: 0.74}
 ]
 
 #mediaSetups = [

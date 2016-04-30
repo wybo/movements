@@ -28,8 +28,10 @@ class MM.Medium extends ABM.Model
         @createAgent(original)
 
   access: (original) ->
-    # TODO fix for multiple media
     agent = @mirrors[original.id]
+
+    if !agent # Agents replacing defected cops are new
+      agent = @createAgent(original)
 
     agent.onlineTimer = 5 # activates medium
 

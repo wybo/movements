@@ -18,7 +18,7 @@ MM.LEGITIMACY_CALCULATIONS = u.indexHash(["base", "arrests"])
 MM.FRIENDS = u.indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = u.indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
 MM.MEDIUM_TYPES = u.indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
-MM.VIEWS = u.indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA).remove("none")))
+MM.VIEWS = u.indexHash(["riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA).remove("none")))
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -345,7 +345,10 @@ class MM.Config
         return u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
 
   check: ->
-    @medium = @media.first()
+    if @media.length > 0
+      @medium = @media.first()
+    else
+      @medium = MM.MEDIA.none
 
     if @testRun && @modelOptions.isHeadless
       throw "Cannot be a testRun if headless"
@@ -361,4 +364,4 @@ class MM.Config
 
     for index in [@type, @calculation, @legitimacyCalculation, @friends, @medium, @mediumType, @view]
       if !u.isInteger(index)
-        throw "Config index not integer!"
+        throw "Config index " + index + " not integer!"

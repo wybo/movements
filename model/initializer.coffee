@@ -6,6 +6,7 @@ class MM.Initializer extends MM.Model
   
   startup: ->
     @media = new MM.Media(this)
+
     unless @isHeadless
       @views = new MM.Views(this)
       window.modelUI = new MM.UI(this)

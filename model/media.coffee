@@ -6,7 +6,6 @@ class MM.Media
 
     options = u.merge(@model.config.mediaModelOptions, {config: @model.config, originalModel: @model, isHeadless: true})
 
-    @media[MM.MEDIA.none] = new MM.MediumNone(options)
     @media[MM.MEDIA.tv] = new MM.MediumTV(options)
     @media[MM.MEDIA.newspaper] = new MM.MediumNewspaper(options)
     @media[MM.MEDIA.telephone] = new MM.MediumTelephone(options)
@@ -39,8 +38,9 @@ class MM.Media
     @adopted = new ABM.Array
     @adoptedAdded = new ABM.Array
     for mediumNr in @model.config.media
-      @adopted.push @media[mediumNr]
-      @adoptedAdded.push @media[mediumNr]
+      if mediumNr != MM.MEDIA.none
+        @adopted.push @media[mediumNr]
+        @adoptedAdded.push @media[mediumNr]
 
     @adoptedDropped.remove(@adopted)
     @adoptedAdded.remove(@adoptedDropped)
