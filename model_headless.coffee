@@ -1040,7 +1040,8 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
       if @channel.length == 1
         @read(@channel[0])
       else
-        @read(@channel.sample(condition: (o) -> o != reading), countIt)
+        for [1..5]
+          @read(@channel.sample(condition: (o) -> o != reading), countIt)
 
   drawAll: ->
     @copyOriginalColors()
@@ -1148,7 +1149,8 @@ class MM.MediumWebsite extends MM.Medium
       if u.randomInt(20) == 1
         @model.newPage(@)
 
-      @toNextReading()
+      for [1..5]
+        @toNextReading()
 
     agent.toNextReading = (countIt) ->
       @read(@model.sites.sample(), countIt)
@@ -1927,7 +1929,7 @@ class MM.Model extends ABM.Model
 #class MM.Initializer extends MM.ModelSimple
 class MM.Initializer extends MM.Model
   @initialize: (@config) ->
-    config ?= new MM.Config
+    @config ?= new MM.Config
     return new MM.Initializer(u.merge(config.modelOptions, {config: config}))
   
   startup: ->

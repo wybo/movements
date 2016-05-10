@@ -16,7 +16,8 @@ class MM.MediumNewspaper extends MM.MediumGenericBroadcast
       if @channel.length == 1
         @read(@channel[0])
       else
-        @read(@channel.sample(condition: (o) -> o != reading), countIt)
+        for [1..5]
+          @read(@channel.sample(condition: (o) -> o != reading), countIt)
 
   drawAll: ->
     @copyOriginalColors()

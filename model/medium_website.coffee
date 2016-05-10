@@ -14,7 +14,8 @@ class MM.MediumWebsite extends MM.Medium
       if u.randomInt(20) == 1
         @model.newPage(@)
 
-      @toNextReading()
+      for [1..5]
+        @toNextReading()
 
     agent.toNextReading = (countIt) ->
       @read(@model.sites.sample(), countIt)
