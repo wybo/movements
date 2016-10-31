@@ -3,6 +3,7 @@ class MM.MediumWebsite extends MM.Medium
     super
 
     @sites = new ABM.Array
+    @readNr = 5 # TODO consider making global
 
     while @sites.length < 100
       @newPage(@dummyAgent)
@@ -14,7 +15,7 @@ class MM.MediumWebsite extends MM.Medium
       if u.randomInt(20) == 1
         @model.newPage(@)
 
-      for [1..5]
+      for [1..@readNr]
         @toNextReading()
 
     agent.toNextReading = (countIt) ->

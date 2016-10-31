@@ -23,8 +23,8 @@ MM.VIEWS = u.indexHash(["riskAversion", "hardship", "grievance", "regimeLegitima
 
 class MM.Config
   constructor: ->
-    @testRun = true
-    @type = MM.TYPES.square
+    @testRun = false
+    @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
@@ -54,8 +54,9 @@ class MM.Config
     @friendsRiskAversionHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
 
-    @mediaOnlineTime = 5 # Nr of ticks the user should stay online # TODO make work
-    @mediaReadNr = 10 # Nr of messages that should be read every tick # TODO make work
+    @mediaOnlineTime = 5
+    @mediaAverageReceiveNr = 5 # TODO: Nr of messages that agents should receive on average on every tick; false for media-dependent
+    @mediaMaxReadNr = false # Max nr of messages that should be counted every tick; false for unlimited
     @mediaRiskAversionHomophilous = false
     @mediaChannels = 7 # for media TV and radio
 
@@ -77,13 +78,13 @@ class MM.Config
     @kConstant = 2.3 # k
 
     @ui = {
-      passives: {label: "Passives", color: "green"},
+      #      passives: {label: "Passives", color: "green"},
       actives: {label: "Actives", color: "red"},
-      micros: {label: "Micros", color: "orange"},
-      arrests: {label: "Arrests", color: "purple"},
-      prisoners: {label: "Prisoners", color: "black"},
+      #micros: {label: "Micros", color: "orange"},
+      #arrests: {label: "Arrests", color: "purple"},
+      #prisoners: {label: "Prisoners", color: "black"},
       cops: {label: "Cops", color: "blue"}
-      onlines: {label: "Onlines", color: "cyan"}
+      #onlines: {label: "Onlines", color: "cyan"}
     }
 
     # ### Do not modify below unless you know what you're doing.
@@ -253,7 +254,7 @@ class MM.Config
             for medium in @mediaMirrors()
               count = u.addUp(count, medium.count)
 
-            count.citizens = count.reads # TODO fix/simplify
+            count.citizens = count.reads
           else
             count = @countNeighbors(vision: @config.vision)
 
@@ -412,13 +413,14 @@ class MM.Medium extends ABM.Model
     if !agent # Agents replacing defected cops are new
       agent = @createAgent(original)
 
-    agent.onlineTimer = 5 # activates medium
+    agent.onlineTimer = @config.mediaOnlineTime # activates medium
 
     return agent
 
   step: ->
     for agent in @agents by -1
       if agent.online()
+        agent.resetCount()
         agent.step()
 
       agent.onlineTimer -= 1
@@ -440,6 +442,9 @@ class MM.Medium extends ABM.Model
       @onlineTimer > 0
 
     agent.read = (message, countIt = true) ->
+      if @config.mediaMaxReadNr and @count.reads > @config.mediaMaxReadNr
+        countIt = false
+
       @closeMessage()
 
       if message and countIt
@@ -462,7 +467,7 @@ class MM.Medium extends ABM.Model
     agent.resetCount = ->
       @count = {reads: 0, actives: 0, activism: 0, arrests: 0}
 
-    agent.resetCount() # TODO see if need for use
+    agent.resetCount()
 
     return agent
 
@@ -498,11 +503,14 @@ class MM.MediumGenericDelivery extends MM.Medium
     if !agent.inbox
       agent.inbox = @inboxes[agent.original.id] = new ABM.Array
 
-    agent.toNextReading = (countIt) ->
-      for message in @inbox
-        @read(message, countIt)
+    agent.readInbox = ->
+      while @inbox.length > 0
+        @toNextReading()
 
-      @inbox.clear()
+    agent.toNextReading = (countIt) ->
+      message = @inbox.shift()
+      if message
+        @read(message, countIt)
 
     return agent
 
@@ -865,7 +873,7 @@ class MM.MediumEMail extends MM.MediumGenericDelivery
       if u.randomInt(3) == 1
         @model.newMessage(@, @model.agents.sample())
         
-      @toNextReading()
+      @readInbox()
 
 class MM.MediumFacebookWall extends MM.MediumGenericDelivery
   setup: ->
@@ -878,7 +886,7 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
       if u.randomInt(10) == 1
         @newPost()
 
-      @toNextReading()
+      @readInbox()
 
     agent.newPost = ->
       me = @
@@ -1138,6 +1146,7 @@ class MM.MediumWebsite extends MM.Medium
     super
 
     @sites = new ABM.Array
+    @readNr = 5 # TODO consider making global
 
     while @sites.length < 100
       @newPage(@dummyAgent)
@@ -1149,7 +1158,7 @@ class MM.MediumWebsite extends MM.Medium
       if u.randomInt(20) == 1
         @model.newPage(@)
 
-      for [1..5]
+      for [1..@readNr]
         @toNextReading()
 
     agent.toNextReading = (countIt) ->
@@ -1435,7 +1444,8 @@ class MM.ViewMediumWebsite extends MM.ViewMedium
 
     for agent in @agents
       if agent.original.online()
-        agent.moveTo(agent.original.reading.patch.position)
+        if agent.original.reading
+          agent.moveTo(agent.original.reading.patch.position)
 
 class MM.ViewModel extends MM.View
   setup: ->
@@ -1781,7 +1791,6 @@ class MM.Model extends ABM.Model
       @config.resetAllFriends.call(@)
     else if key == "medium"
       @media.changed()
-      # TODO update UI
 
   actives: ->
     actives = []
@@ -1918,9 +1927,9 @@ class MM.Model extends ABM.Model
         @testSet("medium", MM.MEDIA, MM.MEDIA[u.array.sample(Object.keys(MM.MEDIA))])
       @views.changed()
 
-#    if @animator.ticks % 12 == 0 TODO, errors out
-#      @testAdvance("friends", MM.FRIENDS)
-#      @resetAllFriends()
+    if @animator.ticks % 12 == 0 #TODO, errors out
+      @testAdvance("friends", MM.FRIENDS)
+      @config.resetAllFriends.call(@)
 
     if @animator.ticks > 20 * Object.keys(MM.VIEWS).length * Object.keys(MM.MEDIUM_TYPES).length
       console.log 'Test completed!'

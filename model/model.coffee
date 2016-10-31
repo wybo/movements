@@ -231,7 +231,6 @@ class MM.Model extends ABM.Model
       @config.resetAllFriends.call(@)
     else if key == "medium"
       @media.changed()
-      # TODO update UI
 
   actives: ->
     actives = []
@@ -368,9 +367,9 @@ class MM.Model extends ABM.Model
         @testSet("medium", MM.MEDIA, MM.MEDIA[u.array.sample(Object.keys(MM.MEDIA))])
       @views.changed()
 
-#    if @animator.ticks % 12 == 0 TODO, errors out
-#      @testAdvance("friends", MM.FRIENDS)
-#      @resetAllFriends()
+    if @animator.ticks % 12 == 0 #TODO, errors out
+      @testAdvance("friends", MM.FRIENDS)
+      @config.resetAllFriends.call(@)
 
     if @animator.ticks > 20 * Object.keys(MM.VIEWS).length * Object.keys(MM.MEDIUM_TYPES).length
       console.log 'Test completed!'

@@ -10,11 +10,14 @@ class MM.MediumGenericDelivery extends MM.Medium
     if !agent.inbox
       agent.inbox = @inboxes[agent.original.id] = new ABM.Array
 
-    agent.toNextReading = (countIt) ->
-      for message in @inbox
-        @read(message, countIt)
+    agent.readInbox = ->
+      while @inbox.length > 0
+        @toNextReading()
 
-      @inbox.clear()
+    agent.toNextReading = (countIt) ->
+      message = @inbox.shift()
+      if message
+        @read(message, countIt)
 
     return agent
 

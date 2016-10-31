@@ -23,8 +23,8 @@ MM.VIEWS = u.indexHash(["riskAversion", "hardship", "grievance", "regimeLegitima
 
 class MM.Config
   constructor: ->
-    @testRun = true
-    @type = MM.TYPES.square
+    @testRun = false
+    @type = MM.TYPES.normal
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
@@ -54,8 +54,9 @@ class MM.Config
     @friendsRiskAversionHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
 
-    @mediaOnlineTime = 5 # Nr of ticks the user should stay online # TODO make work
-    @mediaReadNr = 10 # Nr of messages that should be read every tick # TODO make work
+    @mediaOnlineTime = 5
+    @mediaAverageReceiveNr = 5 # TODO: Nr of messages that agents should receive on average on every tick; false for media-dependent
+    @mediaMaxReadNr = false # Max nr of messages that should be counted every tick; false for unlimited
     @mediaRiskAversionHomophilous = false
     @mediaChannels = 7 # for media TV and radio
 
@@ -77,13 +78,13 @@ class MM.Config
     @kConstant = 2.3 # k
 
     @ui = {
-      passives: {label: "Passives", color: "green"},
+      #      passives: {label: "Passives", color: "green"},
       actives: {label: "Actives", color: "red"},
-      micros: {label: "Micros", color: "orange"},
-      arrests: {label: "Arrests", color: "purple"},
-      prisoners: {label: "Prisoners", color: "black"},
+      #micros: {label: "Micros", color: "orange"},
+      #arrests: {label: "Arrests", color: "purple"},
+      #prisoners: {label: "Prisoners", color: "black"},
       cops: {label: "Cops", color: "blue"}
-      onlines: {label: "Onlines", color: "cyan"}
+      #onlines: {label: "Onlines", color: "cyan"}
     }
 
     # ### Do not modify below unless you know what you're doing.
@@ -253,7 +254,7 @@ class MM.Config
             for medium in @mediaMirrors()
               count = u.addUp(count, medium.count)
 
-            count.citizens = count.reads # TODO fix/simplify
+            count.citizens = count.reads
           else
             count = @countNeighbors(vision: @config.vision)
 

@@ -19,8 +19,17 @@ window.plotExperiment = ->
   div = $("#content")
   div.html('')
   config = new MM.Config
+  div = $("#content")
+  div.append('<p>')
   for test, i in experiment
-    window.plotTest(test, i, config)
+    label = test.setup.label || ''
+    div.append(i + ': ' + label + '<br/>')
+  div.append('</p>')
+
+  for test, i in experiment
+    from = 90
+    if i > from and i < from + 10
+      window.plotTest(test, i, config)
 
 window.plotTest = (test, index, config) ->
   options = {
@@ -45,11 +54,18 @@ window.plotTest = (test, index, config) ->
 
   for key, variable of config.ui
     if (test.data[key])
-      data.push({label: variable.label, color: variable.color, data: test.data[key]})
+      if key == 'cops'
+        data.push({label: variable.label, color: variable.color, dashes: { show: true }, data: test.data[key]})
+      else
+        data.push({label: variable.label, color: variable.color, data: test.data[key]})
 
   for marking in test.data["media"]
     console.log marking
-    options.grid.markings.push { color: "#000", lineWidth: 1, xaxis: { from: marking.ticks, to: marking.ticks } }
+    options.grid.markings.push { color: "#000", lineWidth: 2, xaxis: { from: marking.ticks, to: marking.ticks } }
+
+  options.series['lines'] = options.series['dashes'] = { lineWidth: 5 }
+  options['xaxis'] = options['yaxis'] = { font: { size: 28, color: '#666' } }
+  options['dashes'] = { show: true }
 
   space = $('<div>').css({
     'width' : '2096px', 'height' : '1048px', 'float' : 'left', 'margin-right' : '0.7em',
@@ -59,6 +75,9 @@ window.plotTest = (test, index, config) ->
   div2.append(space)
 
   $.plot(space, data, options)
+  $("#content div.legend td.legendLabel").css({'font-size' : '3em'})
+  $("#content div.legend td.legendColorBox div div").css('border-width' : '1em 1.5em 1em 1.5em')
+  $("#content div.legend td.tickLabel").css('font-size' : '1.5em')
 
 # modifies ignoreKeys
 window.stringifySettings = (hash, ignoreKeys, config, open = '', close = '') ->

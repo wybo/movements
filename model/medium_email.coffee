@@ -9,4 +9,4 @@ class MM.MediumEMail extends MM.MediumGenericDelivery
       if u.randomInt(3) == 1
         @model.newMessage(@, @model.agents.sample())
         
-      @toNextReading()
+      @readInbox()

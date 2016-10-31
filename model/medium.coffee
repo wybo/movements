@@ -33,13 +33,14 @@ class MM.Medium extends ABM.Model
     if !agent # Agents replacing defected cops are new
       agent = @createAgent(original)
 
-    agent.onlineTimer = 5 # activates medium
+    agent.onlineTimer = @config.mediaOnlineTime # activates medium
 
     return agent
 
   step: ->
     for agent in @agents by -1
       if agent.online()
+        agent.resetCount()
         agent.step()
 
       agent.onlineTimer -= 1
@@ -61,6 +62,9 @@ class MM.Medium extends ABM.Model
       @onlineTimer > 0
 
     agent.read = (message, countIt = true) ->
+      if @config.mediaMaxReadNr and @count.reads > @config.mediaMaxReadNr
+        countIt = false
+
       @closeMessage()
 
       if message and countIt
@@ -83,7 +87,7 @@ class MM.Medium extends ABM.Model
     agent.resetCount = ->
       @count = {reads: 0, actives: 0, activism: 0, arrests: 0}
 
-    agent.resetCount() # TODO see if need for use
+    agent.resetCount()
 
     return agent
 

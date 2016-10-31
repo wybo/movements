@@ -9,7 +9,7 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
       if u.randomInt(10) == 1
         @newPost()
 
-      @toNextReading()
+      @readInbox()
 
     agent.newPost = ->
       me = @

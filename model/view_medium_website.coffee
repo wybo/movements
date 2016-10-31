@@ -10,4 +10,5 @@ class MM.ViewMediumWebsite extends MM.ViewMedium
 
     for agent in @agents
       if agent.original.online()
-        agent.moveTo(agent.original.reading.patch.position)
+        if agent.original.reading
+          agent.moveTo(agent.original.reading.patch.position)
