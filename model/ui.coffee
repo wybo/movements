@@ -71,11 +71,7 @@ class MM.UI
     ui.model.set(key, parseInt(value))
     intValue = parseInt(value)
     if key == "medium"
-      if intValue == MM.MEDIA.none
-        if MM.MEDIA[u.deIndexHash(MM.VIEWS)[ui.model.config.view]]
-          ui.model.set("view", MM.VIEWS.arrestProbability)
-      else
-        ui.model.set("view", MM.VIEWS[u.deIndexHash(MM.MEDIA)[intValue]])
+      ui.model.set("view", MM.VIEWS[u.deIndexHash(MM.MEDIA)[intValue]])
 
   resetPlot: ->
     options = {

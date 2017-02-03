@@ -18,7 +18,7 @@ MM.LEGITIMACY_CALCULATIONS = u.indexHash(["base", "arrests"])
 MM.FRIENDS = u.indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = u.indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
 MM.MEDIUM_TYPES = u.indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
-MM.VIEWS = u.indexHash(["riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA).remove("none")))
+MM.VIEWS = u.indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA).remove("none")))
 # turn back to numbers once dat.gui fixed
 
 class MM.Config
@@ -182,6 +182,10 @@ class MM.Config
 
     @micros = ->
 
+    @genericViewPopulate = ->
+
+    @genericViewStep = ->
+
     # Types
 
     if MM.TYPES.enclave == @type
@@ -344,6 +348,58 @@ class MM.Config
     if @hardshipDistributionNormal
       @hardshipDistribution = ->
         return u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
+
+    # Views
+
+    if MM.VIEWS.hardship == @view
+      @genericViewPopulate = ->
+        super
+        for citizen in @citizens
+          citizen.color = u.color.red.fraction(citizen.original.hardship)
+        for cop in @cops
+          cop.color = cop.original.color
+
+    else if MM.VIEWS.riskAversion == @config.view
+      @genericViewPopulate = ->
+        super
+        for citizen in @citizens
+          citizen.color = u.color.red.fraction(citizen.original.riskAversion)
+        for cop in @cops
+          cop.color = cop.original.color
+
+    else if MM.VIEWS.none != @view
+      @genericViewPopulate = ->
+        super
+        for cop in @cops
+          cop.color = cop.original.color
+
+    if MM.VIEWS.arrestProbability == @config.view
+      @genericViewStep = ->
+        super
+        for citizen in @citizens
+          citizen.color = u.color.red.fraction(citizen.original.arrestProbability())
+
+    else if MM.VIEWS.netRisk == @config.view
+      @genericViewStep = ->
+        super
+        for citizen in @citizens
+          citizen.color = u.color.red.fraction(citizen.original.netRisk())
+
+    else if MM.VIEWS.regimeLegitimacy == @config.view
+      @genericViewStep = ->
+        super
+        for citizen in @citizens
+          citizen.color = u.color.red.fraction(citizen.original.regimeLegitimacy())
+
+    else if MM.VIEWS.grievance == @config.view
+      @genericViewStep = ->
+        super
+        for citizen in @citizens
+          citizen.color = u.color.red.fraction(citizen.original.grievance())
+
+    else if MM.VIEWS.none != @view
+      @genericViewStep = ->
+        super
 
   check: ->
     if @media.length > 0
@@ -1241,11 +1297,7 @@ class MM.UI
     ui.model.set(key, parseInt(value))
     intValue = parseInt(value)
     if key == "medium"
-      if intValue == MM.MEDIA.none
-        if MM.MEDIA[u.deIndexHash(MM.VIEWS)[ui.model.config.view]]
-          ui.model.set("view", MM.VIEWS.arrestProbability)
-      else
-        ui.model.set("view", MM.VIEWS[u.deIndexHash(MM.MEDIA)[intValue]])
+      ui.model.set("view", MM.VIEWS[u.deIndexHash(MM.MEDIA)[intValue]])
 
   resetPlot: ->
     options = {
@@ -1481,32 +1533,10 @@ class MM.ViewFollow extends MM.ViewModel
 
 class MM.ViewGeneric extends MM.ViewModel
   populate: ->
-    super
-
-    for citizen in @citizens
-      if MM.VIEWS.hardship == @config.view
-        citizen.color = u.color.red.fraction(citizen.original.hardship)
-      else if MM.VIEWS.riskAversion == @config.view
-        citizen.color = u.color.red.fraction(citizen.original.riskAversion)
-
-    for cop in @cops
-      cop.color = cop.original.color
+    @config.genericViewPopulate.call(@)
 
   step: ->
-    super
-
-    if MM.VIEWS.arrestProbability == @config.view
-      for citizen in @citizens
-        citizen.color = u.color.red.fraction(citizen.original.arrestProbability())
-    else if MM.VIEWS.netRisk == @config.view
-      for citizen in @citizens
-        citizen.color = u.color.red.fraction(citizen.original.netRisk())
-    else if MM.VIEWS.regimeLegitimacy == @config.view
-      for citizen in @citizens
-        citizen.color = u.color.red.fraction(citizen.original.regimeLegitimacy())
-    else if MM.VIEWS.grievance == @config.view
-      for citizen in @citizens
-        citizen.color = u.color.red.fraction(citizen.original.grievance())
+    @config.genericViewStep.call(@)
 
 class MM.Views
   constructor: (model, options = {}) ->
