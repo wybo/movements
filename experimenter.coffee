@@ -29,15 +29,15 @@ mediaSetups = null
 #]
 mediaSetups = [
   {label: "1, 0.65", experimentReruns: 1, baseRegimeLegitimacy: 0.65}
-#  {label: "30, 0.65", experimentReruns: 30, baseRegimeLegitimacy: 0.65}
-#  {label: "1, 0.68", experimentReruns: 1, baseRegimeLegitimacy: 0.68}
-#  {label: "30, 0.68", experimentReruns: 30, baseRegimeLegitimacy: 0.68}
-#  {label: "1, 0.70", experimentReruns: 1, baseRegimeLegitimacy: 0.70}
-#  {label: "30, 0.70", experimentReruns: 30, baseRegimeLegitimacy: 0.70}
-#  {label: "1, 0.72", experimentReruns: 1, baseRegimeLegitimacy: 0.72}
-#  {label: "30, 0.72", experimentReruns: 30, baseRegimeLegitimacy: 0.72}
-#  {label: "1, 0.74", experimentReruns: 1, baseRegimeLegitimacy: 0.74}
-#  {label: "30, 0.74", experimentReruns: 30, baseRegimeLegitimacy: 0.74}
+  {label: "30, 0.65", experimentReruns: 30, baseRegimeLegitimacy: 0.65}
+  {label: "1, 0.68", experimentReruns: 1, baseRegimeLegitimacy: 0.68}
+  {label: "30, 0.68", experimentReruns: 30, baseRegimeLegitimacy: 0.68}
+  {label: "1, 0.70", experimentReruns: 1, baseRegimeLegitimacy: 0.70}
+  {label: "30, 0.70", experimentReruns: 30, baseRegimeLegitimacy: 0.70}
+  {label: "1, 0.72", experimentReruns: 1, baseRegimeLegitimacy: 0.72}
+  {label: "30, 0.72", experimentReruns: 30, baseRegimeLegitimacy: 0.72}
+  {label: "1, 0.74", experimentReruns: 1, baseRegimeLegitimacy: 0.74}
+  {label: "30, 0.74", experimentReruns: 30, baseRegimeLegitimacy: 0.74}
 ]
 
 #mediaSetups = [
@@ -110,17 +110,17 @@ setups = [
 #  {friends: MM.FRIENDS.local, friendsHardshipHomophilous: true, label: "friends local, homophilous"}
 ]
 
-setups = [
-  {
-    label: "Landscape: Pre", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", media: ["tv", "newspaper", "telephone"], mediumType: "uncensored", copsDefect: true
-  },
-  {
-    label: "Landscape: Early", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", media: ["email", "website", "forum"], mediumType: "micro", copsDefect: true
-  },
-  {
-    label: "Landscape: Late", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "micro", copsDefect: true
-  }
-]
+#setups = [
+#  {
+#    label: "Landscape: Pre", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", media: ["tv", "newspaper", "telephone"], mediumType: "uncensored", copsDefect: true
+#  },
+#  {
+#    label: "Landscape: Early", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", media: ["email", "website", "forum"], mediumType: "micro", copsDefect: true
+#  },
+#  {
+#    label: "Landscape: Late", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "micro", copsDefect: true
+#  }
+#]
 
 #setups = [
 #  {

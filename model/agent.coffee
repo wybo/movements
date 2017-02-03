@@ -168,7 +168,6 @@ class MM.Agent extends ABM.Agent
     return @mirrorsCache
 
   online: ->
-    # TODO make cached
     for mirror in @mediaMirrors()
       if mirror.online()
         return true
@@ -253,15 +252,13 @@ class MM.Agent extends ABM.Agent
       @friendsHash[agent.id] = null
 
   beFriendList: (list) ->
-    if list # TODO FIX!
-      for agent in list
-        @beFriend(agent)
+    for agent in list
+      @beFriend(agent)
 
   makeClique: (list) ->
-    if list # TODO FIX!
-      list.push(@) # self included in clique
-      for agent in list
-        agent.beFriendList(list)
+    list.push(@) # self included in clique
+    for agent in list
+      agent.beFriendList(list)
 
   #### Notices
 
