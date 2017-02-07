@@ -353,7 +353,7 @@ class MM.Config
 
     if MM.VIEWS.hardship == @view
       @genericViewPopulate = ->
-        super
+        MM.ViewModel.prototype.populate.call(this) # super
         for citizen in @citizens
           citizen.color = u.color.red.fraction(citizen.original.hardship)
         for cop in @cops
@@ -361,7 +361,7 @@ class MM.Config
 
     else if MM.VIEWS.riskAversion == @config.view
       @genericViewPopulate = ->
-        super
+        MM.ViewModel.prototype.populate.call(this) # super
         for citizen in @citizens
           citizen.color = u.color.red.fraction(citizen.original.riskAversion)
         for cop in @cops
@@ -369,37 +369,37 @@ class MM.Config
 
     else if MM.VIEWS.none != @view
       @genericViewPopulate = ->
-        super
+        MM.ViewModel.prototype.populate.call(this) # super
         for cop in @cops
           cop.color = cop.original.color
 
     if MM.VIEWS.arrestProbability == @config.view
       @genericViewStep = ->
-        super
+        MM.ViewModel.prototype.step.call(this) # super
         for citizen in @citizens
           citizen.color = u.color.red.fraction(citizen.original.arrestProbability())
 
     else if MM.VIEWS.netRisk == @config.view
       @genericViewStep = ->
-        super
+        MM.ViewModel.prototype.step.call(this) # super
         for citizen in @citizens
           citizen.color = u.color.red.fraction(citizen.original.netRisk())
 
     else if MM.VIEWS.regimeLegitimacy == @config.view
       @genericViewStep = ->
-        super
+        MM.ViewModel.prototype.step.call(this) # super
         for citizen in @citizens
           citizen.color = u.color.red.fraction(citizen.original.regimeLegitimacy())
 
     else if MM.VIEWS.grievance == @config.view
       @genericViewStep = ->
-        super
+        MM.ViewModel.prototype.step.call(this) # super
         for citizen in @citizens
           citizen.color = u.color.red.fraction(citizen.original.grievance())
 
     else if MM.VIEWS.none != @view
       @genericViewStep = ->
-        super
+        MM.ViewModel.prototype.step.call(this) # super
 
   check: ->
     if @media.length > 0
@@ -1334,6 +1334,10 @@ class MM.UI
 
 class MM.View extends ABM.Model
   setup: ->
+    # Improves performance
+    @agents.setUseSprites() # Bitmap for better performance.
+    @animator.setRate 20, false
+
     @agentBreeds ["citizens", "cops"]
     @patches.create()
 
@@ -1976,6 +1980,7 @@ class MM.Initializer extends MM.Model
       window.modelUI = new MM.UI(this)
 
   setup: ->
+    # Improves performance. Same thing set in view.
     @agents.setUseSprites() # Bitmap for better performance.
     @animator.setRate 20, false
-    super()
+    super

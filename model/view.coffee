@@ -4,6 +4,10 @@
 
 class MM.View extends ABM.Model
   setup: ->
+    # Improves performance
+    @agents.setUseSprites() # Bitmap for better performance.
+    @animator.setRate 20, false
+
     @agentBreeds ["citizens", "cops"]
     @patches.create()
 

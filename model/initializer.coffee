@@ -12,6 +12,7 @@ class MM.Initializer extends MM.Model
       window.modelUI = new MM.UI(this)
 
   setup: ->
+    # Improves performance. Same thing set in view.
     @agents.setUseSprites() # Bitmap for better performance.
     @animator.setRate 20, false
-    super()
+    super
