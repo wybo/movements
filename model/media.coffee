@@ -13,6 +13,7 @@ class MM.Media
     @media[MM.MEDIA.website] = new MM.MediumWebsite(options)
     @media[MM.MEDIA.forum] = new MM.MediumForum(options)
     @media[MM.MEDIA.facebookWall] = new MM.MediumFacebookWall(options)
+    @media[MM.MEDIA.twitter] = new MM.MediumTwitter(options)
 
     @adopted = new ABM.Array
     @adoptedReset() # Defines a few more adopted
@@ -23,7 +24,7 @@ class MM.Media
 
   restart: ->
     for medium in @adopted
-      @medium.restart()
+      medium.restart()
 
   once: ->
     for medium in @adopted

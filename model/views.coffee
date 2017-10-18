@@ -16,6 +16,7 @@ class MM.Views
     @initializeView("website", MM.ViewMediumWebsite, mediaOptions)
     @initializeView("forum", MM.ViewMediumForum, mediaOptions)
     @initializeView("facebookWall", MM.ViewMediumGenericDelivery, mediaOptions)
+    @initializeView("twitter", MM.ViewMediumGenericDelivery, mediaOptions)
 
     # Fill in with generic view otherwise
     genericView = new MM.ViewGeneric(options)

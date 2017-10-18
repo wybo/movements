@@ -5,10 +5,11 @@ class MM.ViewMediumGenericDelivery extends MM.ViewMedium
     xOffset = yOffset = 0
     for agent, i in @agents
       x = i % (@world.max.x + 1)
-      yOffset = Math.floor(i / (@world.max.x + 1)) * 5
+      yOffset = @world.max.y - Math.floor(i / (@world.max.x + 1)) * 5
 
       for message, j in agent.original.inbox
-        patch = @patches.patch(x: x, y: yOffset + j)
-        @colorPatch(patch, message)
+        if j < 5
+          patch = @patches.patch(x: x, y: yOffset - j)
+          @colorPatch(patch, message)
 
       agent.moveTo x: x, y: yOffset

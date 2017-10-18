@@ -16,7 +16,7 @@ MM.TYPES = u.indexHash(["normal", "enclave", "focalPoint", "micro", "activesAdva
 MM.CALCULATIONS = u.indexHash(["real", "epstein", "wilensky", "overwhelmed", "overpowered"])
 MM.LEGITIMACY_CALCULATIONS = u.indexHash(["base", "arrests"])
 MM.FRIENDS = u.indexHash(["none", "random", "cliques", "local"])
-MM.MEDIA = u.indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
+MM.MEDIA = u.indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "blog", "facebookWall", "twitter"])
 MM.MEDIUM_TYPES = u.indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
 MM.VIEWS = u.indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA).remove("none")))
 # turn back to numbers once dat.gui fixed
@@ -28,11 +28,13 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @media = new ABM.Array MM.MEDIA.website
+    #@media = new ABM.Array MM.MEDIA.website
+    @media = new ABM.Array MM.MEDIA.twitter
     @mediumType = MM.MEDIUM_TYPES.normal
     #@view = MM.VIEWS.regimeLegitimacy
     #@view = MM.VIEWS.riskAversion
-    @view = MM.VIEWS.website
+    #@view = MM.VIEWS.website
+    @view = MM.VIEWS.twitter
     @smartPhones = false
 
     @riskAversionDistributionNormal = false

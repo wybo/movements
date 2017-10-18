@@ -16,7 +16,7 @@ MM.TYPES = u.indexHash(["normal", "enclave", "focalPoint", "micro", "activesAdva
 MM.CALCULATIONS = u.indexHash(["real", "epstein", "wilensky", "overwhelmed", "overpowered"])
 MM.LEGITIMACY_CALCULATIONS = u.indexHash(["base", "arrests"])
 MM.FRIENDS = u.indexHash(["none", "random", "cliques", "local"])
-MM.MEDIA = u.indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "facebookWall"])
+MM.MEDIA = u.indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "blog", "facebookWall", "twitter"])
 MM.MEDIUM_TYPES = u.indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
 MM.VIEWS = u.indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA).remove("none")))
 # turn back to numbers once dat.gui fixed
@@ -28,11 +28,13 @@ class MM.Config
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
-    @media = new ABM.Array MM.MEDIA.website
+    #@media = new ABM.Array MM.MEDIA.website
+    @media = new ABM.Array MM.MEDIA.twitter
     @mediumType = MM.MEDIUM_TYPES.normal
     #@view = MM.VIEWS.regimeLegitimacy
     #@view = MM.VIEWS.riskAversion
-    @view = MM.VIEWS.website
+    #@view = MM.VIEWS.website
+    @view = MM.VIEWS.twitter
     @smartPhones = false
 
     @riskAversionDistributionNormal = false
@@ -873,6 +875,7 @@ class MM.Media
     @media[MM.MEDIA.website] = new MM.MediumWebsite(options)
     @media[MM.MEDIA.forum] = new MM.MediumForum(options)
     @media[MM.MEDIA.facebookWall] = new MM.MediumFacebookWall(options)
+    @media[MM.MEDIA.twitter] = new MM.MediumTwitter(options)
 
     @adopted = new ABM.Array
     @adoptedReset() # Defines a few more adopted
@@ -883,7 +886,7 @@ class MM.Media
 
   restart: ->
     for medium in @adopted
-      @medium.restart()
+      medium.restart()
 
   once: ->
     for medium in @adopted
@@ -943,12 +946,13 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
 
     agent.newPost = ->
       me = @
-      friends = @model.agents.sample(size: 15, condition: (o) ->
+      friends = @model.agents.sample(size: 30, condition: (o) ->
         me.original.isFriendsWith(o.original) and me.id != o.id
       )
-      friends.concat(@model.agents.sample(size: 30 - friends.length, condition: (o) ->
-        me.id != o.id
-      ))
+      if friends.length < 30
+        friends.concat(@model.agents.sample(size: 30 - friends.length, condition: (o) ->
+          me.id != o.id
+        ))
 
       for friend in friends
         @model.newMessage(@, friend)
@@ -1194,6 +1198,31 @@ class MM.MediumTV extends MM.MediumGenericBroadcast
     agent.toNextReading = (countIt) ->
       @read(@channel[0], countIt)
 
+class MM.MediumTwitter extends MM.MediumGenericDelivery
+  setup: ->
+    super
+
+  createAgent: (original) ->
+    agent = super(original)
+
+    agent.step = ->
+      if u.randomInt(10) == 1
+        @newPost()
+
+      @readInbox()
+
+    agent.newPost = ->
+      me = @
+      if !@followers
+        @followers = @model.agents.sample(size: 30, condition: (o) ->
+          me.id != o.id
+        )
+      # TODO consider adding selection for risk-avoidance, birds of a
+      # feather.
+
+      for follower in @followers
+        @model.newMessage(@, follower)
+
 class MM.MediumWebsite extends MM.Medium
   setup: ->
     super
@@ -1414,11 +1443,12 @@ class MM.ViewMediumGenericDelivery extends MM.ViewMedium
     xOffset = yOffset = 0
     for agent, i in @agents
       x = i % (@world.max.x + 1)
-      yOffset = Math.floor(i / (@world.max.x + 1)) * 5
+      yOffset = @world.max.y - Math.floor(i / (@world.max.x + 1)) * 5
 
       for message, j in agent.original.inbox
-        patch = @patches.patch(x: x, y: yOffset + j)
-        @colorPatch(patch, message)
+        if j < 5
+          patch = @patches.patch(x: x, y: yOffset - j)
+          @colorPatch(patch, message)
 
       agent.moveTo x: x, y: yOffset
 
@@ -1560,6 +1590,7 @@ class MM.Views
     @initializeView("website", MM.ViewMediumWebsite, mediaOptions)
     @initializeView("forum", MM.ViewMediumForum, mediaOptions)
     @initializeView("facebookWall", MM.ViewMediumGenericDelivery, mediaOptions)
+    @initializeView("twitter", MM.ViewMediumGenericDelivery, mediaOptions)
 
     # Fill in with generic view otherwise
     genericView = new MM.ViewGeneric(options)

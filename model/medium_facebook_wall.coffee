@@ -13,12 +13,13 @@ class MM.MediumFacebookWall extends MM.MediumGenericDelivery
 
     agent.newPost = ->
       me = @
-      friends = @model.agents.sample(size: 15, condition: (o) ->
+      friends = @model.agents.sample(size: 30, condition: (o) ->
         me.original.isFriendsWith(o.original) and me.id != o.id
       )
-      friends.concat(@model.agents.sample(size: 30 - friends.length, condition: (o) ->
-        me.id != o.id
-      ))
+      if friends.length < 30
+        friends.concat(@model.agents.sample(size: 30 - friends.length, condition: (o) ->
+          me.id != o.id
+        ))
 
       for friend in friends
         @model.newMessage(@, friend)
