@@ -55,7 +55,7 @@ class MM.Config
     @friendsHardshipHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsRiskAversionHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
-    @friendsRevealHidden = false # Towards friends signal as if there are no cops around
+    @friendsRevealHidden = false # Towards friends signal as if there are no cops around. Uncensored for this on media
 
     @mediaOnlineTime = 5
     @mediaAverageReceiveNr = 5 # TODO: Nr of messages that agents should receive on average on every tick; false for media-dependent
@@ -323,11 +323,13 @@ class MM.Config
         @active = false
         @activism = 0
 
-    else if MM.MEDIUM_TYPES.uncensored == @mediumType
+    else if MM.MEDIUM_TYPES.uncensored == @mediumType # Also below, friendsRevealHidden
       @setMessageStatus = ->
-        status = @from.original.calculateActiveStatus(@from.original.grievance())
-        @active = status.active
-        @activism = status.activism
+        @activism = @from.original.hidden_activism
+        if @activism == 1.0
+          @active = true
+        else
+          @active = false
 
     else if MM.MEDIUM_TYPES.micro == @mediumType
       @setMessageStatus = ->
@@ -356,7 +358,7 @@ class MM.Config
               not citizen.imprisoned()
             micros.push citizen
 
-    if @friendsRevealHidden
+    if @friendsRevealHidden or MM.MEDIUM_TYPES.uncensored == @mediumType
       @calculateActiveStatus = (grievance, netRisk) ->
         if grievance > @config.threshold
           hidden_activism = 1.0
