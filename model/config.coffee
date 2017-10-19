@@ -55,6 +55,7 @@ class MM.Config
     @friendsHardshipHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsRiskAversionHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
+    @friendsRevealHidden = false # Towards friends signal as if there are no cops around
 
     @mediaOnlineTime = 5
     @mediaAverageReceiveNr = 5 # TODO: Nr of messages that agents should receive on average on every tick; false for media-dependent
@@ -173,10 +174,21 @@ class MM.Config
     @sampleOnlineFriend = ->
       return null
 
+    @calculateActiveStatus = (grievance, netRisk) ->
+      activation = grievance - netRisk
+   
+      if activation > @config.threshold
+        return {micro: 1.0, activism: 1.0, hidden_activism: 1.0, active: true}
+      else if activation > @config.thresholdMicro
+        return {micro: 0.4, activism: 0.0, hidden_activism: 0.0, active: false}
+      else
+        return {micro: 0.0, activism: 0.0, hidden_activism: 0.0, active: false}
+
     @setStatus = (status) ->
       @active = status.active
       @micro = status.micro
       @activism = status.activism
+      @hidden_activism = status.hidden_activism
 
     @setMessageStatus = ->
       @active = @from.original.active
@@ -336,12 +348,29 @@ class MM.Config
         @active = status.active
         @micro = status.micro
         @activism = status.micro # micro taken for activism
+        @hidden_activism = status.micro # micro taken for hidden activism
 
       @micros = ->
         for citizen in @citizens
           if !citizen.active and citizen.activism > 0 and
               not citizen.imprisoned()
             micros.push citizen
+
+    if @friendsRevealHidden
+      @calculateActiveStatus = (grievance, netRisk) ->
+        if grievance > @config.threshold
+          hidden_activism = 1.0
+        else
+          hidden_activism = 0.0
+
+        activation = grievance - netRisk
+
+        if activation > @config.threshold
+          return {micro: 1.0, activism: 1.0, hidden_activism: hidden_activism, active: true}
+        else if activation > @config.thresholdMicro
+          return {micro: 0.4, activism: 0.0, hidden_activism: hidden_activism, active: false}
+        else
+          return {micro: 0.0, activism: 0.0, hidden_activism: hidden_activism, active: false}
 
     if @riskAversionDistributionNormal
       @riskAversionDistribution = ->

@@ -131,8 +131,10 @@ class MM.Model extends ABM.Model
         @actuallyActivate()
 
     citizen.actuallyActivate = ->
-      activation = @grievance() - @netRisk()
-      status = @calculateActiveStatus(activation)
+      grievance = @grievance()
+      netRisk = @netRisk()
+      status = @config.calculateActiveStatus.call(@, grievance, netRisk)
+
       @config.setStatus.call(@, status)
 
     citizen.updateColor = ->

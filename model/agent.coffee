@@ -10,14 +10,6 @@ class MM.Agent extends ABM.Agent
 
   #### Calculations and counting
 
-  calculateActiveStatus: (activation) ->
-    if activation > @config.threshold
-      return {activism: 1.0, micro: 1.0, active: true}
-    else if activation > @config.thresholdMicro
-      return {activism: 0.0, micro: 0.4, active: false}
-    else
-      return {activism: 0.0, micro: 0.0, active: false}
-
   calculateLegitimacyDrop: (count) ->
     #return count.arrests / (count.citizens - count.activism)
     # could consider taking min of cops + activism, police-violence
@@ -51,8 +43,13 @@ class MM.Agent extends ABM.Agent
       else
         if @config.friends and @isFriendsWith(agent)
           friendsMultiplier = @config.friendsMultiplier
+          if @config.friendsRevealHidden
+            activism += agent.hidden_activism * friendsMultiplier
+          else
+            activism += agent.activism * friendsMultiplier
         else
           friendsMultiplier = 1
+          activism += agent.activism
 
         citizens += friendsMultiplier
 
@@ -60,8 +57,6 @@ class MM.Agent extends ABM.Agent
           arrests += friendsMultiplier
         if agent.active
           actives += friendsMultiplier
-
-        activism += agent.activism * friendsMultiplier
 
     return {cops: cops, citizens: citizens, actives: actives, activism: activism, arrests: arrests}
 

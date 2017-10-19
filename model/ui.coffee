@@ -37,6 +37,7 @@ class MM.UI
       friendsNumber: null
       friendsMultiplier: {min: 0, max: 5}
       friendsHardshipHomophilous: null
+      friendsRevealHidden: null
       friendsLocalRange: 5
     }
 

@@ -55,6 +55,7 @@ class MM.Config
     @friendsHardshipHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsRiskAversionHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
+    @friendsRevealHidden = false # Towards friends signal as if there are no cops around
 
     @mediaOnlineTime = 5
     @mediaAverageReceiveNr = 5 # TODO: Nr of messages that agents should receive on average on every tick; false for media-dependent
@@ -173,10 +174,21 @@ class MM.Config
     @sampleOnlineFriend = ->
       return null
 
+    @calculateActiveStatus = (grievance, netRisk) ->
+      activation = grievance - netRisk
+   
+      if activation > @config.threshold
+        return {micro: 1.0, activism: 1.0, hidden_activism: 1.0, active: true}
+      else if activation > @config.thresholdMicro
+        return {micro: 0.4, activism: 0.0, hidden_activism: 0.0, active: false}
+      else
+        return {micro: 0.0, activism: 0.0, hidden_activism: 0.0, active: false}
+
     @setStatus = (status) ->
       @active = status.active
       @micro = status.micro
       @activism = status.activism
+      @hidden_activism = status.hidden_activism
 
     @setMessageStatus = ->
       @active = @from.original.active
@@ -336,12 +348,29 @@ class MM.Config
         @active = status.active
         @micro = status.micro
         @activism = status.micro # micro taken for activism
+        @hidden_activism = status.micro # micro taken for hidden activism
 
       @micros = ->
         for citizen in @citizens
           if !citizen.active and citizen.activism > 0 and
               not citizen.imprisoned()
             micros.push citizen
+
+    if @friendsRevealHidden
+      @calculateActiveStatus = (grievance, netRisk) ->
+        if grievance > @config.threshold
+          hidden_activism = 1.0
+        else
+          hidden_activism = 0.0
+
+        activation = grievance - netRisk
+
+        if activation > @config.threshold
+          return {micro: 1.0, activism: 1.0, hidden_activism: hidden_activism, active: true}
+        else if activation > @config.thresholdMicro
+          return {micro: 0.4, activism: 0.0, hidden_activism: hidden_activism, active: false}
+        else
+          return {micro: 0.0, activism: 0.0, hidden_activism: hidden_activism, active: false}
 
     if @riskAversionDistributionNormal
       @riskAversionDistribution = ->
@@ -605,14 +634,6 @@ class MM.Agent extends ABM.Agent
 
   #### Calculations and counting
 
-  calculateActiveStatus: (activation) ->
-    if activation > @config.threshold
-      return {activism: 1.0, micro: 1.0, active: true}
-    else if activation > @config.thresholdMicro
-      return {activism: 0.0, micro: 0.4, active: false}
-    else
-      return {activism: 0.0, micro: 0.0, active: false}
-
   calculateLegitimacyDrop: (count) ->
     #return count.arrests / (count.citizens - count.activism)
     # could consider taking min of cops + activism, police-violence
@@ -646,8 +667,13 @@ class MM.Agent extends ABM.Agent
       else
         if @config.friends and @isFriendsWith(agent)
           friendsMultiplier = @config.friendsMultiplier
+          if @config.friendsRevealHidden
+            activism += agent.hidden_activism * friendsMultiplier
+          else
+            activism += agent.activism * friendsMultiplier
         else
           friendsMultiplier = 1
+          activism += agent.activism
 
         citizens += friendsMultiplier
 
@@ -655,8 +681,6 @@ class MM.Agent extends ABM.Agent
           arrests += friendsMultiplier
         if agent.active
           actives += friendsMultiplier
-
-        activism += agent.activism * friendsMultiplier
 
     return {cops: cops, citizens: citizens, actives: actives, activism: activism, arrests: arrests}
 
@@ -1292,6 +1316,7 @@ class MM.UI
       friendsNumber: null
       friendsMultiplier: {min: 0, max: 5}
       friendsHardshipHomophilous: null
+      friendsRevealHidden: null
       friendsLocalRange: 5
     }
 
@@ -1753,8 +1778,10 @@ class MM.Model extends ABM.Model
         @actuallyActivate()
 
     citizen.actuallyActivate = ->
-      activation = @grievance() - @netRisk()
-      status = @calculateActiveStatus(activation)
+      grievance = @grievance()
+      netRisk = @netRisk()
+      status = @config.calculateActiveStatus.call(@, grievance, netRisk)
+
       @config.setStatus.call(@, status)
 
     citizen.updateColor = ->
