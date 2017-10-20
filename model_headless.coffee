@@ -40,7 +40,7 @@ class MM.Config
     @riskAversionDistributionNormal = false
     @hardshipDistributionNormal = false
     
-    @holdActivation = false # hold off
+    @holdActivation = true # hold off
     @holdInterval = 100 # for hold type
     @holdReleaseDuration = 25
     @holdOnlyIfNotified = true
@@ -133,7 +133,7 @@ class MM.Config
     @check()
 
   setFunctions: ->
-    # Defaults
+    # ### Defaults
 
     @colorPatch = (patch) ->
       patch.color = u.color.random type: "gray", min: 224, max: 255
@@ -200,7 +200,7 @@ class MM.Config
 
     @genericViewStep = ->
 
-    # Types
+    # ### Types
 
     if MM.TYPES.enclave == @type
       @colorPatch = (patch) ->
@@ -235,7 +235,7 @@ class MM.Config
         if @active
           @swapToActiveSquare({x: 0, y: 0}, range: 5)
 
-    # Calculations
+    # ### Calculations
 
     if MM.CALCULATIONS.epstein == @calculation
       @citizenArrestProbability = (count) ->
@@ -260,7 +260,7 @@ class MM.Config
         else
           return 0
  
-    # Legitimacy Calculations
+    # ### Legitimacy Calculations
 
     if MM.LEGITIMACY_CALCULATIONS.arrests == @legitimacyCalculation
       @regimeLegitimacy = ->
@@ -280,7 +280,7 @@ class MM.Config
 
           return @config.baseRegimeLegitimacy - @lastLegitimacyDrop * 0.1
   
-    # Friends
+    # ### Friends
 
     if MM.FRIENDS.none != @friends
       @sampleOnlineFriend = ->
@@ -316,7 +316,7 @@ class MM.Config
         for citizen in @citizens
           citizen.makeLocalFriends(@config.friendsNumber)
 
-    # Medium types (Media and Views in their classes)
+    # ### Medium types (Media and Views in their classes)
 
     if MM.MEDIUM_TYPES.totalCensorship == @mediumType
       @setMessageStatus = ->
@@ -339,6 +339,25 @@ class MM.Config
       #if @from.original.sawArrest # TODO fix/improve
       #  @active = true
       #  @activism = 1
+
+    # ### Misc settings
+
+    if @holdActivation
+      @colorPatch = (patch) ->
+        dark = false
+        if patch.position.y % 2 == 0
+          dark = true
+
+        if patch.position.x % 2 == 0
+          if dark
+            dark = false
+          else
+            dark = true
+
+        if dark
+          patch.color = u.color.from([220, 220, 220])
+        else
+          patch.color = u.color.from([241, 241, 241])
 
     if @smartPhones
       @moveOffIfOnline = ->
@@ -382,7 +401,7 @@ class MM.Config
       @hardshipDistribution = ->
         return u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
 
-    # Views
+    # ### Views
 
     if MM.VIEWS.hardship == @view
       @genericViewPopulate = ->
@@ -885,6 +904,7 @@ class MM.Agent extends ABM.Agent
 
   leaveNotice: ->
     @patch.noticeCounter = 10
+    @patch.color = u.color.gray
 
 class MM.Media
   constructor: (model, options = {}) ->
@@ -1721,8 +1741,13 @@ class MM.Model extends ABM.Model
           @config.move.call(@)
           @config.maintainFriends.call(@)
 
-          if @config.holdOnlyIfNotified and @active and u.randomInt(20) == 1
-            @leaveNotice()
+          #if @config.holdActivation and @config.holdOnlyIfNotified and @active and u.randomInt(20) == 1
+          if @config.holdActivation and @config.holdOnlyIfNotified
+            if @patch.noticeCounter
+              @notified = true
+
+            if u.randomInt(200) == 1
+              @leaveNotice()
 
           @activate()
           @updateColor()

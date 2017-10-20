@@ -259,3 +259,4 @@ class MM.Agent extends ABM.Agent
 
   leaveNotice: ->
     @patch.noticeCounter = 10
+    @patch.color = u.color.gray

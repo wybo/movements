@@ -72,8 +72,13 @@ class MM.Model extends ABM.Model
           @config.move.call(@)
           @config.maintainFriends.call(@)
 
-          if @config.holdOnlyIfNotified and @active and u.randomInt(20) == 1
-            @leaveNotice()
+          #if @config.holdActivation and @config.holdOnlyIfNotified and @active and u.randomInt(20) == 1
+          if @config.holdActivation and @config.holdOnlyIfNotified
+            if @patch.noticeCounter
+              @notified = true
+
+            if u.randomInt(200) == 1
+              @leaveNotice()
 
           @activate()
           @updateColor()
