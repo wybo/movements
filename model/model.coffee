@@ -205,8 +205,13 @@ class MM.Model extends ABM.Model
       agent.act()
       if agent.breed.name is "citizens"
         for medium in @media.adopted
-          if u.randomInt(20) == 1
-            medium.access(agent)
+          if @config.mediaOnlyNonRiskAverseUseMedia
+            if !@riskAverse and u.randomInt(10) == 1
+                medium.access(agent)
+          else
+            if u.randomInt(20) == 1
+              medium.access(agent)
+
 
     unless @isHeadless
       window.modelUI.drawPlot()
@@ -247,9 +252,7 @@ class MM.Model extends ABM.Model
     return actives
 
   micros: ->
-    micros = []
-    @config.micros.call(@)
-    return micros
+    return @config.micros.call(@)
 
   arrests: ->
     arrests = []
@@ -368,7 +371,7 @@ class MM.Model extends ABM.Model
       if mediaKey
         @testSet("medium", MM.MEDIA, mediaKey)
         if @config.medium == 0
-          @testAdvance("mediumType", MM.MEDIUM_TYPES)
+          @testAdvance("mediumCensorship", MM.MEDIUM_CENSORSHIP)
         @media.changed()
       else
         @testSet("medium", MM.MEDIA, MM.MEDIA[u.array.sample(Object.keys(MM.MEDIA))])
@@ -378,6 +381,6 @@ class MM.Model extends ABM.Model
       @testAdvance("friends", MM.FRIENDS)
       @config.resetAllFriends.call(@)
 
-    if @animator.ticks > 20 * Object.keys(MM.VIEWS).length * Object.keys(MM.MEDIUM_TYPES).length
+    if @animator.ticks > 20 * Object.keys(MM.VIEWS).length * Object.keys(MM.MEDIUM_CENSORSHIP).length
       console.log 'Test completed!'
       @stop()

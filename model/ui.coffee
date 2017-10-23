@@ -39,6 +39,8 @@ class MM.UI
       friendsHardshipHomophilous: null
       friendsRevealHidden: null
       friendsLocalRange: 5
+      mediaRiskAversionHomophilous: null
+      mediaOnlyNonRiskAverseUseMedia: null
     }
 
     buttons =

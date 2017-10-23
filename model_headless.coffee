@@ -12,12 +12,13 @@ if typeof ABM == 'undefined'
 u = ABM.util # ABM.util alias
 log = (object) -> console.log object
 
-MM.TYPES = u.indexHash(["normal", "enclave", "focalPoint", "micro", "activesAdvance", "square"]) # TODO pull apart
+MM.TYPES = u.indexHash(["normal", "enclave", "focalPoint", "activesAdvance", "square"])
+MM.SUPPRESSION = u.indexHash(["normal", "micro", "fearless"])
 MM.CALCULATIONS = u.indexHash(["real", "epstein", "wilensky", "overwhelmed", "overpowered"])
 MM.LEGITIMACY_CALCULATIONS = u.indexHash(["base", "arrests"])
 MM.FRIENDS = u.indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = u.indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "blog", "facebookWall", "twitter"])
-MM.MEDIUM_TYPES = u.indexHash(["normal", "uncensored", "totalCensorship", "micro"]) # TODO micro, from original agent
+MM.MEDIUM_CENSORSHIP = u.indexHash(["normal", "uncensored", "totalCensorship", "micro"])
 MM.VIEWS = u.indexHash(["none", "riskAversion", "hardship", "grievance", "regimeLegitimacy", "arrestProbability", "netRisk", "follow"].concat(u.deIndexHash(MM.MEDIA).remove("none")))
 # turn back to numbers once dat.gui fixed
 
@@ -25,12 +26,13 @@ class MM.Config
   constructor: ->
     @testRun = false
     @type = MM.TYPES.normal
+    @suppression = MM.SUPPRESSION.normal
     @calculation = MM.CALCULATIONS.real
     @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
     @friends = MM.FRIENDS.local
     #@media = new ABM.Array MM.MEDIA.website
     @media = new ABM.Array MM.MEDIA.twitter
-    @mediumType = MM.MEDIUM_TYPES.normal
+    @mediumCensorship = MM.MEDIUM_CENSORSHIP.normal
     #@view = MM.VIEWS.regimeLegitimacy
     #@view = MM.VIEWS.riskAversion
     #@view = MM.VIEWS.website
@@ -40,7 +42,7 @@ class MM.Config
     @riskAversionDistributionNormal = false
     @hardshipDistributionNormal = false
     
-    @holdActivation = true # hold off
+    @holdActivation = false # hold off
     @holdInterval = 100 # for hold type
     @holdReleaseDuration = 25
     @holdOnlyIfNotified = true
@@ -61,6 +63,7 @@ class MM.Config
     @mediaAverageReceiveNr = 5 # TODO: Nr of messages that agents should receive on average on every tick; false for media-dependent
     @mediaMaxReadNr = false # Max nr of messages that should be counted every tick; false for unlimited
     @mediaRiskAversionHomophilous = false
+    @mediaOnlyNonRiskAverseUseMedia = false # Nullifies effect of mediaRiskAversionHomophilous, as all media users risk hungry
     @mediaChannels = 7 # for media TV and radio
 
     @citizenDensity = 0.7
@@ -94,11 +97,12 @@ class MM.Config
 
     @hashes = {
       type: MM.TYPES,
+      suppression: MM.SUPPRESSION,
       calculation: MM.CALCULATIONS,
       legitimacyCalculation: MM.LEGITIMACY_CALCULATIONS,
       friends: MM.FRIENDS,
       medium: MM.MEDIA,
-      mediumType: MM.MEDIUM_TYPES,
+      mediumCensorship: MM.MEDIUM_CENSORSHIP,
       view: MM.VIEWS
     }
 
@@ -195,6 +199,7 @@ class MM.Config
       @activism = @from.original.activism
 
     @micros = ->
+      return []
 
     @genericViewPopulate = ->
 
@@ -234,6 +239,30 @@ class MM.Config
         @moveToRandomEmptyNeighbor(@config.walk)
         if @active
           @swapToActiveSquare({x: 0, y: 0}, range: 5)
+
+    # ### Suppression
+
+    if MM.SUPPRESSION.micro == @suppression
+      @setStatus = (status) ->
+        @active = status.active
+        @micro = status.micro
+        @activism = status.micro # micro taken for activism
+        @hidden_activism = status.hidden_activism
+
+      @micros = ->
+        micros = []
+        for citizen in @citizens
+          if !citizen.active and citizen.activism > 0 and
+              not citizen.imprisoned()
+            micros.push citizen
+        return micros
+
+    else if MM.SUPPRESSION.fearless == @suppression
+      @setStatus = (status) ->
+        @active = status.active
+        @micro = status.micro
+        @activism = status.hidden_activism # hidden_activism taken for activism
+        @hidden_activism = status.hidden_activism
 
     # ### Calculations
 
@@ -318,12 +347,12 @@ class MM.Config
 
     # ### Medium types (Media and Views in their classes)
 
-    if MM.MEDIUM_TYPES.totalCensorship == @mediumType
+    if MM.MEDIUM_CENSORSHIP.totalCensorship == @mediumCensorship
       @setMessageStatus = ->
         @active = false
         @activism = 0
 
-    else if MM.MEDIUM_TYPES.uncensored == @mediumType # Also below, friendsRevealHidden
+    else if MM.MEDIUM_CENSORSHIP.uncensored == @mediumCensorship # Also below, friendsRevealHidden
       @setMessageStatus = ->
         @activism = @from.original.hidden_activism
         if @activism == 1.0
@@ -331,7 +360,7 @@ class MM.Config
         else
           @active = false
 
-    else if MM.MEDIUM_TYPES.micro == @mediumType
+    else if MM.MEDIUM_CENSORSHIP.micro == @mediumCensorship
       @setMessageStatus = ->
         @active = @from.original.active
         @activism = @from.original.micro
@@ -364,20 +393,7 @@ class MM.Config
         if !@position
           @moveToRandomEmptyLocation()
 
-    if @microContributions
-      @setStatus = (status) ->
-        @active = status.active
-        @micro = status.micro
-        @activism = status.micro # micro taken for activism
-        @hidden_activism = status.micro # micro taken for hidden activism
-
-      @micros = ->
-        for citizen in @citizens
-          if !citizen.active and citizen.activism > 0 and
-              not citizen.imprisoned()
-            micros.push citizen
-
-    if @friendsRevealHidden or MM.MEDIUM_TYPES.uncensored == @mediumType
+    if @friendsRevealHidden or MM.MEDIUM_CENSORSHIP.uncensored == @mediumCensorship
       @calculateActiveStatus = (grievance, netRisk) ->
         if grievance > @config.threshold
           hidden_activism = 1.0
@@ -471,7 +487,7 @@ class MM.Config
     if @mediaChannels > @mediaModelOptions.max.x + 1
       throw "Too many channels for world size"
 
-    for index in [@type, @calculation, @legitimacyCalculation, @friends, @medium, @mediumType, @view]
+    for index in [@type, @suppression, @calculation, @legitimacyCalculation, @friends, @medium, @mediumCensorship, @view]
       if !u.isInteger(index)
         throw "Config index " + index + " not integer!"
 
@@ -1340,6 +1356,8 @@ class MM.UI
       friendsHardshipHomophilous: null
       friendsRevealHidden: null
       friendsLocalRange: 5
+      mediaRiskAversionHomophilous: null
+      mediaOnlyNonRiskAverseUseMedia: null
     }
 
     buttons =
@@ -1874,8 +1892,13 @@ class MM.Model extends ABM.Model
       agent.act()
       if agent.breed.name is "citizens"
         for medium in @media.adopted
-          if u.randomInt(20) == 1
-            medium.access(agent)
+          if @config.mediaOnlyNonRiskAverseUseMedia
+            if !@riskAverse and u.randomInt(10) == 1
+                medium.access(agent)
+          else
+            if u.randomInt(20) == 1
+              medium.access(agent)
+
 
     unless @isHeadless
       window.modelUI.drawPlot()
@@ -1916,9 +1939,7 @@ class MM.Model extends ABM.Model
     return actives
 
   micros: ->
-    micros = []
-    @config.micros.call(@)
-    return micros
+    return @config.micros.call(@)
 
   arrests: ->
     arrests = []
@@ -2037,7 +2058,7 @@ class MM.Model extends ABM.Model
       if mediaKey
         @testSet("medium", MM.MEDIA, mediaKey)
         if @config.medium == 0
-          @testAdvance("mediumType", MM.MEDIUM_TYPES)
+          @testAdvance("mediumCensorship", MM.MEDIUM_CENSORSHIP)
         @media.changed()
       else
         @testSet("medium", MM.MEDIA, MM.MEDIA[u.array.sample(Object.keys(MM.MEDIA))])
@@ -2047,7 +2068,7 @@ class MM.Model extends ABM.Model
       @testAdvance("friends", MM.FRIENDS)
       @config.resetAllFriends.call(@)
 
-    if @animator.ticks > 20 * Object.keys(MM.VIEWS).length * Object.keys(MM.MEDIUM_TYPES).length
+    if @animator.ticks > 20 * Object.keys(MM.VIEWS).length * Object.keys(MM.MEDIUM_CENSORSHIP).length
       console.log 'Test completed!'
       @stop()
 
