@@ -3,4 +3,4 @@
 ./copy.sh &
 ./build.sh &
 echo "http://0.0.0.0:8000"
-python -m SimpleHTTPServer
+python http-server.py 8000

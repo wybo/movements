@@ -42,7 +42,7 @@ class MM.Config
     @riskAversionDistributionNormal = false
     @hardshipDistributionNormal = false
     
-    @holdActivation = false # hold off
+    @holdActivation = true # hold off
     @holdInterval = 100 # for hold type
     @holdReleaseDuration = 25
     @holdOnlyIfNotified = true
@@ -206,7 +206,7 @@ class MM.Config
     @genericViewStep = ->
 
     # ### Types
-
+    
     if MM.TYPES.enclave == @type
       @colorPatch = (patch) ->
         if patch.position.y > 0
