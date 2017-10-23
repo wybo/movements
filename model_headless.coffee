@@ -43,8 +43,8 @@ class MM.Config
     @hardshipDistributionNormal = false
     
     @holdActivation = true # hold off
-    @holdInterval = 100 # for hold type
-    @holdReleaseDuration = 25
+    @holdInterval = 150 # for hold type
+    @holdReleaseDuration = 50
     @holdOnlyIfNotified = true
 
     @copsRetreat = false
@@ -1762,6 +1762,10 @@ class MM.Model extends ABM.Model
           #if @config.holdActivation and @config.holdOnlyIfNotified and @active and u.randomInt(20) == 1
           if @config.holdActivation and @config.holdOnlyIfNotified
             if @patch.noticeCounter
+              @patch.noticeCounter = @patch.noticeCounter - 1
+              if @patch.noticeCounter == 0
+                @patch.noticeCounter = null
+                @config.colorPatch(@patch)
               @notified = true
 
             if u.randomInt(200) == 1
@@ -1816,9 +1820,17 @@ class MM.Model extends ABM.Model
 
     citizen.activate = ->
       if @config.holdActivation
-        if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration and !@config.holdOnlyIfNotified or @notified
-          @actuallyActivate()
-          @notified = false
+        if @config.holdOnlyIfNotified
+          if @active or !@notified
+            @actuallyActivate()
+          else
+            if @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration
+              @actuallyActivate()
+            else if @model.animator.ticks % @config.holdInterval == @config.holdReleaseDuration
+              @notified = false
+        else
+          if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration
+            @actuallyActivate()
       else
         @actuallyActivate()
 

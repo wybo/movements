@@ -43,8 +43,8 @@ class MM.Config
     @hardshipDistributionNormal = false
     
     @holdActivation = true # hold off
-    @holdInterval = 100 # for hold type
-    @holdReleaseDuration = 25
+    @holdInterval = 150 # for hold type
+    @holdReleaseDuration = 50
     @holdOnlyIfNotified = true
 
     @copsRetreat = false
