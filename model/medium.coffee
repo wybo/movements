@@ -73,8 +73,8 @@ class MM.Medium extends ABM.Model
         if message.active
           @count.actives += 1
         @count.activism += message.activism
-        if message.arrest
-          @count.arrests += 1
+        if message.evidence
+          @count.evidences += 1
 
       @reading = message
 
@@ -85,7 +85,7 @@ class MM.Medium extends ABM.Model
       @reading = null
 
     agent.resetCount = ->
-      @count = {reads: 0, actives: 0, activism: 0, arrests: 0}
+      @count = {reads: 0, actives: 0, activism: 0, evidences: 0}
 
     agent.resetCount()
 

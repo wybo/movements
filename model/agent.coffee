@@ -10,24 +10,12 @@ class MM.Agent extends ABM.Agent
 
   #### Calculations and counting
 
-  calculateLegitimacyDrop: (count) ->
-    #return count.arrests / (count.citizens - count.activism)
-    # could consider taking min of cops + activism, police-violence
-    # or arrests
-    # Make active agents share photos of fights
-    # Two things expressed. Grievance/active and photos 
-    if count.citizens == 0
-      return 0
-    else
-      return count.activism / count.citizens
-
   calculatePerceivedArrestProbability: (count) ->
     return @config.copWillMakeArrestProbability.call(@, count) *
       @config.citizenArrestProbability.call(@, count)
 
   countNeighbors: (options) ->
     cops = 0
-    actives = 0
     citizens = 0
     arrests = 0
     activism = 0
@@ -43,22 +31,26 @@ class MM.Agent extends ABM.Agent
       else
         if @config.friends and @isFriendsWith(agent)
           friendsMultiplier = @config.friendsMultiplier
-          if @config.friendsRevealHidden
-            activism += agent.hidden_activism * friendsMultiplier
+          if @config.friendsRevealFearless
+            agentActivism = agent.fearless_activism
           else
-            activism += agent.activism * friendsMultiplier
+            agentActivism = agent.activism
         else
           friendsMultiplier = 1
-          activism += agent.activism
+          agentActivism = agent.activism
+
+        if @config.notifyOfProtest
+          if @notified or agent.active or !agent.notified # if self not notified, other has to be neither
+            activism += agentActivism * friendsMultiplier
+        else
+          activism += agentActivism * friendsMultiplier
 
         citizens += friendsMultiplier
 
         if agent.fighting()
           arrests += friendsMultiplier
-        if agent.active
-          actives += friendsMultiplier
 
-    return {cops: cops, citizens: citizens, actives: actives, activism: activism, arrests: arrests}
+    return {cops: cops, citizens: citizens, activism: activism, arrests: arrests}
 
   #### Movement
 

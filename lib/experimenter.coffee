@@ -26,58 +26,107 @@ window.plotExperiment = ->
     div.append(i + ': ' + label + '<br/>')
   div.append('</p>')
 
-  for test, i in experiment
-    from = 90
-    if i > from and i < from + 10
-      window.plotTest(test, i, config)
+  window.experiment = experiment
 
-window.plotTest = (test, index, config) ->
+  for i in [0...experiment.length]
+    #from = 210
+    #if i >= from and i < from + 10
+      window.plotTest(i)
+
+window.plotTest = (index) ->
+  div = $("#content")
+  div2 = $('<div>').css({ float: 'left', clear: 'left' })
+  div.append(div2)
+  label = window.experiment[index].setup.label || ''
+  div2.append('<p class="title">Ex run: <b>' + label + '</b></p>')
+
+  ignoreKeys = {label: true, config: true, modelOptions: true, viewModelOptions: true, mediaModelOptions: true, mediaMirrorModelOptions: true, ui: true, hashes: true}
+  div2.append(window.stringifySettings(window.experiment[index].setup, ignoreKeys, window.experiment[index].setup.config, '<b>', '</b>'))
+  div2.append('<br />')
+  div2.append(window.stringifySettings(window.experiment[index].setup.config, ignoreKeys, window.experiment[index].setup.config, '', ''))
+  div2.append('<br />')
+  graphId = 'graph_' + index
+  div2.append('<select id="' + graphId + '_select" onchange="reGraphTest(this)" style="margin-bottom: 0.5em;"></select> ')
+  select_options = [0...window.experiment[index].fullData.length]
+  select_options.push("avg")
+  setupDropdown('#' + graphId + '_select', select_options, window.experiment[index].fullData.length)
+
+  div2.append(window.stringifySettings(window.experiment[index].stats, ignoreKeys, window.experiment[index].setup.config, '', ''))
+
+  window.graphTest(window.experiment[index].data, index, window.experiment[index].setup.config)
+
+window.reGraphTest = (selector) ->
+  index = parseInt(selector.id.split('_')[1])
+  sub_index = selector.selectedIndex
+  if sub_index == window.experiment[index].fullData.length
+    window.graphTest(window.experiment[index].data, index, window.experiment[index].setup.config)
+  else
+    window.graphTest(window.experiment[index].fullData[sub_index], index, window.experiment[index].setup.config)
+
+window.graphTest = (testData, index, config) ->
+  div = $("#content")
+  graphId = 'graph_' + index
+  old = document.getElementById(graphId)
+  if old != null
+    old.parentNode.removeChild(old)
+
   options = {
     series: { shadowSize: 0 }, # drawing is faster without shadows
     grid: { markings: [] }
   }
-  div = $("#content")
-  div2 = $('<div>').css({ float: 'left', clear: 'left' })
-  div.append(div2)
-  label = test.setup.label || ''
-  div2.append('<p class="title">Experiment run: <b>' + label + '</b></p>')
 
-  ignoreKeys = {label: true, config: true, modelOptions: true, viewModelOptions: true, mediaModelOptions: true, mediaMirrorModelOptions: true, ui: true, hashes: true}
-  console.log test.setup
-  div2.append(window.stringifySettings(test.setup, ignoreKeys, test.setup.config, '<b>', '</b>'))
-  div2.append('<br />')
-  div2.append(window.stringifySettings(test.setup.config, ignoreKeys, test.setup.config, '', ''))
-
-  div2 = $('<div>').css({ float: 'left', clear: 'left' })
+  div2 = $('<div id="' + graphId + '">').css({ float: 'left', clear: 'left' })
   div.append(div2)
   data = []
 
+  got_keys = []
   for key, variable of config.ui
-    if (test.data[key])
+    if (testData[key])
+      got_keys.push(key)
       if key == 'cops'
-        data.push({label: variable.label, color: variable.color, dashes: { show: true }, data: test.data[key]})
+        data.push({label: variable.label, color: variable.color, dashes: { show: true }, data: testData[key]})
       else
-        data.push({label: variable.label, color: variable.color, data: test.data[key]})
+        data.push({label: variable.label, color: variable.color, data: testData[key]})
+  
+  for key in got_keys
+    if (testData[key + "_b"])
+      data.push({id: key + "_b", data: testData[key + "_b"], lines: { show: true, lineWidth: 0, fill: false }, color: config.ui[key].color})
+    if (testData[key + "_t"])
+      data.push({id: key + "_t", data: testData[key + "_t"], lines: { show: true, lineWidth: 0, fill: 0.2 }, color: config.ui[key].color, fillBetween: key + "_b"})
 
-  for marking in test.data["media"]
-    console.log marking
+  for marking in testData["media"]
     options.grid.markings.push { color: "#000", lineWidth: 2, xaxis: { from: marking.ticks, to: marking.ticks } }
 
   options.series['lines'] = options.series['dashes'] = { lineWidth: 5 }
-  options['xaxis'] = options['yaxis'] = { font: { size: 28, color: '#666' } }
+  options['axisLabels'] = { show: true }
+  options['xaxis'] = { font: { size: 28, color: '#666' } }
+  #xticksx = []
+  #for i in [0..25]
+  #  xticksx.push([i * 52, 1990 + i])
+  #options['xaxis'] = { font: { size: 28, color: '#666' }, ticks: xticksx }
+  options['xaxes'] = [{ axisLabel: 'Ticks', axisLabelPadding: 30 }]
+  #options['xaxes'] = [{ axisLabel: 'Years', axisLabelPadding: 30 }]
+  options['yaxis'] = { min: 0, max: 150, font: { size: 28, color: '#666' } }
+  #yticksy = []
+  #for i in [1..7]
+  #  if i > 3
+  #    yticksy.push([2 ** i, ((10 ** (i - 1)) / 1000) + 'k'])
+  #options['yaxis'] = { min: 0, max: 150, font: { size: 28, color: '#666' }, ticks: yticksy }
+  options['yaxes'] = [{ axisLabel: 'Citizens', axisLabelPadding: 30 }]
   options['dashes'] = { show: true }
 
   space = $('<div>').css({
-    'width' : '2096px', 'height' : '1048px', 'float' : 'left', 'margin-right' : '0.7em',
-    'margin-bottom' : '1em'
+    'width' : '2096px', 'height' : '1048px', 'float' : 'left'
   })
   # 'width' : '300px', 'height' : '160px', 'float' : 'left', 'margin-right' : '0.7em',
   div2.append(space)
 
   $.plot(space, data, options)
-  $("#content div.legend td.legendLabel").css({'font-size' : '3em'})
+  $("#content div.legend td.legendLabel").css({'font-size' : '2.2em'})
   $("#content div.legend td.legendColorBox div div").css('border-width' : '1em 1.5em 1em 1.5em')
   $("#content div.legend td.tickLabel").css('font-size' : '1.5em')
+  $("#content div.axisLabels").css({'font-size' : '2.2em'})
+  $("#content div.xaxisLabel").css({'margin-top' : '-30px'})
 
 # modifies ignoreKeys
 window.stringifySettings = (hash, ignoreKeys, config, open = '', close = '') ->
@@ -115,7 +164,8 @@ window.decodeHash = (hash, vId) ->
 
 window.setupDropdown = (optionSelect, options, defaultOption) ->
   for option, i in options
-    $(optionSelect).append(
-      '<option value="' + i + '"' +
-      (defaultOption == i ? ' selected="selected"' : '') + '>' +
-      option + '</option>')
+    if defaultOption == i
+      selected = ' selected'
+    else
+      selected = ''
+    $(optionSelect).append('<option value="' + i + '"' + selected + '>' + option + '</option>')

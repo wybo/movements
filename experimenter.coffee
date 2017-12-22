@@ -6,159 +6,22 @@ u = ABM.util
 argv = require('yargs').argv
 childProcess = require('child_process')
 os = require('os')
-
-#experimentReruns = 2
-#experimentReruns = 10
-experimentReruns = 30
-#experimentReruns = 25 # To average it out
-
-#experimentTicks = 2
-#experimentTicks = 15
-#experimentTicks = 200
-experimentTicks = 250
-#experimentTicks = 300
-#experimentTicks = 1000
-#experimentTicks = 1500
-#experimentTicks = 150 # 15 days
-
-mediaSetups = null
-#mediaSetups = [
-#  {label: "Forum", experimentChange: {tick: 5, medium: "forum"}}
-#  {label: "Email", medium: "email"}
-#  {label: "Email, TV", media: ["email", "tv"]}
-#]
-mediaSetups = [
-  {label: "1, 0.65", experimentReruns: 1, baseRegimeLegitimacy: 0.65}
-  {label: "30, 0.65", experimentReruns: 30, baseRegimeLegitimacy: 0.65}
-  {label: "1, 0.68", experimentReruns: 1, baseRegimeLegitimacy: 0.68}
-  {label: "30, 0.68", experimentReruns: 30, baseRegimeLegitimacy: 0.68}
-  {label: "1, 0.70", experimentReruns: 1, baseRegimeLegitimacy: 0.70}
-  {label: "30, 0.70", experimentReruns: 30, baseRegimeLegitimacy: 0.70}
-  {label: "1, 0.72", experimentReruns: 1, baseRegimeLegitimacy: 0.72}
-  {label: "30, 0.72", experimentReruns: 30, baseRegimeLegitimacy: 0.72}
-  {label: "1, 0.74", experimentReruns: 1, baseRegimeLegitimacy: 0.74}
-  {label: "30, 0.74", experimentReruns: 30, baseRegimeLegitimacy: 0.74}
-]
-
-#mediaSetups = [
-#  {label: "1, 0.65", experimentReruns: 2, baseRegimeLegitimacy: 0.65}
-#]
-
-setups = [
-  {
-    label: "Epstein basic", type: "normal", calculation: "epstein", legitimacyCalculation: "base", friends: "none", medium: "none"
-  },
-  {
-    label: "Real arrest probability", type: "normal", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none"
-  },
-  {
-    label: "Square", type: "square", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none"
-  },
-  {
-    label: "Friends", type: "square", calculation: "real", legitimacyCalculation: "base", friends: "random", medium: "none"
-  },
-  {
-    label: "Prison-capacity to 40% of agents", type: "normal", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none", prisonCapacity: 0.4
-  },
-  {
-    label: "Defecting cops", type: "normal", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none", copsDefect: true
-  },
-  {
-    label: "Legitimacy affected by arrests", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "none", medium: "none", copsDefect: true
-  },
-  # Forum and other media
-  {
-    label: "Medium; tv, normal censorship", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "tv", mediumType: "normal", copsDefect: true
-  },
-  {
-    label: "Medium; tv, total censorship", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "tv", mediumType: "totalCensorship", copsDefect: true
-  },
-  {
-    label: "Medium; forum", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "forum", mediumType: "normal", copsDefect: true
-  },
-  {
-    label: "Medium; facebook", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "normal", copsDefect: true
-  },
-  {
-    label: "Medium; facebook, uncensored", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "uncensored", copsDefect: true
-  },
-  # Mechanisms
-  {
-    label: "Seclusion: TV", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "tv", mediumType: "normal", copsDefect: true, mediaRiskAversionHomophilous: true
-  },
-  {
-    label: "Seclusion: Forum", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "forum", mediumType: "normal", copsDefect: true, mediaRiskAversionHomophilous: true
-  },
-  {
-    label: "Seclusion: Facebook", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "normal", copsDefect: true, friendsRiskAversionHomophilous: true
-  },
-  {
-    label: "Exposition: Forum", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "forum", mediumType: "uncensored", copsDefect: true
-  },
-  {
-    label: "Exposition: Facebook", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "uncensored", copsDefect: true
-  },
-  {
-    label: "Micro: Forum", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "forum", mediumType: "micro", copsDefect: true
-  },
-  {
-    label: "Micro: Facebook", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "micro", copsDefect: true
-  }
-
-#  {friends: MM.FRIENDS.random, friendsHardshipHomophilous: true, label: "friends random, homophilous"}
-#  {friends: MM.FRIENDS.local, friendsHardshipHomophilous: false, label: "friends local, not homophilous"}
-#  {friends: MM.FRIENDS.local, friendsHardshipHomophilous: true, label: "friends local, homophilous"}
-]
-
-#setups = [
-#  {
-#    label: "Landscape: Pre", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", media: ["tv", "newspaper", "telephone"], mediumType: "uncensored", copsDefect: true
-#  },
-#  {
-#    label: "Landscape: Early", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", media: ["email", "website", "forum"], mediumType: "micro", copsDefect: true
-#  },
-#  {
-#    label: "Landscape: Late", type: "normal", calculation: "real", legitimacyCalculation: "arrests", friends: "random", medium: "facebookWall", mediumType: "micro", copsDefect: true
-#  }
-#]
-
-#setups = [
-#  {
-#    label: "Real with micro", type: "micro", calculation: "real", legitimacyCalculation: "base", friends: "none", medium: "none"
-#  },
-#]
-
-#setupSets = [
-#  {mediumCountsFor: 0.05, label: "medium counts for little"}
-#  {mediumCountsFor: 0.20, label: "medium counts for some"}
-#  {mediumCountsFor: 0.50, label: "medium counts for a lot"}
-#]
+fs = require('fs')
 
 # ### Running experiments
 
-runTest = (testSetup, callback = null) ->
-  config = getConfig(testSetup)
-  model = MM.Initializer.initialize(config)
-  model = runModel(model)
-  config.config = null # removing circularity
-  testSetup.config = config # full config
-  output = setupNr: testSetup.experimentSetupNr, testSetup: testSetup, data: model.data
-  if callback
-    callback(null, output)
-  else
-    return output
+runFork = ->
+  process.on('message', (message) ->
+    if message == "done"
+      process.disconnect()
+    else
+      printSetup(message)
+      process.send(runTest(message))
+  )
 
 runExperiment = (experiment, nrOfChildren = false) ->
   console.log "# Running experiments"
-  if process.env.FORK
-    process.on('message', (message) ->
-      if message == "done"
-        process.disconnect()
-      else
-        printSetup(message)
-        process.send(runTest(message))
-    )
-  else if nrOfChildren
+  if nrOfChildren
     console.log "# (multithreaded)"
     tests = new ABM.Array
     nrOfChildren = os.cpus().length
@@ -192,28 +55,35 @@ runExperiment = (experiment, nrOfChildren = false) ->
 
     outputExperiment(tests)
 
-printSetup = (setup) ->
-  console.log "# setupNr: " + setup.experimentSetupNr + ", reruns: " + setup.experimentReruns + ", label " + setup.label
+runTest = (testSetup, callback = null) ->
+  config = getConfig(testSetup)
+  model = MM.Initializer.initialize(config)
+  model = runModel(model)
+  config.config = null # removing circularity
+  testSetup.config = config # full config
+  output = experimentSetupNr: testSetup.experimentSetupNr, testSetup: testSetup, data: model.data
+  if callback
+    callback(null, output)
+  else
+    return output
 
 outputExperiment = (tests) ->
   output = []
-  tests.sort("setupNr")
-  lastSetupNr = tests[0].setupNr
+  tests.sort("experimentSetupNr")
+  lastExperimentSetupNr = tests[0].experimentSetupNr
   lastTestSetup = tests[0].testSetup
   runs = []
 
   for test in tests
-    if test.setupNr != lastSetupNr # Next group of runs
-      averaged = averageRuns(runs)
-      output.push {setup: lastTestSetup, data: averaged, fullData: runs}
-      lastSetupNr = test.setupNr
+    if test.experimentSetupNr != lastExperimentSetupNr # Next group of runs
+      output.push {setup: lastTestSetup, fullData: runs}
+      lastExperimentSetupNr = test.experimentSetupNr
       lastTestSetup = test.testSetup
       runs = []
 
     runs.push test.data
 
-  averaged = averageRuns(runs) # for last setupNr, group of runs
-  output.push {setup: lastTestSetup, data: averaged, fullData: runs}
+  output.push {setup: lastTestSetup, fullData: runs}
 
   console.log JSON.stringify(output, null)
 
@@ -237,100 +107,38 @@ getConfig = (testSetup = {}) ->
   for own key, value of testSetup
     if !key.match(/^(experiment.*|label)$/) and !config.hasOwnProperty(key)
       throw "Property #{key} is not a valid setting"
-    config[key] = value
+    if key == "media"
+      config[key] = ABM.Array.from value
+    else
+      config[key] = value
+
+  config.check()
+  config.setFunctions() # IMPORTANT!
 
   return config
 
-averageRuns = (runs) ->
-  averaged = {}
-  for run, i in runs
-    for key, variable of run
-      averaged[key] ?= []
-      if key != "media"
-        for pair, k in variable
-          averaged[key][k] ?= [pair[0], 0]
-          averaged[key][k][1] += pair[1] * 1.0
+jsonConfig = ->
+  config = new MM.Config
+  config.makeHeadless()
+  config.config = null
+  console.log JSON.stringify(config, null)
 
-  for key, variable of averaged
-    if key != "media"
-      for pair, k in variable
-        averaged[key][k][1] = Math.round(averaged[key][k][1] / runs.length * 100) / 100
-  
-  return averaged
+printSetup = (setup) ->
+  console.log "# eSetupNr: " + setup.experimentSetupNr + ", reruns: " + setup.experimentReruns + ", label " + setup.label
 
-# ### Preparation of runs
+readExperiment = (experimentFile) ->
+  experiment = JSON.parse(fs.readFileSync(experimentFile, 'utf8'))
 
-prepareExperiment = (setups, experimentTicks, experimentReruns, mediaSetups = null) ->
-  expandedSetups = []
-
-  setups = prepareSetups(setups, experimentTicks, experimentReruns, mediaSetups)
-  
-  setupNr = 0
-  for setup in setups
-    for [1..setup.experimentReruns]
-      expandedSetups.push u.merge setup, {experimentSetupNr: setupNr}
-    setupNr += 1
-
-  return expandedSetups
-
-prepareSetups = (setups, experimentTicks, experimentReruns, mediaSetups) ->
-  if mediaSetups
-    newSetups = []
-
-    for setup in setups
-      for mediaSetup in mediaSetups
-        newLabel = mediaSetup.label + " " + setup.label
-        newSetups.push u.merge(u.merge(mediaSetup, setup), {label: newLabel})
-
-    setups = newSetups
-
-  config = getConfig()
-
-  for setup in setups
-    # Expand setting shortcuts
-    if setup.medium
-      setup.media = new ABM.Array setup.medium
-      delete setup.medium
-
-    if setup.experimentChange
-      setup.experimentChanges = new ABM.Array setup.experimentChange
-      delete setup.experimentChange
-
-    setup.experimentTicks ?= experimentTicks
-    setup.experimentReruns ?= experimentReruns
-
-    # Replace hash strings by integers
-    if setup.media
-      media = setup.media
-      setup.media = new ABM.Array
-      for medium in media
-        setup.media.push replaceConfigString(medium, MM.MEDIA)
-
-    for key, configHash of config.hashes
-      if setup[key]
-        setup[key] = replaceConfigString(setup[key], configHash)
-
-    if setup.experimentChanges
-      setup.experimentChanges.sort("tick")
-      for changes in setup.experimentChanges
-        for key, value of config.hashes
-          if changes[key]
-            changes[key] = replaceConfigString(changes[key], value)
-
-  return setups
-
-replaceConfigString = (string, hash) ->
-  if string and u.isString(string)
-    integer = hash[string]
-    if !u.isInteger(integer)
-      throw "No setting for string #{string}, typo?"
-    return integer
+if argv.json == "config"
+  jsonConfig()
+else if process.env.FORK
+  runFork()
+else if argv.experiment
+  experiment = readExperiment(argv.experiment)
+    
+  if argv.mode == "single"
+    runExperiment(experiment)
   else
-    return string
-
-experiment = prepareExperiment(setups, experimentTicks, experimentReruns, mediaSetups)
-
-if argv.mode == "single"
-  runExperiment(experiment)
+    runExperiment(experiment, os.cpus().length)
 else
-  runExperiment(experiment, os.cpus().length)
+  throw "provide --experiment=setups/setup-file.json, setup file"

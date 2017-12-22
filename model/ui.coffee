@@ -25,6 +25,11 @@ class MM.UI
       riskAversionDistributionNormal: null
       hardshipDistributionNormal: null
       smartPhones: null
+      synchronizeProtest: null
+      coordinateProtest: null
+      notifyOfProtest: null
+      protestCycle: {min: 0, max: 500}
+      protestDuration: {min: 0, max: 250}
       citizenDensity: {min: 0, max: 1}
       copDensity: {min: 0, max: 0.10}
       maxPrisonSentence: {min: 0, max: 1000}
@@ -37,7 +42,7 @@ class MM.UI
       friendsNumber: null
       friendsMultiplier: {min: 0, max: 5}
       friendsHardshipHomophilous: null
-      friendsRevealHidden: null
+      friendsRevealFearless: null
       friendsLocalRange: 5
       mediaRiskAversionHomophilous: null
       mediaOnlyNonRiskAverseUseMedia: null

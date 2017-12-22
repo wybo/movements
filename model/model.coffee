@@ -52,40 +52,29 @@ class MM.Model extends ABM.Model
     citizen.activism = 0.0
     citizen.arrestDuration = 0
     citizen.prisonSentence = 0
-    citizen.sawArrest = false
+    citizen.gotEvidence = false
 
     citizen.act = ->
       # TODO make media reading read a certain nr of posts!
       @mediaTickReset()
 
-      if !@fighting()
+      if @config.doAct.call(@)
         if @imprisoned()
           @prisonSentence -= 1
 
           if !@imprisoned()
             @moveToRandomEmptyLocation()
 
-      if !@imprisoned() # free or just released
-        @config.moveOffIfOnline.call(@)
+        if !@imprisoned() # free or just released
+          @config.moveOffIfOnline.call(@)
 
-        if @position? # free, just released, and not behind PC
-          @config.move.call(@)
-          @config.maintainFriends.call(@)
+          if @position? # free, just released, and not behind PC
+            @config.move.call(@)
+            @config.maintainFriends.call(@)
+            @config.maintainNotify.call(@)
 
-          #if @config.holdActivation and @config.holdOnlyIfNotified and @active and u.randomInt(20) == 1
-          if @config.holdActivation and @config.holdOnlyIfNotified
-            if @patch.noticeCounter
-              @patch.noticeCounter = @patch.noticeCounter - 1
-              if @patch.noticeCounter == 0
-                @patch.noticeCounter = null
-                @config.colorPatch(@patch)
-              @notified = true
-
-            if u.randomInt(200) == 1
-              @leaveNotice()
-
-          @activate()
-          @updateColor()
+            @activate()
+            @updateColor()
 
     citizen.grievance = ->
       @hardship * (1 - @regimeLegitimacy())
@@ -97,13 +86,12 @@ class MM.Model extends ABM.Model
       count = @countNeighbors(vision: @config.vision)
 
       count.activism += 1
-      count.actives += 1
       count.citizens += 1
 
-      if count.arrests > 0
-        @sawArrest = true
+      if count.arrests > 0 and u.randomInt(20) == 1 # TODO adjust
+        @gotEvidence = true
       else
-        @sawArrest = false
+        @gotEvidence = false
 
       @calculatePerceivedArrestProbability(count)
 
@@ -115,7 +103,7 @@ class MM.Model extends ABM.Model
       @moveOff()
       @goOffline()
 
-    citizen.arrest = ->
+    citizen.beginArrest = ->
       @arrestDuration = @config.arrestDuration
       @setColor "purple"
 
@@ -132,22 +120,6 @@ class MM.Model extends ABM.Model
       @moveAwayFromArrestProbability(@config.walk, @config.vision)
 
     citizen.activate = ->
-      if @config.holdActivation
-        if @config.holdOnlyIfNotified
-          if @active or !@notified
-            @actuallyActivate()
-          else
-            if @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration
-              @actuallyActivate()
-            else if @model.animator.ticks % @config.holdInterval == @config.holdReleaseDuration
-              @notified = false
-        else
-          if @active or @model.animator.ticks % @config.holdInterval < @config.holdReleaseDuration
-            @actuallyActivate()
-      else
-        @actuallyActivate()
-
-    citizen.actuallyActivate = ->
       grievance = @grievance()
       netRisk = @netRisk()
       status = @config.calculateActiveStatus.call(@, grievance, netRisk)
@@ -172,39 +144,8 @@ class MM.Model extends ABM.Model
     cop.moveToRandomEmptyLocation()
 
     cop.act = ->
-      if @fighting()
-        @arresting.beatUp()
-        if !@arresting.fighting()
-          @arresting.imprison()
-          @arresting = null
-
-      if !@fighting()
-        count = @countNeighbors(vision: @config.vision)
-        count.cops += 1
-
-        if @config.copsDefect and count.activism * 2 > count.citizens and count.cops * 10 < count.activism and @model.animator.ticks > 50
-          patch = @patch
-          @die()
-          @model.citizens.create 1, (citizen) =>
-            @model.setupCitizen(citizen)
-            citizen.moveTo(patch.position)
-        else if @config.copsRetreat and @calculateCopWillMakeArrestProbability(count) < u.randomFloat()
-          @retreat()
-        else if @model.prisoners().length < @config.prisonCapacity * @model.agents.length
-          @initiateArrest()
-          @moveToRandomEmptyNeighbor()
-
-    cop.retreat = ->
-      @moveTowardsArrestProbability(@config.walk, @config.vision, true)
-
-    cop.initiateArrest = ->
-      protester = @neighbors(@config.vision).sample(condition: (agent) ->
-        agent.breed.name is "citizens" and
-          agent.active and !agent.fighting())
-
-      if protester
-        @arresting = protester
-        @arresting.arrest()
+      if @config.copDoAct.call(@)
+        @config.moveAndArrest.call(@)
 
     cop.fighting = ->
       return (@arresting != null)
@@ -218,15 +159,20 @@ class MM.Model extends ABM.Model
       if agent.breed.name is "citizens"
         for medium in @media.adopted
           if @config.mediaOnlyNonRiskAverseUseMedia
-            if !@riskAverse and u.randomInt(10) == 1
+            if !agent.riskAverse and u.randomInt(10) == 1
                 medium.access(agent)
           else
             if u.randomInt(20) == 1
               medium.access(agent)
 
+    if @animator.ticks == @config.warmupPeriod
+      @resetData()
 
     unless @isHeadless
       window.modelUI.drawPlot()
+
+      if @animator.ticks == @config.warmupPeriod
+        window.modelUI.resetPlot()
 
     @media.once()
 
@@ -247,7 +193,7 @@ class MM.Model extends ABM.Model
     else
       @config[key] = value
     @config.check()
-    @config.setFunctions()
+    @config.setFunctions() # IMPORTANT!
 
     if key == "view"
       @views.changed()

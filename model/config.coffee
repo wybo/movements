@@ -15,7 +15,7 @@ log = (object) -> console.log object
 MM.TYPES = u.indexHash(["normal", "enclave", "focalPoint", "activesAdvance", "square"])
 MM.SUPPRESSION = u.indexHash(["normal", "micro", "fearless"])
 MM.CALCULATIONS = u.indexHash(["real", "epstein", "wilensky", "overwhelmed", "overpowered"])
-MM.LEGITIMACY_CALCULATIONS = u.indexHash(["base", "arrests"])
+MM.LEGITIMACY_CALCULATIONS = u.indexHash(["normal", "activism", "evidence"])
 MM.FRIENDS = u.indexHash(["none", "random", "cliques", "local"])
 MM.MEDIA = u.indexHash(["none", "tv", "newspaper", "telephone", "email", "website", "forum", "blog", "facebookWall", "twitter"])
 MM.MEDIUM_CENSORSHIP = u.indexHash(["normal", "uncensored", "totalCensorship", "micro"])
@@ -28,28 +28,29 @@ class MM.Config
     @type = MM.TYPES.normal
     @suppression = MM.SUPPRESSION.normal
     @calculation = MM.CALCULATIONS.real
-    @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.arrests
-    @friends = MM.FRIENDS.local
+    @legitimacyCalculation = MM.LEGITIMACY_CALCULATIONS.normal
+    @friends = MM.FRIENDS.none
     #@media = new ABM.Array MM.MEDIA.website
-    @media = new ABM.Array MM.MEDIA.twitter
+    @media = new ABM.Array MM.MEDIA.none
     @mediumCensorship = MM.MEDIUM_CENSORSHIP.normal
     #@view = MM.VIEWS.regimeLegitimacy
     #@view = MM.VIEWS.riskAversion
     #@view = MM.VIEWS.website
-    @view = MM.VIEWS.twitter
+    @view = MM.VIEWS.none
     @smartPhones = false
 
     @riskAversionDistributionNormal = false
     @hardshipDistributionNormal = false
     
-    @holdActivation = true # hold off
-    @holdInterval = 150 # for hold type
-    @holdReleaseDuration = 50
-    @holdOnlyIfNotified = true
+    @synchronizeProtest = false # hold off
+    @coordinateProtest = false # build up to, while hiding
+    @notifyOfProtest = false # require notifications for either of the above
+    @protestCycle = 150 # for the two above
+    @protestDuration = 50 # for the two above
 
     @copsRetreat = false
     @copsDefect = false
-    #@prisonCapacity = 0.20
+    #@prisonCapacity = 0.10
     @prisonCapacity = 1.00
 
     @friendsNumber = 30 # also used for Fb
@@ -57,7 +58,7 @@ class MM.Config
     @friendsHardshipHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsRiskAversionHomophilous = false # If true range has to be 6 min, and friends max 30 or will have fewer
     @friendsLocalRange = 6
-    @friendsRevealHidden = false # Towards friends signal as if there are no cops around. Uncensored for this on media
+    @friendsRevealFearless = false # Towards friends signal as if there are no cops around. Uncensored for this on media
 
     @mediaOnlineTime = 5
     @mediaAverageReceiveNr = 5 # TODO: Nr of messages that agents should receive on average on every tick; false for media-dependent
@@ -70,12 +71,13 @@ class MM.Config
     #@copDensity = 0.04
     #@copDensity = 0.012
     @copDensity = 0.03
-    @arrestDuration = 2
+    #@arrestDuration = 2
+    @arrestDuration = 0
     @maxPrisonSentence = 30 # J
     #@baseRegimeLegitimacy = 0.85 # L
-    #@baseRegimeLegitimacy = 0.80 # L
-    @baseRegimeLegitimacy = 0.72 # L
-    #@baseRegimeLegitimacy = 0.82 # best with base
+    #@baseRegimeLegitimacy = 0.70 # L
+    #@baseRegimeLegitimacy = 0.66 # best with arrest delay 2 + friends etc
+    @baseRegimeLegitimacy = 0.56 # best with base
     @threshold = 0.1
     @thresholdMicro = 0.0
     #@vision = {diamond: 7} # Neumann 7, v and v*
@@ -83,13 +85,15 @@ class MM.Config
     @walk = {radius: 2} # Neumann 7, v and v*
     @kConstant = 2.3 # k
 
+    @warmupPeriod = 0 # Time in ticks before charting / cops defect, etc
+
     @ui = {
       #      passives: {label: "Passives", color: "green"},
       actives: {label: "Actives", color: "red"},
       #micros: {label: "Micros", color: "orange"},
       #arrests: {label: "Arrests", color: "purple"},
-      #prisoners: {label: "Prisoners", color: "black"},
-      cops: {label: "Cops", color: "blue"}
+      prisoners: {label: "Prisoners", color: "black"},
+      cops: {label: "State Actors", color: "blue"}
       #onlines: {label: "Onlines", color: "cyan"}
     }
 
@@ -138,7 +142,7 @@ class MM.Config
 
   setFunctions: ->
     # ### Defaults
-
+    
     @colorPatch = (patch) ->
       patch.color = u.color.random type: "gray", min: 224, max: 255
 
@@ -163,6 +167,17 @@ class MM.Config
     @move = ->
       @moveToRandomEmptyNeighbor(@config.walk)
 
+    @moveAndArrest = ->
+      @config.initiateArrest.call(@)
+      @moveToRandomEmptyNeighbor()
+
+    @initiateArrest = ->
+      protester = @neighbors(@config.vision).sample(condition: (agent) ->
+        agent.breed.name is "citizens" and agent.active)
+
+      if protester
+        protester.imprison()
+
     @moveOffIfOnline = ->
       if @online()
         if @position
@@ -173,30 +188,40 @@ class MM.Config
 
     @maintainFriends = ->
 
+    @maintainNotify = ->
+
     @resetAllFriends = ->
 
     @sampleOnlineFriend = ->
       return null
 
     @calculateActiveStatus = (grievance, netRisk) ->
-      activation = grievance - netRisk
-   
-      if activation > @config.threshold
-        return {micro: 1.0, activism: 1.0, hidden_activism: 1.0, active: true}
-      else if activation > @config.thresholdMicro
-        return {micro: 0.4, activism: 0.0, hidden_activism: 0.0, active: false}
+      if grievance > @config.threshold
+        fearless_activism = 1.0
       else
-        return {micro: 0.0, activism: 0.0, hidden_activism: 0.0, active: false}
+        fearless_activism = 0.0
+
+      activation = grievance - netRisk
+
+      if activation > @config.threshold
+        return {micro: 1.0, activism: 1.0, fearless_activism: fearless_activism, active: true}
+      else if activation > @config.thresholdMicro
+        return {micro: 0.4, activism: 0.0, fearless_activism: fearless_activism, active: false}
+      else
+        return {micro: 0.0, activism: 0.0, fearless_activism: fearless_activism, active: false}
 
     @setStatus = (status) ->
       @active = status.active
       @micro = status.micro
       @activism = status.activism
-      @hidden_activism = status.hidden_activism
+      @fearless_activism = status.fearless_activism
 
     @setMessageStatus = ->
       @active = @from.original.active
       @activism = @from.original.activism
+
+      if @from.original.gotEvidence
+        @evidence = true
 
     @micros = ->
       return []
@@ -204,6 +229,12 @@ class MM.Config
     @genericViewPopulate = ->
 
     @genericViewStep = ->
+
+    @doAct = ->
+      true
+
+    @copDoAct = ->
+      true
 
     # ### Types
     
@@ -247,7 +278,7 @@ class MM.Config
         @active = status.active
         @micro = status.micro
         @activism = status.micro # micro taken for activism
-        @hidden_activism = status.hidden_activism
+        @fearless_activism = status.fearless_activism
 
       @micros = ->
         micros = []
@@ -261,8 +292,8 @@ class MM.Config
       @setStatus = (status) ->
         @active = status.active
         @micro = status.micro
-        @activism = status.hidden_activism # hidden_activism taken for activism
-        @hidden_activism = status.hidden_activism
+        @activism = status.fearless_activism # fearless_activism taken for activism
+        @fearless_activism = status.fearless_activism
 
     # ### Calculations
 
@@ -291,7 +322,7 @@ class MM.Config
  
     # ### Legitimacy Calculations
 
-    if MM.LEGITIMACY_CALCULATIONS.arrests == @legitimacyCalculation
+    if MM.LEGITIMACY_CALCULATIONS.normal != @legitimacyCalculation
       @regimeLegitimacy = ->
         if @imprisoned()
           return @config.baseRegimeLegitimacy
@@ -305,10 +336,31 @@ class MM.Config
           else
             count = @countNeighbors(vision: @config.vision)
 
-          @lastLegitimacyDrop = (@lastLegitimacyDrop * 2 + @calculateLegitimacyDrop(count)) / 3
+          @lastLegitimacyDrop = (@lastLegitimacyDrop * 2 + @config.calculateLegitimacyDrop.call(@, count)) / 3
 
           return @config.baseRegimeLegitimacy - @lastLegitimacyDrop * 0.1
-  
+
+    if MM.LEGITIMACY_CALCULATIONS.activism == @legitimacyCalculation
+      @calculateLegitimacyDrop = (count) ->
+        if count.citizens == 0
+          return 0
+        else
+          return count.activism / count.citizens
+
+    if MM.LEGITIMACY_CALCULATIONS.evidence == @legitimacyCalculation
+      #return count.arrests / (count.citizens - count.activism)
+      # could consider taking min of cops + activism, police-violence
+      # or arrests
+      # Make active agents share photos of fights
+      # Two things expressed. Grievance/active and photos
+      @calculateLegitimacyDrop = (count) ->
+        if count.citizens == 0
+          return 0
+        else if count.evidence > 0
+          return 1
+        else
+          return count.activism / count.citizens
+
     # ### Friends
 
     if MM.FRIENDS.none != @friends
@@ -351,27 +403,30 @@ class MM.Config
       @setMessageStatus = ->
         @active = false
         @activism = 0
+        @evidence = false
 
-    else if MM.MEDIUM_CENSORSHIP.uncensored == @mediumCensorship # Also below, friendsRevealHidden
+    else if MM.MEDIUM_CENSORSHIP.uncensored == @mediumCensorship # Also below, friendsRevealFearless
       @setMessageStatus = ->
-        @activism = @from.original.hidden_activism
+        @activism = @from.original.fearless_activism
         if @activism == 1.0
           @active = true
         else
           @active = false
+
+        if @from.original.gotEvidence
+          @evidence = true
 
     else if MM.MEDIUM_CENSORSHIP.micro == @mediumCensorship
       @setMessageStatus = ->
         @active = @from.original.active
         @activism = @from.original.micro
 
-      #if @from.original.sawArrest # TODO fix/improve
-      #  @active = true
-      #  @activism = 1
+        if @from.original.gotEvidence
+          @evidence = true
 
     # ### Misc settings
 
-    if @holdActivation
+    if @notifyOfProtest
       @colorPatch = (patch) ->
         dark = false
         if patch.position.y % 2 == 0
@@ -388,26 +443,103 @@ class MM.Config
         else
           patch.color = u.color.from([241, 241, 241])
 
-    if @smartPhones
-      @moveOffIfOnline = ->
-        if !@position
-          @moveToRandomEmptyLocation()
+      @maintainNotify = ->
+        if @patch.noticeCounter
+          @patch.noticeCounter -= 1
+          if @patch.noticeCounter == 0
+            @patch.noticeCounter = null
+            @config.colorPatch(@patch)
+          @notified = true
 
-    if @friendsRevealHidden or MM.MEDIUM_CENSORSHIP.uncensored == @mediumCensorship
+        if u.randomInt(200) == 1
+          @leaveNotice()
+
+    if @synchronizeProtest
       @calculateActiveStatus = (grievance, netRisk) ->
-        if grievance > @config.threshold
-          hidden_activism = 1.0
+        bestActive = true
+        bestActivism = 1.0
+        if @notifyOfProtest
+          if @notified
+            if @model.animator.ticks % @config.protestCycle == @config.protestDuration
+              @notified = false
+
+            if @model.animator.ticks % @config.protestCycle > @config.protestDuration
+              bestActive = false
+              bestActivism = 0.0
         else
-          hidden_activism = 0.0
+          if @model.animator.ticks % @config.protestCycle > @config.protestDuration
+            bestActive = false
+            bestActivism = 0.0
+
+        if grievance > @config.threshold
+          fearless_activism = 1.0
+        else
+          fearless_activism = 0.0
 
         activation = grievance - netRisk
 
         if activation > @config.threshold
-          return {micro: 1.0, activism: 1.0, hidden_activism: hidden_activism, active: true}
+          return {micro: bestActivism, activism: bestActivism, fearless_activism: fearless_activism, active: bestActive}
         else if activation > @config.thresholdMicro
-          return {micro: 0.4, activism: 0.0, hidden_activism: hidden_activism, active: false}
+          return {micro: 0.4, activism: 0.0, fearless_activism: fearless_activism, active: false}
         else
-          return {micro: 0.0, activism: 0.0, hidden_activism: hidden_activism, active: false}
+          return {micro: 0.0, activism: 0.0, fearless_activism: fearless_activism, active: false}
+
+    if @coordinateProtest
+      @calculateActiveStatus = (grievance, netRisk) ->
+        bestActive = true
+        if @notifyOfProtest
+          if @notified
+            if @model.animator.ticks % @config.protestCycle == @config.protestDuration
+              @notified = false
+
+            if @model.animator.ticks % @config.protestCycle > @config.protestDuration
+              bestActive = false
+        else
+          if @model.animator.ticks % @config.protestCycle > @config.protestDuration
+            bestActive = false
+
+        if grievance > @config.threshold
+          fearless_activism = 1.0
+        else
+          fearless_activism = 0.0
+
+        activation = grievance - netRisk
+
+        if activation > @config.threshold
+          return {micro: 1.0, activism: 1.0, fearless_activism: fearless_activism, active: bestActive}
+        else if activation > @config.thresholdMicro
+          return {micro: 0.4, activism: 0.0, fearless_activism: fearless_activism, active: false}
+        else
+          return {micro: 0.0, activism: 0.0, fearless_activism: fearless_activism, active: false}
+
+    if @copsDefect
+      @moveAndArrest = ->
+        count = @countNeighbors(vision: @config.vision)
+        count.cops += 1
+
+        if count.activism * 2 > count.citizens and count.cops * 10 < count.activism and @model.animator.ticks > @config.warmupPeriod
+          patch = @patch
+          @die()
+          @model.citizens.create 1, (citizen) =>
+            @model.setupCitizen(citizen)
+            citizen.moveTo(patch.position)
+        else
+          @config.initiateArrest.call(@)
+          @moveToRandomEmptyNeighbor()
+
+    if @copsRetreat
+      @moveAndArrest = ->
+        if @calculateCopWillMakeArrestProbability(count) < u.randomFloat()
+          @moveTowardsArrestProbability(@config.walk, @config.vision, true)
+        else
+          @config.initiateArrest.call(@)
+          @moveToRandomEmptyNeighbor()
+
+    if @smartPhones
+      @moveOffIfOnline = ->
+        if !@position
+          @moveToRandomEmptyLocation()
 
     if @riskAversionDistributionNormal
       @riskAversionDistribution = ->
@@ -416,6 +548,33 @@ class MM.Config
     if @hardshipDistributionNormal
       @hardshipDistribution = ->
         return u.clamp(u.randomNormal(0.5, 0.5 / 3), 0, 1)
+
+    if @arrestDuration > 0
+      @doAct = ->
+        if @fighting()
+          false
+        else
+          true
+
+      @copDoAct = ->
+        if @fighting()
+          @arresting.beatUp()
+          if !@arresting.fighting()
+            @arresting.imprison()
+            @arresting = null
+
+        if @fighting()
+          false
+        else
+          true
+
+      @initiateArrest = ->
+        protester = @neighbors(@config.vision).sample(condition: (agent) ->
+          agent.breed.name is "citizens" and agent.active and !agent.fighting())
+
+        if protester
+          @arresting = protester
+          @arresting.beginArrest()
 
     # ### Views
 
@@ -478,11 +637,20 @@ class MM.Config
     if @testRun && @modelOptions.isHeadless
       throw "Cannot be a testRun if headless"
 
-    if @friendsMultiplier < 1
-      throw "friendsMultiplier should be 1 (cancels) or over"
+    if @synchronizeProtest and @coordinateProtest
+      throw "SynchronizeProtest and coordinateProtest incompatible, overlap"
 
-    if @arrestDuration < 1 and MM.LEGITIMACY_CALCULATIONS.arrests == @legitimacyCalculation
-      throw "arrests need to be visible for legitimacyCalculation"
+    if @notifyOfProtest and !@synchronizeProtest and !@coordinateProtest
+      throw "Notify meaningless without either set"
+
+    if @copsDefect and @copsRetreat
+      throw "CopsDefect and copsRetreat cannot both be set!"
+
+    if @friendsMultiplier < 1
+      throw "FriendsMultiplier should be 1 (cancels) or over"
+
+    if @arrestDuration < 1 and MM.LEGITIMACY_CALCULATIONS.evidence == @legitimacyCalculation
+      throw "Arrests need to be violent for legitimacyCalculation to be based on brutality evidence"
 
     if @mediaChannels > @mediaModelOptions.max.x + 1
       throw "Too many channels for world size"
